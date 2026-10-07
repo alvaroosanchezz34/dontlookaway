@@ -85,8 +85,11 @@ function LightingService:GetPreset(): string
 	return current
 end
 
-function LightingService:SetPower(on: boolean)
+function LightingService:SetPower(on: boolean, keepPreset: boolean?)
 	workspace:SetAttribute("Power", on)
+	if keepPreset then
+		return
+	end
 	if on then
 		self:ApplyPreset("POWERED", 1.2)
 	else

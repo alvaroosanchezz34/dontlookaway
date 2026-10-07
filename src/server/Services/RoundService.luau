@@ -12,6 +12,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Enums = require(ReplicatedStorage.Shared.Enums)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
+local SeededRandom = require(ReplicatedStorage.Shared.Util.SeededRandom)
 local Signal = require(ReplicatedStorage.Shared.Util.Signal)
 local Registry = require(script.Parent.Parent.Registry)
 
@@ -366,7 +367,7 @@ local function returnToLobby()
 	Registry.ObjectiveService:Clear()
 	Registry.InventoryService:ClearPickups()
 	workspace:SetAttribute("Escape", false)
-	Registry.LightingService:SetPower(false)
+	Registry.LightingService:SetPower(false, true)
 	task.wait(GameConfig.Round.ReturningDuration)
 	participants = {}
 	exploringStartedAt = 0
@@ -402,12 +403,11 @@ function RoundService:StartRound(players: { Player }, chosenDifficulty: string)
 		setState(RS.Lobby)
 		return false
 	end
+	Registry.LightingService:SetPower(false, true)
 	Registry.LightingService:ApplyPreset("OUTSIDE", 1)
-	Registry.LightingService:SetPower(false)
-	Registry.LightingService:ApplyPreset("OUTSIDE", 0.5)
 	Registry.AnomalyService:BeginRound(seed)
 	Registry.ObserverService:BeginRound()
-	Registry.ObjectiveService:Plan(map, Registry.HorrorDirector:Rng():Derive("objectives"), #players)
+	Registry.ObjectiveService:Plan(map, SeededRandom.new(seed, "objectives"), #players)
 	-- arrive outside, in the rain
 	for i, p in players do
 		Registry.InventoryService:Reset(p)

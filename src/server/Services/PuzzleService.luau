@@ -253,7 +253,7 @@ local function onKeypad(player: Player, target: Instance): boolean
 	return true
 end
 
-local function submitCode(player: Player, code: any)
+function PuzzleService:SubmitCode(player: Player, code: any)
 	if not ctx or not ctx.keypad or not isChosen("CODE") or ctx.keypadSolved then
 		return
 	end
@@ -311,6 +311,10 @@ local function onOverride(player: Player, target: Instance): boolean
 		return false
 	end
 	if ctx.overridePulled then
+		return false
+	end
+	if not ctx.keypadSolved then
+		notify(player, "The override is locked behind the security door.")
 		return false
 	end
 	ctx.overridePulled = true
@@ -602,7 +606,7 @@ function PuzzleService:Init()
 			return
 		end
 		if kind == "keypad" then
-			submitCode(player, payload)
+			PuzzleService:SubmitCode(player, payload)
 		end
 	end)
 end

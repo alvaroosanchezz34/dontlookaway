@@ -435,7 +435,7 @@ return {
 		candidates = function(ctx)
 			local list = {}
 			for _, rec in ctx.map.Doors do
-				if rec.model and rec.model:HasTag("Door") and rec.model:GetAttribute("Open") then
+				if rec.model and rec.model:HasTag("Door") and rec.model:GetAttribute("Kind") == "normal" then
 					local a, b = ctx.map.Rooms[rec.roomA or ""], ctx.map.Rooms[rec.roomB or ""]
 					if a and b and (a.kind == "corridor" or b.kind == "corridor") then
 						local d = ctx:nearest(rec.center)
@@ -460,6 +460,12 @@ return {
 				anchors = { { pos = pos + Vector3.new(0, 4, 0), radius = 3.6 } },
 				checkPoints = { head, pos + Vector3.new(0, 3, 0) },
 				lifetime = 75,
+				onApplied = function()
+					-- the door it stands behind creaks open on its own
+					if not rec.model:GetAttribute("Open") then
+						Registry.DoorService:SetOpen(rec.model, true)
+					end
+				end,
 				update = function(inst, dt)
 					local limit = stareLimit()
 					for _, p in inst.players do
