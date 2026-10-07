@@ -19,12 +19,17 @@ local CELL = Layout.Cell
 local LH = Layout.LevelHeight
 local CH = Layout.CeilingHeight
 local DH = Layout.DoorHeight
+-- Full-height structure (walls, lintels, window heads) stops this far below the
+-- next floor's walking surface so its top face never shares a plane with the
+-- floor above (that flickers: z-fighting).
+local TOP_INSET = 0.05
 
 local M = Enum.Material
 
 local WALL_COLOR = Color3.fromRGB(78, 66, 58)
 local STRUCT_COLOR = Color3.fromRGB(60, 60, 60)
 local TRIM_COLOR = Color3.fromRGB(52, 40, 30)
+local CORNICE_COLOR = Color3.fromRGB(150, 146, 136)
 
 local DIRS = {
 	{ dx = 1, dz = 0 },
@@ -252,6 +257,21 @@ local function buildCeilings(map, floor, folder, isTop)
 		local part = Build.part(folder, "Ceiling", Vector3.new(size.X, 1, size.Z), cf, style.ceiling[2], style.ceiling[1])
 		part:SetAttribute("Room", room.id)
 		table.insert(room.ceilingParts, part)
+		-- offices, corridors and wet rooms get a suspended ceiling: a T-bar grid
+		if style.light == "fluoro" and room.kind ~= "stairs" then
+			local y = floor.y + CH - 0.03
+			local x0, x1 = cf.Position.X - size.X / 2, cf.Position.X + size.X / 2
+			local z0, z1 = cf.Position.Z - size.Z / 2, cf.Position.Z + size.Z / 2
+			local gridCol = style.ceiling[2]:Lerp(Color3.fromRGB(200, 200, 196), 0.35)
+			for x = x0 + CELL, x1 - CELL / 2, CELL do
+				local bar = Build.detail(folder, "CeilingGrid", Vector3.new(0.12, 0.06, size.Z - 0.5), CFrame.new(x, y, (z0 + z1) / 2), gridCol, M.Metal)
+				bar.CastShadow = false
+			end
+			for z = z0 + CELL, z1 - CELL / 2, CELL do
+				local bar = Build.detail(folder, "CeilingGrid", Vector3.new(size.X - 0.5, 0.08, 0.12), CFrame.new((x0 + x1) / 2, y - 0.01, z), gridCol, M.Metal)
+				bar.CastShadow = false
+			end
+		end
 	end
 end
 
@@ -270,8 +290,9 @@ local function buildWalls(map, floor, folder, capCells)
 	local wallMat = if floor.id == "B" then M.Concrete else M.Brick
 	local wallCol = if floor.id == "B" then Color3.fromRGB(66, 66, 64) else WALL_COLOR
 	for _, r in greedy(cells, width, height) do
-		local cf, size = rectCFrame(r, floor.y + LH / 2)
-		Build.part(folder, "Wall", Vector3.new(size.X, LH, size.Z), cf, wallCol, wallMat)
+		local cf, size = rectCFrame(r, floor.y + (LH - TOP_INSET) / 2)
+		-- 2 cm proud on every side: slab edges and neighbouring blocks hide inside it
+		Build.part(folder, "Wall", Vector3.new(size.X + 0.04, LH - TOP_INSET, size.Z + 0.04), cf, wallCol, wallMat)
 	end
 end
 
@@ -356,7 +377,14 @@ local function buildSkins(map, floor, folder, rng, capCells)
 					return
 				end
 				local t = thick or 0.2
-				local p = Build.part(folder, name or "Skin", Vector3.new(len, y1 - y0, t), cfBase * CFrame.new(0, (y0 + y1) / 2, -t / 2), col, mat)
+				-- trims run a little past the finish and sit a hair off the wall and the
+				-- floor, so none of their faces share a plane with the skin (flicker)
+				local trim = name ~= nil
+				local extra = if trim then 0.06 else 0
+				if trim and y0 < 0.02 then
+					y0 = 0.02
+				end
+				local p = Build.part(folder, name or "Skin", Vector3.new(len + extra, y1 - y0, t), cfBase * CFrame.new(0, (y0 + y1) / 2, -t / 2 - (if trim then 0.015 else 0)), col, mat)
 				p.CastShadow = false
 				p:SetAttribute("Room", room.id)
 				table.insert(room.wallParts, p)
@@ -395,6 +423,12 @@ local function buildSkins(map, floor, folder, rng, capCells)
 			elseif seg.cls == "door" then
 				band(DH, CH, upperMat, upperCol)
 			end
+			-- crown moulding where wall meets ceiling (every segment, so it runs unbroken)
+			local cornice = band(CH - 0.33, CH - 0.015, M.Plaster, CORNICE_COLOR, 0.24, "Cornice")
+			if cornice then
+				cornice.CanCollide = false
+				cornice.CanQuery = false
+			end
 		end
 	end
 end
@@ -414,7 +448,7 @@ local function makeDoorModel(map, floor, folder, x: number, z: number, ch: strin
 	local roomB = roomIdAt(floor, x + (if passageX then 1 else 0), z + (if passageX then 0 else 1))
 
 	-- lintel above the opening
-	Build.part(folder, "Lintel", Vector3.new(CELL, LH - DH, CELL), CFrame.new(center + Vector3.new(0, DH + (LH - DH) / 2, 0)), if floor.id == "B" then Color3.fromRGB(66, 66, 64) else WALL_COLOR, if floor.id == "B" then M.Concrete else M.Brick)
+	Build.part(folder, "Lintel", Vector3.new(CELL, LH - DH - TOP_INSET, CELL), CFrame.new(center + Vector3.new(0, DH + (LH - DH - TOP_INSET) / 2, 0)), if floor.id == "B" then Color3.fromRGB(66, 66, 64) else WALL_COLOR, if floor.id == "B" then M.Concrete else M.Brick)
 
 	if ch == "E" or ch == "X" then
 		-- exterior openings are built as part of the entrance / exit set pieces
@@ -441,7 +475,7 @@ local function makeDoorModel(map, floor, folder, x: number, z: number, ch: strin
 		local boards = Build.model(folder, "BoardedPassage", frameCF)
 		local blocker = Build.part(boards, "Blocker", Vector3.new(CELL - 0.6, DH - 0.3, 0.6), frameCF * CFrame.new(0, (DH - 0.3) / 2, -1.2), Color3.fromRGB(50, 40, 32), M.WoodPlanks)
 		for i = 0, 5 do
-			Build.part(boards, "Plank", Vector3.new(CELL + 0.2, 0.9, 0.25), frameCF * CFrame.new(0, 0.9 + i * 1.5, -1.6) * CFrame.Angles(0, 0, math.rad(rng:Number(-14, 14))), Build.vary(Props.Colors.woodLight, rng, 0.1), M.WoodPlanks, { CanCollide = false })
+			Build.part(boards, "Plank", Vector3.new(CELL + 0.2, 0.9, 0.25), frameCF * CFrame.new(0, 0.9 + i * 1.5, -1.6 - (i % 2) * 0.04) * CFrame.Angles(0, 0, math.rad(rng:Number(-14, 14))), Build.vary(Props.Colors.woodLight, rng, 0.1), M.WoodPlanks, { CanCollide = false })
 		end
 		blocker:AddTag("Interactable")
 		blocker:SetAttribute("InteractKind", "Boards")
@@ -561,8 +595,8 @@ local function buildDoorsAndWindows(map, floor, folder, rng)
 				-- sill + head blocks
 				local center = Layout.cellToWorld(floor.y, x, z)
 				local wallMat = if floor.id == "B" then M.Concrete else M.Brick
-				Build.part(folder, "Sill", Vector3.new(CELL, Layout.WindowSill, CELL), CFrame.new(center + Vector3.new(0, Layout.WindowSill / 2, 0)), WALL_COLOR, wallMat)
-				Build.part(folder, "WindowHead", Vector3.new(CELL, LH - Layout.WindowTop, CELL), CFrame.new(center + Vector3.new(0, Layout.WindowTop + (LH - Layout.WindowTop) / 2, 0)), WALL_COLOR, wallMat)
+				Build.part(folder, "Sill", Vector3.new(CELL + 0.04, Layout.WindowSill, CELL + 0.04), CFrame.new(center + Vector3.new(0, Layout.WindowSill / 2, 0)), WALL_COLOR, wallMat)
+				Build.part(folder, "WindowHead", Vector3.new(CELL + 0.04, LH - Layout.WindowTop - TOP_INSET, CELL + 0.04), CFrame.new(center + Vector3.new(0, Layout.WindowTop + (LH - Layout.WindowTop - TOP_INSET) / 2, 0)), WALL_COLOR, wallMat)
 				-- find the room side
 				for _, d in DIRS do
 					local rid = roomIdAt(floor, x + d.dx, z + d.dz)
@@ -665,7 +699,7 @@ local function buildStairs(map, floor, folder, hasAbove: boolean)
 			local ramp = Build.part(folder, "Ramp", Vector3.new(w - 0.4, 0.4, len), rampCF * CFrame.new(0, stepRise / 2 - 0.2, 0), Color3.new(), M.SmoothPlastic, { Transparency = 1, CastShadow = false })
 			ramp:AddTag("StairRamp")
 			-- solid underside
-			Build.part(folder, "Stringer", Vector3.new(w - 0.4, 0.8, len), rampCF * CFrame.new(0, -1.1, 0), Color3.fromRGB(70, 70, 68), M.Concrete, { CanCollide = false })
+			Build.part(folder, "Stringer", Vector3.new(w - 0.6, 0.8, len), rampCF * CFrame.new(0, -1.1, 0), Color3.fromRGB(70, 70, 68), M.Concrete, { CanCollide = false })
 		end
 		-- flight 1 (west half): landing -> mid landing, heading north
 		flight(x0, xMid, zLanding, zMidBottom, y)
@@ -674,7 +708,7 @@ local function buildStairs(map, floor, folder, hasAbove: boolean)
 		-- flight 2 (east half): mid landing -> next floor landing, heading south
 		flight(xMid, x1, zMidBottom, zLanding, y + rise)
 		-- centre divider wall between the flights
-		Build.part(folder, "Divider", Vector3.new(0.8, LH, zLanding - zMidBottom), CFrame.new(O + Vector3.new(xMid, y + LH / 2, (zMidBottom + zLanding) / 2)), style.upper[2], style.upper[1])
+		Build.part(folder, "Divider", Vector3.new(0.8, LH - TOP_INSET, zLanding - zMidBottom - 0.06), CFrame.new(O + Vector3.new(xMid, y + (LH - TOP_INSET) / 2, (zMidBottom + zLanding) / 2)), style.upper[2], style.upper[1])
 		-- handrails along the divider
 		for _, s in { -1, 1 } do
 			local rx = xMid + s * 0.6
@@ -687,8 +721,8 @@ local function buildStairs(map, floor, folder, hasAbove: boolean)
 	end
 	if not hasAbove and floor.level > -1 then
 		-- top floor: the west half of the landing looks down into the shaft
-		Build.part(folder, "GuardRail", Vector3.new(xMid - x0, 3.4, 0.25), CFrame.new(O + Vector3.new((x0 + xMid) / 2, y + 1.7, zLanding + 0.15)), Props.Colors.metalDark, M.Metal)
-		Build.part(folder, "GuardRail", Vector3.new(0.25, 3.4, zLanding - zMidTop), CFrame.new(O + Vector3.new(xMid + 0.5, y + 1.7, (zMidTop + zLanding) / 2)), Props.Colors.metalDark, M.Metal)
+		Build.part(folder, "GuardRail", Vector3.new(xMid - x0, 3.4, 0.25), CFrame.new(O + Vector3.new((x0 + xMid) / 2, y + 1.73, zLanding + 0.15)), Props.Colors.metalDark, M.Metal)
+		Build.part(folder, "GuardRail", Vector3.new(0.25, 3.4, zLanding - zMidTop), CFrame.new(O + Vector3.new(xMid + 0.5, y + 1.73, (zMidTop + zLanding) / 2)), Props.Colors.metalDark, M.Metal)
 	end
 	-- floor number painted on the landing wall
 	local plate = O + Vector3.new(x0 + 0.05, y + 7, (zLanding + (sw.z1 + 1) * CELL) / 2)
@@ -839,9 +873,9 @@ local function buildExpansions(map, folder, rng)
 		Build.part(group, "Floor", Vector3.new(sx, 1, sz), CFrame.new(O + Vector3.new(cx, y - 0.5, cz)), style.floor[2], style.floor[1])
 		Build.part(group, "Ceiling", Vector3.new(sx + CELL, 1, sz), CFrame.new(O + Vector3.new(cx + CELL / 2, y + CH + 0.5, cz)), style.ceiling[2], style.ceiling[1])
 		-- surrounding walls
-		Build.part(group, "WallN", Vector3.new(sx + CELL, LH, CELL), CFrame.new(O + Vector3.new(cx - CELL / 2, y + LH / 2, exp.z0 * CELL - CELL / 2)), Color3.fromRGB(66, 66, 64), M.Concrete)
-		Build.part(group, "WallS", Vector3.new(sx + CELL, LH, CELL), CFrame.new(O + Vector3.new(cx - CELL / 2, y + LH / 2, (exp.z1 + 1) * CELL + CELL / 2)), Color3.fromRGB(66, 66, 64), M.Concrete)
-		Build.part(group, "WallW", Vector3.new(CELL, LH, sz), CFrame.new(O + Vector3.new(exp.x0 * CELL - CELL / 2, y + LH / 2, cz)), Color3.fromRGB(66, 66, 64), M.Concrete)
+		Build.part(group, "WallN", Vector3.new(sx + CELL, LH - TOP_INSET, CELL), CFrame.new(O + Vector3.new(cx - CELL / 2, y + (LH - TOP_INSET) / 2, exp.z0 * CELL - CELL / 2)), Color3.fromRGB(66, 66, 64), M.Concrete)
+		Build.part(group, "WallS", Vector3.new(sx + CELL, LH - TOP_INSET, CELL), CFrame.new(O + Vector3.new(cx - CELL / 2, y + (LH - TOP_INSET) / 2, (exp.z1 + 1) * CELL + CELL / 2)), Color3.fromRGB(66, 66, 64), M.Concrete)
+		Build.part(group, "WallW", Vector3.new(CELL, LH - TOP_INSET, sz), CFrame.new(O + Vector3.new(exp.x0 * CELL - CELL / 2, y + (LH - TOP_INSET) / 2, cz)), Color3.fromRGB(66, 66, 64), M.Concrete)
 		-- interior skins
 		for _, side in { { "N", exp.z0 * CELL, 1 }, { "S", (exp.z1 + 1) * CELL, -1 } } do
 			Build.part(group, "Skin", Vector3.new(sx + CELL, CH, 0.2), CFrame.new(O + Vector3.new(cx + CELL / 2, y + CH / 2, side[2] + side[3] * 0.1)), style.upper[2], style.upper[1])
@@ -865,7 +899,7 @@ local function buildExpansions(map, folder, rng)
 		local capX = exp.capX
 		Build.part(capGroup, "Cap", Vector3.new(CELL, CH, sz), CFrame.new(O + Vector3.new(capX * CELL + CELL / 2, y + CH / 2, cz)), Color3.fromRGB(66, 66, 64), M.Concrete)
 		-- the top of the wall stays when the cap opens
-		Build.part(folder, "CapTop", Vector3.new(CELL, LH - CH, sz), CFrame.new(O + Vector3.new(capX * CELL + CELL / 2, y + CH + (LH - CH) / 2, cz)), Color3.fromRGB(66, 66, 64), M.Concrete)
+		Build.part(folder, "CapTop", Vector3.new(CELL, LH - CH - TOP_INSET, sz), CFrame.new(O + Vector3.new(capX * CELL + CELL / 2, y + CH + (LH - CH - TOP_INSET) / 2, cz)), Color3.fromRGB(66, 66, 64), M.Concrete)
 		-- the cap's room-facing skin
 		Build.part(capGroup, "CapSkin", Vector3.new(0.2, CH, sz), CFrame.new(O + Vector3.new((capX + 1) * CELL + 0.1, y + CH / 2, cz)), style.upper[2], style.upper[1])
 		map.Expansions[name] = { group = group, cap = capGroup, def = exp }
@@ -915,7 +949,7 @@ local function buildExterior(map, folder, rng)
 	local doorX = 20 * CELL
 	local frontZ = 30 * CELL
 	for i = 1, 3 do
-		Build.part(folder, "Step", Vector3.new(14 - i, 0.25, 1.5), CFrame.new(O + Vector3.new(doorX, -0.125 + 0.25 * (3 - i) + 0.02, frontZ + 1.5 * i - 0.75)), Color3.fromRGB(86, 84, 80), M.Concrete)
+		Build.part(folder, "Step", Vector3.new(14 - i, 0.25, 1.5), CFrame.new(O + Vector3.new(doorX, -0.125 + 0.25 * (3 - i) + 0.06, frontZ + 1.5 * i - 0.75)), Color3.fromRGB(86, 84, 80), M.Concrete)
 	end
 	Build.part(folder, "Canopy", Vector3.new(14, 0.6, 7), CFrame.new(O + Vector3.new(doorX, 12, frontZ + 3.5)), Color3.fromRGB(40, 38, 36), M.Metal)
 	for _, s in { -1, 1 } do

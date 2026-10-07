@@ -227,9 +227,11 @@ function LightingService:Init()
 		Brightness = 0.6,
 		ClockTime = 0.4,
 		GeographicLatitude = 30,
-		EnvironmentDiffuseScale = 0.22,
-		EnvironmentSpecularScale = 0.45,
-		ShadowSoftness = 0.3,
+		-- full specular: the 2022 materials (tile, marble, metal, wet floors) catch
+		-- the lights; crisp contact shadows read as real space
+		EnvironmentDiffuseScale = 0.45,
+		EnvironmentSpecularScale = 1,
+		ShadowSoftness = 0.15,
 		FogEnd = 100000,
 	}
 	for prop, value in props do

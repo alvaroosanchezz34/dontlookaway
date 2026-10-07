@@ -216,4 +216,5 @@ rojo build default.project.json -o build/test.rbxlx    # project builds
 lune run tools/runtime_test.luau build/test.rbxlx     # server: maps, lobby, rounds, anomalies, puzzles, story
 lune run tools/client_test.luau build/test.rbxlx      # client: every controller, menus, supply room, results, death cinematics
 lune run tools/validate_map.luau build/test.rbxlx     # geometry audit over 20 seeds
+lune run tools/zfight.luau build/test.rbxlx 3         # coplanar faces that would flicker (z-fighting)
 ```

@@ -79,9 +79,16 @@
         ],
         "ClockTime": 0.5,
         "GlobalShadows": true,
-        "EnvironmentDiffuseScale": 0.15,
-        "EnvironmentSpecularScale": 0.35,
+        "EnvironmentDiffuseScale": 0.45,
+        "EnvironmentSpecularScale": 1,
+        "ShadowSoftness": 0.15,
         "ExposureCompensation": 0
+      }
+    },
+    "MaterialService": {
+      "$className": "MaterialService",
+      "$properties": {
+        "Use2022Materials": true
       }
     },
     "SoundService": {

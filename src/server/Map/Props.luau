@@ -370,7 +370,7 @@ function Props.archiveShelf(parent, cf: CFrame, rng)
 			local w = rng:Number(0.35, 0.9)
 			if rng:Chance(0.85) then
 				local h = rng:Number(1, 1.5)
-				D(m, "File", Vector3.new(w, h, 1.4), at(cf, x + w / 2, y + 0.1 + h / 2, 0.1, 0, 0, rng:Chance(0.1) and rng:Number(-15, 15) or 0), Build.vary(rng:Pick({ C.cardboard, C.beige, Color3.fromRGB(80, 70, 60), Color3.fromRGB(70, 74, 80) }), rng, 0.1), M.Cardboard)
+				D(m, "File", Vector3.new(w, h, 1.4), at(cf, x + w / 2, y + 0.1 + h / 2, 0.1 + rng:Number(-0.08, 0.08), 0, 0, rng:Chance(0.1) and rng:Number(-15, 15) or 0), Build.vary(rng:Pick({ C.cardboard, C.beige, Color3.fromRGB(80, 70, 60), Color3.fromRGB(70, 74, 80) }), rng, 0.1), M.Cardboard)
 			end
 			x += w + 0.04
 		end
@@ -627,7 +627,7 @@ function Props.radiator(parent, cf: CFrame, rng)
 	for i = -4, 4 do
 		D(m, "Fin", Vector3.new(0.25, 2.4, 0.6), at(cf, i * 0.38, 1.6, 0), col, M.Metal)
 	end
-	D(m, "Pipe", Vector3.new(3.6, 0.2, 0.2), at(cf, 0, 0.5, 0), col:Lerp(C.black, 0.2), M.Metal)
+	D(m, "Pipe", Vector3.new(3.6, 0.2, 0.2), at(cf, 0, 0.53, 0.03), col:Lerp(C.black, 0.2), M.Metal)
 	return m
 end
 
@@ -645,7 +645,7 @@ function Props.noticeBoard(parent, wallCf: CFrame, rng, lines)
 	local m = model(parent, "NoticeBoard", wallCf)
 	P(m, "Board", Vector3.new(5, 3.2, 0.2), at(wallCf, 0, 0, -0.1), Color3.fromRGB(110, 86, 60), M.Fabric, { CanCollide = false })
 	for i = 1, rng:Int(4, 7) do
-		D(m, "Note", Vector3.new(rng:Number(0.8, 1.3), rng:Number(1, 1.4), 0.03), at(wallCf, rng:Number(-1.8, 1.8), rng:Number(-0.9, 0.9), -0.22, 0, 0, rng:Number(-10, 10)), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic)
+		D(m, "Note", Vector3.new(rng:Number(0.8, 1.3), rng:Number(1, 1.4), 0.03), at(wallCf, rng:Number(-1.8, 1.8), rng:Number(-0.9, 0.9), -0.22 - i * 0.012, 0, 0, rng:Number(-10, 10)), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic)
 		if i == 1 and lines then
 			local note = m:FindFirstChild("Note") :: BasePart
 			local gui = Build.surfaceGui(note, Enum.NormalId.Front, 60)
@@ -686,8 +686,9 @@ function Props.puddle(parent, cf: CFrame, rng, size: number?)
 end
 
 function Props.scatterPapers(parent, cf: CFrame, rng, count: number?)
-	for _ = 1, count or rng:Int(2, 5) do
-		D(parent, "LoosePaper", Vector3.new(0.85, 0.02, 1.1), cf * CFrame.new(rng:Number(-1.6, 1.6), 0.02, rng:Number(-1.6, 1.6)) * CFrame.Angles(0, math.rad(rng:Number(0, 360)), 0), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic, { CanQuery = false })
+	for i = 1, count or rng:Int(2, 5) do
+		-- each sheet a little higher than the last so overlapping sheets never flicker
+		D(parent, "LoosePaper", Vector3.new(0.85, 0.02, 1.1), cf * CFrame.new(rng:Number(-1.6, 1.6), 0.02 + i * 0.007, rng:Number(-1.6, 1.6)) * CFrame.Angles(0, math.rad(rng:Number(0, 360)), 0), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic, { CanQuery = false })
 	end
 end
 
@@ -760,7 +761,7 @@ function Props.sink(parent, cf: CFrame, rng)
 	local m = model(parent, "Sink", cf)
 	local white = Build.vary(C.white, rng, 0.04)
 	P(m, "Basin", Vector3.new(2.4, 0.8, 1.8), at(cf, 0, 3, -0.2), white, M.Marble)
-	D(m, "Bowl", Vector3.new(1.8, 0.1, 1.2), at(cf, 0, 3.36, -0.25), Color3.fromRGB(70, 74, 72), M.Marble)
+	D(m, "Bowl", Vector3.new(1.8, 0.1, 1.2), at(cf, 0, 3.39, -0.25), Color3.fromRGB(70, 74, 72), M.Marble)
 	D(m, "Pedestal", Vector3.new(0.8, 2.6, 0.8), at(cf, 0, 1.3, 0.2), white, M.Marble)
 	D(m, "Tap", Vector3.new(0.15, 0.6, 0.15), at(cf, 0, 3.7, 0.5), C.metal, M.Metal)
 	D(m, "Spout", Vector3.new(0.15, 0.15, 0.6), at(cf, 0, 3.95, 0.25), C.metal, M.Metal)
@@ -771,8 +772,9 @@ function Props.toiletStall(parent, cf: CFrame, rng, doorOpen: boolean?)
 	-- stall depth 6 (local -Z is the stall door side), width 4
 	local m = model(parent, "Stall", cf)
 	local panel = Build.vary(rng:Pick({ Color3.fromRGB(110, 120, 116), Color3.fromRGB(130, 120, 100) }), rng, 0.04)
+	-- the right side sits 2 cm in so a neighbouring stall's left side never shares its plane
 	P(m, "SideL", Vector3.new(0.15, 6.4, 5.6), at(cf, -2, 3.7, 0), panel, M.SmoothPlastic)
-	P(m, "SideR", Vector3.new(0.15, 6.4, 5.6), at(cf, 2, 3.7, 0), panel, M.SmoothPlastic)
+	P(m, "SideR", Vector3.new(0.15, 6.4, 5.6), at(cf, 1.98, 3.7, 0), panel, M.SmoothPlastic)
 	local door = P(m, "StallDoor", Vector3.new(3.4, 5.8, 0.12), at(cf, 0, 3.6, -2.8), panel:Lerp(C.black, 0.1), M.SmoothPlastic)
 	if doorOpen then
 		door.CFrame = at(cf, -1.75, 3.6, -2.8) * CFrame.Angles(0, math.rad(-80), 0) * CFrame.new(1.7, 0, 0)
@@ -921,8 +923,8 @@ function Props.workbench(parent, cf: CFrame, rng)
 		P(m, "Leg", Vector3.new(0.4, 3, 0.4), at(cf, o[1], 1.5, o[2]), C.metalDark, M.Metal)
 	end
 	P(m, "Pegboard", Vector3.new(7, 4, 0.2), at(cf, 0, 5.6, 1.2), Color3.fromRGB(150, 130, 100), M.Wood)
-	for _ = 1, 6 do
-		D(m, "Tool", Vector3.new(0.2, rng:Number(0.8, 1.6), 0.15), at(cf, rng:Number(-3, 3), rng:Number(4.8, 6.6), 1.05, 0, 0, rng:Number(-20, 20)), Build.vary(rng:Pick({ C.metal, C.rust, C.black }), rng), M.Metal)
+	for i = 1, 6 do
+		D(m, "Tool", Vector3.new(0.2, rng:Number(0.8, 1.6), 0.15), at(cf, rng:Number(-3, 3), rng:Number(4.8, 6.6), 1.07 - i * 0.025, 0, 0, rng:Number(-20, 20)), Build.vary(rng:Pick({ C.metal, C.rust, C.black }), rng), M.Metal)
 	end
 	m:SetAttribute("SurfaceHeight", 3.4)
 	local spot = Instance.new("Attachment")
@@ -1040,7 +1042,7 @@ function Props.window(parent, cf: CFrame, rng, boarded: boolean?)
 		local count = rng:Int(3, 5)
 		for i = 1, count do
 			local y = -2.4 + (i - 1) * (4.8 / math.max(1, count - 1)) + rng:Number(-0.25, 0.25)
-			P(boards, "Board", Vector3.new(4.4, rng:Number(0.6, 0.9), 0.2), at(cf, 0, y, -0.15, 0, 0, rng:Number(-12, 12)), Build.vary(C.woodLight, rng, 0.1), M.WoodPlanks, { CanCollide = false })
+			P(boards, "Board", Vector3.new(4.4, rng:Number(0.6, 0.9), 0.2), at(cf, 0, y, -0.15 - (i % 2) * 0.05, 0, 0, rng:Number(-12, 12)), Build.vary(C.woodLight, rng, 0.1), M.WoodPlanks, { CanCollide = false })
 		end
 	end
 	-- handprints on the inside of the glass for the altered variant (hidden)
