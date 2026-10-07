@@ -25,14 +25,14 @@ PROJECT = os.path.join(ROOT, "default.project.json")
 # texture key -> (variant name, base material, studs per tile, overrides the base material?)
 DEFS = {
     "plaster_aged": ("DLA_Plaster", "Plaster", 10, True),
-    "wallpaper_damask": ("DLA_Wallpaper", "Plaster", 8, False),
+    "wallpaper_damask": ("DLA_Wallpaper", "Plaster", 4.5, False),
     "carpet_worn": ("DLA_Carpet", "Carpet", 8, True),
     "tiles_worn": ("DLA_Tiles", "CeramicTiles", 5, True),
     "ceiling_tile": ("DLA_CeilingTile", "Plaster", 4, False),
     "concrete_grimy": ("DLA_Concrete", "Concrete", 12, True),
     "wood_planks_worn": ("DLA_WoodPlanks", "WoodPlanks", 9, True),
     "brick_grimy": ("DLA_Brick", "Brick", 8, True),
-    "marble_stained": ("DLA_Marble", "Marble", 12, True),
+    "marble_stained": ("DLA_Marble", "Marble", 20, True),
     "metal_worn": ("DLA_Metal", "Metal", 6, True),
 }
 
