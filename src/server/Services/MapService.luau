@@ -11,6 +11,7 @@ local Signal = require(ReplicatedStorage.Shared.Util.Signal)
 local Registry = require(script.Parent.Parent.Registry)
 local MapBuilder = require(script.Parent.Parent.Map.MapBuilder)
 local Lobby = require(script.Parent.Parent.Map.Lobby)
+local MaterialLibrary = require(ReplicatedStorage.Shared.MaterialLibrary)
 
 local MapService = {}
 
@@ -79,6 +80,7 @@ function MapService:Rebuild(seed: number)
 end
 
 function MapService:Start()
+	MaterialLibrary.apply()
 	lobby = Lobby.build(workspace)
 	workspace:SetAttribute("LobbyCamera", lobby.Camera)
 	self:Rebuild(os.time() % 1000000)

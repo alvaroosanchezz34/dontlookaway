@@ -177,6 +177,86 @@ end
 -- 3. Objective planning is always solvable
 ------------------------------------------------------------------------------------
 
+section("custom assets (textures + sculpted Observer)")
+do
+	local Enum = env.roblox.Enum
+	local RS = game:GetService("ReplicatedStorage")
+	local AssetIds = requireModule(RS.Shared.Config.AssetIds)
+	local MaterialLibrary = requireModule(RS.Shared.MaterialLibrary)
+	local ObserverRig = requireModule(RS.Shared.ObserverRig)
+	local MeshMeta = requireModule(RS.Shared.Config.ObserverMeshMeta)
+	local MaterialService = game:GetService("MaterialService")
+	-- with no ids nothing is created and the plain rig is used
+	check(MaterialLibrary.count() == 0, "no textures configured by default")
+	MaterialLibrary.apply()
+	check(MaterialService:FindFirstChild("DLA_Plaster") == nil, "no variants without ids")
+	local plain = ObserverRig.build(nil, { localCopy = true })
+	check(plain:GetAttribute("Sculpted") ~= true, "plain rig without meshes")
+	-- pretend everything was uploaded
+	for _, entry in AssetIds.Materials do
+		entry.color, entry.normal, entry.roughness = 1001, 1002, 1003
+	end
+	MaterialLibrary.apply()
+	check(MaterialLibrary.count() == 10, "ten textures counted")
+	local plaster = MaterialService:FindFirstChild("DLA_Plaster")
+	check(plaster ~= nil and plaster:IsA("MaterialVariant") and plaster.BaseMaterial == Enum.Material.Plaster, "plaster variant created")
+	check(plaster ~= nil and plaster.ColorMap == "rbxassetid://1001" and plaster.NormalMap == "rbxassetid://1002", "variant maps set")
+	check(MaterialService:FindFirstChild(MaterialLibrary.Wallpaper) ~= nil and MaterialService:FindFirstChild(MaterialLibrary.CeilingTile) ~= nil, "named variants created")
+	MaterialLibrary.apply()
+	local count = 0
+	for _, v in MaterialService:GetChildren() do
+		if v:IsA("MaterialVariant") then
+			count += 1
+		end
+	end
+	check(count == 10, "apply is idempotent (" .. count .. " variants)")
+	for _, entry in AssetIds.Materials do
+		entry.color, entry.normal, entry.roughness = 0, 0, 0
+	end
+	for _, v in MaterialService:GetChildren() do
+		v:Destroy()
+	end
+	-- sculpted Observer: templates stand in for the uploaded meshes
+	local folder = Instance.new("Folder")
+	folder.Name = "ObserverMeshes"
+	for name in MeshMeta do
+		local mp = Instance.new("MeshPart")
+		mp.Name = name
+		mp.Parent = folder
+	end
+	folder.Parent = RS
+	local rig = ObserverRig.build(CFrame.new(0, 0, 0), { localCopy = true })
+	check(rig:GetAttribute("Sculpted") == true, "rig dressed with meshes")
+	local meshes, hiddenSegments, visibleDetails = 0, 0, 0
+	for _, d in rig:GetChildren() do
+		if d:IsA("MeshPart") then
+			meshes += 1
+			local weld = d:FindFirstChildOfClass("WeldConstraint")
+			check(weld ~= nil and weld.Part0 ~= nil and weld.Part0.Transparency == 1, "mesh welded to a hidden segment: " .. d.Name)
+			check(not d.Anchored and d.Massless and not d.CanCollide, "mesh is cosmetic: " .. d.Name)
+		elseif d:IsA("BasePart") then
+			if (d.Name == "Rib" or d.Name == "Spine" or string.find(d.Name, "Finger")) and d.Transparency < 1 then
+				visibleDetails += 1
+			end
+			if d.Name == "UpperTorso" and d.Transparency == 1 then
+				hiddenSegments += 1
+			end
+		end
+	end
+	check(meshes == 18, "18 meshes (both sides), got " .. meshes)
+	check(hiddenSegments == 1 and visibleDetails == 0, "segments and sculpted details hidden")
+	check(ObserverRig.dress(rig) == false, "dressing twice does nothing")
+	-- the mesh sits on its segment's mesh offset
+	local torso = rig:FindFirstChild("UpperTorso") :: any
+	local torsoMesh = rig:FindFirstChild("UpperTorsoMesh") :: any
+	local rel = torso.CFrame:PointToObjectSpace(torsoMesh.CFrame.Position)
+	check((rel - MeshMeta.UpperTorso.offset).Magnitude < 0.01, "mesh placed at its offset")
+	check((torsoMesh.Size - MeshMeta.UpperTorso.size).Magnitude < 0.01, "mesh sized to its bounding box")
+	-- the eyes still exist for the face-opening cinematic
+	check(rig:FindFirstChild("EyeL") ~= nil and rig:FindFirstChild("JawL", true) ~= nil, "face rig intact")
+	folder:Destroy()
+end
+
 section("lobby (field office)")
 do
 	local Lobby = requireModule(Server.Map.Lobby)

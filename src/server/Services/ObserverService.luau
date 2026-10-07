@@ -1128,6 +1128,13 @@ end
 
 function ObserverService:Start()
 	ensureModel()
+	-- sculpted meshes (if uploaded) load in the background; the rig built above
+	-- is dressed as soon as they arrive, later copies are dressed on creation
+	task.spawn(function()
+		if ObserverRig.loadMeshes() > 0 and model then
+			ObserverRig.dress(model)
+		end
+	end)
 	local acc = 0
 	RunService.Heartbeat:Connect(function(dt)
 		acc += dt

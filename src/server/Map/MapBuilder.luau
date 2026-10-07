@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Layout = require(script.Parent.Layout)
 local Build = require(script.Parent.Build)
 local Props = require(script.Parent.Props)
+local MaterialLibrary = require(ReplicatedStorage.Shared.MaterialLibrary)
 local Furnisher = require(script.Parent.Furnisher)
 local SeededRandom = require(ReplicatedStorage.Shared.Util.SeededRandom)
 
@@ -258,7 +259,9 @@ local function buildCeilings(map, floor, folder, isTop)
 		part:SetAttribute("Room", room.id)
 		table.insert(room.ceilingParts, part)
 		-- offices, corridors and wet rooms get a suspended ceiling: a T-bar grid
+		-- over acoustic tiles
 		if style.light == "fluoro" and room.kind ~= "stairs" then
+			part.MaterialVariant = MaterialLibrary.CeilingTile
 			local y = floor.y + CH - 0.03
 			local x0, x1 = cf.Position.X - size.X / 2, cf.Position.X + size.X / 2
 			local z0, z1 = cf.Position.Z - size.Z / 2, cf.Position.Z + size.Z / 2
@@ -386,6 +389,10 @@ local function buildSkins(map, floor, folder, rng, capCells)
 				end
 				local p = Build.part(folder, name or "Skin", Vector3.new(len + extra, y1 - y0, t), cfBase * CFrame.new(0, (y0 + y1) / 2, -t / 2 - (if trim then 0.015 else 0)), col, mat)
 				p.CastShadow = false
+				-- upper wall finish (above the wainscot): wallpaper in the styles that use it
+				if not name and style.upperVariant and y0 >= lowerH - 0.01 then
+					p.MaterialVariant = style.upperVariant
+				end
 				p:SetAttribute("Room", room.id)
 				table.insert(room.wallParts, p)
 				return p

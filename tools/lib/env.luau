@@ -240,15 +240,19 @@ local function scanTags(tag)
 	return list
 end
 
+-- one signal per tag so tests can announce tagged instances (env.tagAdded)
+local addedSignals, removedSignals = {}, {}
 local CollectionServiceStub = {
 	GetTagged = function(_, tag)
 		return scanTags(tag)
 	end,
-	GetInstanceAddedSignal = function()
-		return makeSignal()
+	GetInstanceAddedSignal = function(_, tag)
+		addedSignals[tag] = addedSignals[tag] or makeSignal()
+		return addedSignals[tag]
 	end,
-	GetInstanceRemovedSignal = function()
-		return makeSignal()
+	GetInstanceRemovedSignal = function(_, tag)
+		removedSignals[tag] = removedSignals[tag] or makeSignal()
+		return removedSignals[tag]
 	end,
 }
 
@@ -371,4 +375,11 @@ return {
 		services[name] = stub
 	end,
 	gameProxy = gameProxy,
+	-- announce an instance that just received `tag` (CollectionService added signal)
+	tagAdded = function(tag, inst)
+		local sig = addedSignals[tag]
+		if sig then
+			sig:Fire(inst)
+		end
+	end,
 }

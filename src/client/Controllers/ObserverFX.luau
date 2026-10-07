@@ -4,16 +4,22 @@
 	Nothing about the way it moves is natural:
 	  WATCHED     absolute stillness. No breathing, no sway. Frozen mid-motion.
 	              Up close, the seam of its face sometimes parts a little.
-	  MOVING /
-	  HUNTING     long, too-even strides that stutter and freeze for a frame;
-	              one leg drags; arms swing late and too far; close to its
-	              target it hunches forward
-	  idle        barely-there breathing, the head tipped past where a neck
-	              would allow, snapping back upright now and then
+	  idle        deep, slow breathing that lifts the ribs and shoulders, and a
+	              cycle of behaviours: LISTEN (the head sweeps, stops, sweeps),
+	              SWAY, NECK (the head rolls past where a neck allows, then
+	              snaps back) and HANG (it folds forward, arms dangling, and
+	              slowly straightens). Nearby and unwatched, its head turns
+	              toward you - up to almost backwards - so when you look again it
+	              is already looking at you.
+	  moving      STALK: slow, high-kneed, arms hanging and swaying late
+	              LOPE (hunting): hunched, long strides, arms reaching ahead
+	              CHASE (fast): folded almost onto all fours, clawing forward
+	              strides stutter and freeze for a frame; one leg drags
 	  ATTACKING   arms rise, the head pushes forward, the face opens
-	Twitches are instant, never eased. It sheds black ash when it appears or
-	leaves. Mimics give themselves away: when they stop, the head keeps turning;
-	when someone pings beside them, they stare at that person.
+	Poses blend smoothly; twitches and snaps are instant, never eased. It sheds
+	black ash when it appears or leaves. Mimics give themselves away: when they
+	stop, the head keeps turning; when someone pings beside them, they stare at
+	that person.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -41,6 +47,14 @@ type Rig = {
 	nextSnap: number,
 	faceOpen: number,
 	wasInWorld: boolean,
+	targets: { [string]: CFrame },
+	pose: { [string]: CFrame },
+	snap: boolean,
+	act: string,
+	actStart: number,
+	actUntil: number,
+	snapped: boolean,
+	owl: number,
 }
 
 local rigs: { [Model]: Rig } = {}
@@ -68,14 +82,35 @@ local function collect(model: Model): Rig
 		nextSnap = os.clock() + 6,
 		faceOpen = 0,
 		wasInWorld = false,
+		targets = {},
+		pose = {},
+		snap = false,
+		act = "BREATHE",
+		actStart = os.clock(),
+		actUntil = os.clock() + 6,
+		snapped = false,
+		owl = 0,
 	}
 end
 
+-- Pose targets are blended toward each frame (see apply); jaws are driven directly.
 local function set(rig: Rig, name: string, cf: CFrame)
-	local m = rig.motors[name]
-	if m then
-		m.Transform = cf
+	rig.targets[name] = cf
+end
+
+local function apply(rig: Rig, dt: number, rate: number)
+	local alpha = if rig.snap then 1 else 1 - math.exp(-rate * dt)
+	rig.snap = false
+	for name, motor in rig.motors do
+		if string.sub(name, 1, 3) ~= "Jaw" then
+			local target = rig.targets[name] or CFrame.identity
+			local current = rig.pose[name] or CFrame.identity
+			current = current:Lerp(target, alpha)
+			rig.pose[name] = current
+			motor.Transform = current
+		end
 	end
+	table.clear(rig.targets)
 end
 
 local function ash(model: Model, count: number)
@@ -88,8 +123,13 @@ end
 
 local function setFace(rig: Rig, open: number)
 	rig.faceOpen = open
-	set(rig, "JawL", CFrame.Angles(0, math.rad(-55 * open), 0))
-	set(rig, "JawR", CFrame.Angles(0, math.rad(55 * open), 0))
+	local jl, jr = rig.motors.JawL, rig.motors.JawR
+	if jl then
+		jl.Transform = CFrame.Angles(0, math.rad(-55 * open), 0)
+	end
+	if jr then
+		jr.Transform = CFrame.Angles(0, math.rad(55 * open), 0)
+	end
 	for _, side in { "L", "R" } do
 		local eye = rig.model:FindFirstChild("Eye" .. side, true)
 		if eye and eye:IsA("BasePart") then
@@ -123,6 +163,8 @@ local function animate(rig: Rig, dt: number)
 		set(rig, "NeckJoint", CFrame.Angles(math.rad(20), 0, 0))
 		set(rig, "HeadJoint", CFrame.Angles(math.rad(10), 0, math.rad(60 + math.sin(now * 40) * 4)))
 		set(rig, "Waist", CFrame.Angles(math.rad(14), 0, 0))
+		rig.snap = true
+		apply(rig, dt, 30)
 		setFace(rig, 1)
 		return
 	end
@@ -138,7 +180,8 @@ local function animate(rig: Rig, dt: number)
 			Registry.AudioController:Play("ObserverTwitch", head.Position, { volume = 0.5 })
 		end
 	end
-	local headTwitch = if now < rig.twitchUntil then rig.twitch else CFrame.new()
+	local twitching = now < rig.twitchUntil
+	local headTwitch = if twitching then rig.twitch else CFrame.new()
 	-- the head drifts past a natural tilt and snaps back
 	if now > rig.nextSnap then
 		rig.nextSnap = now + random:NextNumber(5, 11)
@@ -147,6 +190,15 @@ local function animate(rig: Rig, dt: number)
 			Registry.AudioController:Play("ObserverCrack", (model:FindFirstChild("Head") :: BasePart? or root).Position, { volume = 0.4 })
 		end
 	end
+	-- owl: unwatched and near, the head turns toward the camera (almost backwards)
+	local owlTarget = 0
+	if dist < 36 and State.status == "ALIVE" and speed < 0.6 then
+		local rel = root.CFrame:PointToObjectSpace(camPos)
+		owlTarget = math.clamp(math.deg(math.atan2(-rel.X, -rel.Z)), -170, 170)
+	end
+	rig.owl += (owlTarget - rig.owl) * (1 - math.exp(-1.1 * dt))
+	local owl = CFrame.Angles(0, math.rad(rig.owl), 0)
+
 	if speed > 0.6 then
 		-- stutter: the stride freezes for a frame or two
 		if now > rig.nextStutter then
@@ -156,43 +208,127 @@ local function animate(rig: Rig, dt: number)
 		if now < rig.stutterUntil then
 			return
 		end
-		rig.phase += dt * speed * 0.42
+		local gait = if speed > 13 then "CHASE" elseif state == "HUNTING" or speed > 7 then "LOPE" else "STALK"
+		local cadence = if gait == "CHASE" then 0.5 elseif gait == "LOPE" then 0.4 else 0.32
+		rig.phase += dt * speed * cadence
 		local p = rig.phase
 		local s = math.sin(p)
 		local c = math.cos(p)
-		local hunch = if state == "HUNTING" and dist < 30 then 1 else 0
-		set(rig, "LeftHip", CFrame.Angles(s * 0.42, 0, 0))
-		-- the right leg drags
-		set(rig, "RightHip", CFrame.Angles(-s * 0.3, 0, math.rad(4)))
-		set(rig, "LeftKnee", CFrame.Angles(math.max(0, -c) * 0.55, 0, 0))
-		set(rig, "RightKnee", CFrame.Angles(math.max(0, c) * 0.3, 0, 0))
-		-- arms lag behind the legs and swing too far
-		set(rig, "LeftShoulder", CFrame.Angles(-math.sin(p - 0.9) * 0.32, 0, math.rad(-3)))
-		set(rig, "RightShoulder", CFrame.Angles(math.sin(p - 0.9) * 0.32, 0, math.rad(3)))
-		set(rig, "LeftElbow", CFrame.Angles(math.rad(-6 - math.max(0, s) * 8), 0, 0))
-		set(rig, "RightElbow", CFrame.Angles(math.rad(-6 - math.max(0, -s) * 8), 0, 0))
-		set(rig, "Waist", CFrame.Angles(math.rad(4 + 22 * hunch), s * 0.05, 0))
-		set(rig, "NeckJoint", CFrame.Angles(math.rad(-14 * hunch), 0, 0))
-		set(rig, "RootJoint", CFrame.new(0, math.abs(c) * 0.12 - 0.5 * hunch, 0))
-		set(rig, "HeadJoint", CFrame.Angles(0, 0, math.rad(rig.tilt * 0.5)) * headTwitch)
+		if gait == "CHASE" then
+			-- folded almost onto all fours, clawing forward
+			set(rig, "RootJoint", CFrame.new(0, -1.5 + math.abs(c) * 0.25, 0) * CFrame.Angles(math.rad(-20), 0, 0))
+			set(rig, "Waist", CFrame.Angles(math.rad(48), s * 0.08, 0))
+			set(rig, "NeckJoint", CFrame.Angles(math.rad(-38), 0, 0))
+			set(rig, "HeadJoint", CFrame.Angles(math.rad(-18), 0, math.rad(rig.tilt * 0.3)) * headTwitch)
+			set(rig, "LeftShoulder", CFrame.Angles(math.rad(-80) + s * 0.9, 0, math.rad(-8)))
+			set(rig, "RightShoulder", CFrame.Angles(math.rad(-80) - s * 0.9, 0, math.rad(8)))
+			set(rig, "LeftElbow", CFrame.Angles(math.rad(-20 - math.max(0, -s) * 50), 0, 0))
+			set(rig, "RightElbow", CFrame.Angles(math.rad(-20 - math.max(0, s) * 50), 0, 0))
+			set(rig, "LeftHip", CFrame.Angles(math.rad(-30) + s * 0.7, 0, 0))
+			set(rig, "RightHip", CFrame.Angles(math.rad(-30) - s * 0.7, 0, 0))
+			set(rig, "LeftKnee", CFrame.Angles(math.rad(40) + math.max(0, -c) * 0.6, 0, 0))
+			set(rig, "RightKnee", CFrame.Angles(math.rad(40) + math.max(0, c) * 0.6, 0, 0))
+		elseif gait == "LOPE" then
+			-- hunched, long strides, arms reaching ahead out of step
+			local hunch = if dist < 30 then 1 else 0.6
+			set(rig, "RootJoint", CFrame.new(0, math.abs(c) * 0.15 - 0.45 * hunch, 0))
+			set(rig, "Waist", CFrame.Angles(math.rad(10 + 20 * hunch), s * 0.06, 0))
+			set(rig, "NeckJoint", CFrame.Angles(math.rad(-18 * hunch), 0, 0))
+			set(rig, "HeadJoint", CFrame.Angles(0, 0, math.rad(rig.tilt * 0.4)) * headTwitch)
+			set(rig, "LeftShoulder", CFrame.Angles(math.rad(-25) - math.sin(p - 1.1) * 0.5, 0, math.rad(-4)))
+			set(rig, "RightShoulder", CFrame.Angles(math.rad(-25) + math.sin(p - 1.1) * 0.5, 0, math.rad(4)))
+			set(rig, "LeftElbow", CFrame.Angles(math.rad(-10 - math.max(0, s) * 20), 0, 0))
+			set(rig, "RightElbow", CFrame.Angles(math.rad(-10 - math.max(0, -s) * 20), 0, 0))
+			set(rig, "LeftHip", CFrame.Angles(s * 0.55, 0, 0))
+			-- the right leg drags
+			set(rig, "RightHip", CFrame.Angles(-s * 0.38, 0, math.rad(4)))
+			set(rig, "LeftKnee", CFrame.Angles(math.max(0, -c) * 0.7, 0, 0))
+			set(rig, "RightKnee", CFrame.Angles(math.max(0, c) * 0.35, 0, 0))
+		else
+			-- stalk: slow, high-kneed, arms hanging and swinging late and too far
+			set(rig, "RootJoint", CFrame.new(0, math.abs(c) * 0.12, 0))
+			set(rig, "Waist", CFrame.Angles(math.rad(6), s * 0.05, 0))
+			set(rig, "NeckJoint", CFrame.Angles(math.rad(-6), 0, 0))
+			set(rig, "HeadJoint", CFrame.Angles(0, 0, math.rad(rig.tilt * 0.5)) * headTwitch)
+			set(rig, "LeftShoulder", CFrame.Angles(-math.sin(p - 0.9) * 0.32, 0, math.rad(-3)))
+			set(rig, "RightShoulder", CFrame.Angles(math.sin(p - 0.9) * 0.32, 0, math.rad(3)))
+			set(rig, "LeftElbow", CFrame.Angles(math.rad(-6 - math.max(0, s) * 8), 0, 0))
+			set(rig, "RightElbow", CFrame.Angles(math.rad(-6 - math.max(0, -s) * 8), 0, 0))
+			set(rig, "LeftHip", CFrame.Angles(math.max(0, s) * 0.75 - math.max(0, -s) * 0.25, 0, 0))
+			set(rig, "RightHip", CFrame.Angles(math.max(0, -s) * 0.5 - math.max(0, s) * 0.2, 0, math.rad(4)))
+			set(rig, "LeftKnee", CFrame.Angles(-math.max(0, s) * 1.1, 0, 0))
+			set(rig, "RightKnee", CFrame.Angles(-math.max(0, -s) * 0.6, 0, 0))
+		end
 		-- heavy, slow footsteps
 		if math.abs(s) > 0.97 and now - rig.lastStep > 0.35 then
 			rig.lastStep = now
-			Registry.AudioController:Play("ObserverStep", root.Position - Vector3.new(0, 4, 0), { volume = 0.7 })
+			Registry.AudioController:Play("ObserverStep", root.Position - Vector3.new(0, 4, 0), { volume = if gait == "CHASE" then 0.9 else 0.7 })
 		end
-	else
-		local b = math.sin(now * 0.9) * 0.012
-		set(rig, "Waist", CFrame.Angles(math.rad(2) + b, 0, 0))
-		set(rig, "LeftHip", CFrame.new())
-		set(rig, "RightHip", CFrame.new())
-		set(rig, "LeftKnee", CFrame.new())
-		set(rig, "RightKnee", CFrame.new())
-		set(rig, "LeftShoulder", CFrame.Angles(b, 0, math.rad(-2)))
-		set(rig, "RightShoulder", CFrame.Angles(-b, 0, math.rad(2)))
-		set(rig, "NeckJoint", CFrame.Angles(0, 0, math.sin(now * 0.3) * 0.1))
-		set(rig, "HeadJoint", CFrame.Angles(0, 0, math.rad(rig.tilt)) * headTwitch)
-		set(rig, "RootJoint", CFrame.new())
+		apply(rig, dt, if gait == "CHASE" then 14 else 9)
+		return
 	end
+
+	-- idle: a cycle of behaviours over deep breathing
+	if now > rig.actUntil then
+		local roll = random:NextNumber()
+		rig.act = if roll < 0.32 then "BREATHE" elseif roll < 0.55 then "LISTEN" elseif roll < 0.72 then "SWAY" elseif roll < 0.88 then "NECK" else "HANG"
+		rig.actStart = now
+		rig.snapped = false
+		rig.actUntil = now + (if rig.act == "NECK" then 3.2 elseif rig.act == "HANG" then 7 else random:NextNumber(5, 10))
+	end
+	local t = now - rig.actStart
+	local breath = math.sin(now * 1.9) -- ~0.3 Hz
+	local chest = breath * 0.035
+	local shoulderLift = breath * 0.05
+	local waistPitch, waistYaw, waistRoll = math.rad(2) + chest, 0, 0
+	local neck = CFrame.Angles(0, 0, math.sin(now * 0.3) * 0.08)
+	local head = CFrame.Angles(0, 0, math.rad(rig.tilt))
+	local arms = 0
+	if rig.act == "LISTEN" then
+		-- the head sweeps, stops dead, sweeps again
+		local step = math.floor(t / 1.6)
+		local target = math.sin(step * 2.3) * 55
+		head = CFrame.Angles(math.rad(-6), math.rad(target), math.rad(rig.tilt * 0.4))
+	elseif rig.act == "SWAY" then
+		waistRoll = math.sin(t * 0.8) * 0.1
+		waistPitch += math.sin(t * 0.55) * 0.08
+	elseif rig.act == "NECK" then
+		-- rolls far past where a neck allows ... then snaps back
+		if t < 2.6 then
+			head = CFrame.Angles(0, math.rad(20 * t), math.rad(rig.tilt + 45 * t))
+		else
+			head = CFrame.Angles(0, 0, math.rad(6))
+			if not rig.snapped then
+				rig.snapped = true
+				rig.snap = true
+				if dist < 30 then
+					Registry.AudioController:Play("ObserverCrack", (model:FindFirstChild("Head") :: BasePart? or root).Position, { volume = 0.6 })
+				end
+			end
+		end
+	elseif rig.act == "HANG" then
+		-- folds forward, arms dangling, then slowly straightens
+		local fold = if t < 1.5 then t / 1.5 elseif t > 4.5 then math.max(0, 1 - (t - 4.5) / 2.5) else 1
+		waistPitch += math.rad(42) * fold
+		neck = CFrame.Angles(math.rad(25) * fold, 0, 0)
+		arms = fold
+	end
+	set(rig, "Waist", CFrame.Angles(waistPitch, waistYaw, waistRoll))
+	set(rig, "LeftHip", CFrame.new())
+	set(rig, "RightHip", CFrame.new())
+	set(rig, "LeftKnee", CFrame.new())
+	set(rig, "RightKnee", CFrame.new())
+	set(rig, "LeftShoulder", CFrame.new(0, shoulderLift, 0) * CFrame.Angles(math.rad(-40) * arms - chest, 0, math.rad(-2)))
+	set(rig, "RightShoulder", CFrame.new(0, shoulderLift, 0) * CFrame.Angles(math.rad(-40) * arms + chest, 0, math.rad(2)))
+	set(rig, "LeftElbow", CFrame.Angles(math.rad(-4), 0, 0))
+	set(rig, "RightElbow", CFrame.Angles(math.rad(-4), 0, 0))
+	set(rig, "NeckJoint", neck)
+	set(rig, "HeadJoint", owl * head * headTwitch)
+	set(rig, "RootJoint", CFrame.new(0, chest * 0.5, 0))
+	if twitching then
+		rig.snap = true
+	end
+	apply(rig, dt, if rig.act == "NECK" then 2.2 else 4)
 end
 
 local function track(model: Instance)

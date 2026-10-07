@@ -15,6 +15,8 @@ local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MaterialLibrary = require(ReplicatedStorage.Shared.MaterialLibrary)
 local State = require(script.Parent.Parent.State)
 local Kit = require(script.Parent.Parent.UI.Kit)
 
@@ -95,6 +97,8 @@ local function apply()
 end
 
 function AccessibilityController:Init()
+	-- custom surface textures (base-material overrides are applied per side)
+	MaterialLibrary.apply()
 	userGrade = Instance.new("ColorCorrectionEffect")
 	userGrade.Name = "UserSettingsGrade"
 	userGrade.Parent = Lighting

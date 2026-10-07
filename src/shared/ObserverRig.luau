@@ -18,7 +18,40 @@
 	exactly against their own camera.
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local AssetIds = require(script.Parent.Config.AssetIds)
+local MeshMeta = require(script.Parent.Config.ObserverMeshMeta)
+
 local ObserverRig = {}
+
+-- Rig part -> generated mesh (tools/gen_observer.py). Both sides share a mesh.
+local SEGMENT_MESH = {
+	UpperTorso = "UpperTorso",
+	LowerTorso = "LowerTorso",
+	Neck = "Neck",
+	Head = "Head",
+	FaceL = "FaceL",
+	FaceR = "FaceR",
+	LeftUpperArm = "UpperArm",
+	RightUpperArm = "UpperArm",
+	LeftLowerArm = "LowerArm",
+	RightLowerArm = "LowerArm",
+	LeftHand = "Hand",
+	RightHand = "Hand",
+	LeftUpperLeg = "UpperLeg",
+	RightUpperLeg = "UpperLeg",
+	LeftLowerLeg = "LowerLeg",
+	RightLowerLeg = "LowerLeg",
+	LeftFoot = "Foot",
+	RightFoot = "Foot",
+}
+
+-- Part-built details that the meshes already sculpt (ribs, spine, fingers...).
+local MESH_DETAILS = { Spine = true, Rib = true, Blade = true, Seam = true, LeftFinger = true, RightFinger = true }
+
+local TEMPLATE_FOLDER = "ObserverMeshes"
 
 local SKIN = Color3.fromRGB(14, 14, 16)
 local FACE = Color3.fromRGB(40, 38, 38)
@@ -195,11 +228,123 @@ function ObserverRig.build(base: CFrame?, opts: { [string]: any }?): Model
 	breath.Parent = head
 
 	model.PrimaryPart = root
+	ObserverRig.dress(model)
 	model:SetAttribute("State", "DORMANT")
 	if not opts.localCopy then
 		model:AddTag("Observer")
 	end
 	return model
+end
+
+------------------------------------------------------------------------------------
+-- Sculpted meshes
+------------------------------------------------------------------------------------
+
+--[[
+	Swaps the part-built body for the sculpted meshes when they are available
+	(uploaded and loaded by loadMeshes). Each mesh is welded to its rig part, so
+	every Motor6D animation keeps working; the original part becomes invisible.
+	Segments without a mesh keep their parts, so a partial upload still works.
+]]
+function ObserverRig.dress(model: Model): boolean
+	local folder = ReplicatedStorage:FindFirstChild(TEMPLATE_FOLDER)
+	if not folder or #folder:GetChildren() == 0 or model:GetAttribute("Sculpted") then
+		return false
+	end
+	local dressed = false
+	local hasHand = false
+	for _, p in model:GetChildren() do
+		local meshName = SEGMENT_MESH[p.Name]
+		local template = meshName and folder:FindFirstChild(meshName)
+		local meta = meshName and MeshMeta[meshName]
+		if p:IsA("BasePart") and template and meta then
+			local mesh = template:Clone()
+			mesh.Name = p.Name .. "Mesh"
+			mesh.Size = meta.size
+			mesh.CFrame = p.CFrame * CFrame.new(meta.offset)
+			mesh.Anchored = false
+			mesh.Massless = true
+			mesh.CanCollide = false
+			mesh.CanTouch = false
+			mesh.CanQuery = false
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = p
+			weld.Part1 = mesh
+			weld.Parent = mesh
+			mesh.Parent = model
+			p.Transparency = 1
+			dressed = true
+			if meshName == "Hand" then
+				hasHand = true
+			end
+		end
+	end
+	if dressed then
+		for _, p in model:GetChildren() do
+			if p:IsA("BasePart") and MESH_DETAILS[p.Name] and (hasHand or not string.find(p.Name, "Finger")) then
+				p.Transparency = 1
+			end
+		end
+		model:SetAttribute("Sculpted", true)
+	end
+	return dressed
+end
+
+--[[
+	Server: turns the uploaded mesh ids (Config/AssetIds) into MeshPart templates
+	in ReplicatedStorage.ObserverMeshes, with the PBR skin. Rigs built afterwards
+	(server and client copies) are dressed automatically. Safe to call when no
+	ids are set (does nothing).
+]]
+function ObserverRig.loadMeshes(): number
+	if not RunService:IsServer() then
+		return 0
+	end
+	local ids = AssetIds.Observer.meshes
+	local skin = AssetIds.Observer.skin
+	local folder = ReplicatedStorage:FindFirstChild(TEMPLATE_FOLDER)
+	local loaded = 0
+	for meshName, id in ids do
+		local url = AssetIds.url(id)
+		if url and MeshMeta[meshName] then
+			local ok, mesh = pcall(function()
+				return game:GetService("AssetService"):CreateMeshPartAsync(url, {
+					CollisionFidelity = Enum.CollisionFidelity.Box,
+					RenderFidelity = Enum.RenderFidelity.Precise,
+				})
+			end)
+			if ok and mesh then
+				mesh.Name = meshName
+				mesh.Size = MeshMeta[meshName].size
+				mesh.Color = SKIN
+				mesh.Material = Enum.Material.SmoothPlastic
+				mesh.Reflectance = 0.06
+				mesh.CastShadow = true
+				local color = AssetIds.url(skin.color)
+				if color then
+					local look = Instance.new("SurfaceAppearance")
+					look.ColorMap = color
+					look.NormalMap = AssetIds.url(skin.normal) or ""
+					look.RoughnessMap = AssetIds.url(skin.roughness) or ""
+					look.Parent = mesh
+				end
+				if not folder then
+					folder = Instance.new("Folder")
+					folder.Name = TEMPLATE_FOLDER
+					folder.Parent = ReplicatedStorage
+				end
+				local old = (folder :: Folder):FindFirstChild(meshName)
+				if old then
+					old:Destroy()
+				end
+				mesh.Parent = folder
+				loaded += 1
+			else
+				warn("[ObserverRig] could not load mesh " .. meshName .. ": " .. tostring(mesh))
+			end
+		end
+	end
+	return loaded
 end
 
 return ObserverRig

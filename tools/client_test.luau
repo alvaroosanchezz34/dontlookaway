@@ -479,6 +479,52 @@ frames(5)
 fire("Death", { killer = CFrame.new(5, 0, 5), position = Vector3.new(0, 3, 0) })
 frames(30)
 -- every Observer death cinematic plays through and cleans up after itself
+section("observer animation")
+do
+	local ObserverRig = requireModule(RS.Shared.ObserverRig)
+	local rig = ObserverRig.build(CFrame.new(0, 0, -20), { localCopy = true })
+	rig.Parent = workspace
+	-- Lune has no physics: give the root a velocity before the animator reads it
+	pcall(function()
+		(rig.PrimaryPart :: any).AssemblyLinearVelocity = Vector3.zero
+	end)
+	rig:AddTag("Observer")
+	env.tagAdded("Observer", rig)
+	task.wait()
+	frames(2)
+	local root = rig.PrimaryPart :: any
+	for _, case in {
+		{ "DORMANT", Vector3.zero },
+		{ "MOVING", Vector3.new(4, 0, 0) },
+		{ "HUNTING", Vector3.new(10, 0, 0) },
+		{ "HUNTING", Vector3.new(16, 0, 0) },
+		{ "WATCHED", Vector3.zero },
+		{ "ATTACKING", Vector3.zero },
+		{ "HUNTING", Vector3.zero },
+	} do
+		rig:SetAttribute("State", case[1])
+		pcall(function()
+			root.AssemblyLinearVelocity = case[2]
+		end)
+		frames(20)
+	end
+	local moved = 0
+	for _, d in rig:GetDescendants() do
+		if d:IsA("Motor6D") then
+			-- Transform has no default in Lune until something writes it
+			local ok, t = pcall(function()
+				return d.Transform
+			end)
+			if ok and t ~= CFrame.identity then
+				moved += 1
+			end
+		end
+	end
+	check(moved >= 8, "observer motors animated (" .. moved .. ")")
+	rig:Destroy()
+	frames(2)
+end
+
 section("death cinematics")
 for _, variant in { "behind", "side", "front", "dark", "door", "mirror", "mimic" } do
 	local finished = false
