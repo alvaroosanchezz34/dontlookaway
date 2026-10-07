@@ -374,10 +374,14 @@ end
 -- COSMETICS
 ------------------------------------------------------------------------------------
 
-local function cosmeticsTab(content: Frame, tabs: any)
+local function cosmeticsTab(content: Frame, tabs: any, isOpen: () -> boolean)
 	local area = Kit.frame({ Size = UDim2.new(1, 0, 1, -48), Position = UDim2.fromOffset(0, 48), BackgroundTransparency = 1, Parent = content })
 	local category = "FLASHLIGHT"
 	local function render()
+		-- a purchase re-renders half a second later; the panel may be closed by then
+		if not isOpen() or not area.Parent then
+			return
+		end
 		area:ClearAllChildren()
 		local ok, data = pcall(function()
 			return Net.func("GetShop"):InvokeServer()
@@ -498,8 +502,12 @@ function ShopPanel.build(body: Frame, ctx: any, start: string?)
 	local balance = Kit.text({ Text = "", Size = UDim2.new(0.4, 0, 0, 24), Position = UDim2.new(0, 0, 1, -38), FontFace = Kit.F.Mono, TextSize = 16, Parent = body })
 	local note = Kit.text({ Text = "Earned by playing. Nothing here can be bought with Robux.", Size = UDim2.new(0.5, 0, 0, 24), Position = UDim2.new(0.22, 0, 1, -38), FontFace = Kit.F.Light, TextSize = 14, TextColor3 = C.Muted, Parent = body })
 	local tab = start or "EQUIPMENT"
+	local closed = false
+	local function isOpen(): boolean
+		return not closed and content.Parent ~= nil
+	end
 	local function render()
-		if not content.Parent then
+		if not isOpen() then
 			return
 		end
 		content:ClearAllChildren()
@@ -509,7 +517,7 @@ function ShopPanel.build(body: Frame, ctx: any, start: string?)
 		balance.Text = "ECHOES  " .. Util.formatNumber(echoes)
 		note.Text = if tab == "COSMETICS" then "Cosmetic only. Nothing here helps you survive." else "Earned by playing. Nothing here can be bought with Robux."
 		if tab == "COSMETICS" then
-			cosmeticsTab(content, ctx.tabs)
+			cosmeticsTab(content, ctx.tabs, isOpen)
 			return
 		elseif tab == "CHALLENGES" then
 			challengesTab(content)
@@ -544,6 +552,7 @@ function ShopPanel.build(body: Frame, ctx: any, start: string?)
 		end
 	end))
 	body.Destroying:Connect(function()
+		closed = true
 		for _, c in conns do
 			c:Disconnect()
 		end

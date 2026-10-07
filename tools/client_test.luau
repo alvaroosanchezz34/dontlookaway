@@ -268,9 +268,20 @@ local shopItems = {}
 for _, c in Cosmetics.List do
 	table.insert(shopItems, { id = c.id, category = c.category, name = c.name, price = c.price, owned = c.default == true, equipped = false, lock = if c.level then "LEVEL " .. c.level else nil })
 end
+local EquipmentCatalog = requireModule(RS.Shared.Catalog.Equipment)
+local gearItems, gearUpgrades = {}, {}
+for i, e in EquipmentCatalog.List do
+	table.insert(gearItems, { id = e.id, kind = e.kind, owned = e.default == true or i % 3 == 0, price = e.price, level = e.level, locked = (e.level or 0) > 6, equipped = e.default == true })
+end
+for i, u in EquipmentCatalog.Upgrades do
+	table.insert(gearUpgrades, { id = u.id, level = i % 2, max = #u.levels, price = u.levels[1].price, needLevel = u.levels[1].level, locked = i == 3 })
+end
+local gearSnapshot = { echoes = 2400, level = 6, items = gearItems, upgrades = gearUpgrades, loadout = { "SPARE_CELL" }, slots = 3, flashlight = "FL_STARTER", battery = "BAT_STANDARD" }
 roblox.implementMethod("RemoteFunction", "InvokeServer", function(self)
 	if self.Name == "GetShop" then
 		return { items = shopItems, echoes = 1234 }
+	elseif self.Name == "GetGear" then
+		return gearSnapshot
 	end
 	return nil
 end)
@@ -364,6 +375,44 @@ for _, panel in { "HOWTO", "JOURNAL", "SHOP", "SETTINGS", "CREDITS" } do
 	end)
 	check(ok, "open panel " .. panel .. ": " .. tostring(err))
 	frames(2)
+end
+
+section("supply room")
+fire("Challenge", { daily = { { id = "D_ANOMALY_3", text = "Find 3 anomalies", goal = 3, progress = 1, done = false, echoes = 60, xp = 80 } }, weekly = { { id = "W_SURVIVE_5", text = "Survive 5", goal = 5, progress = 5, done = true, echoes = 500, xp = 700 } }, dailyResetsIn = 4000, weeklyResetsIn = 300000, dailiesDone = 2 })
+check(State.challenges ~= nil, "challenge snapshot reaches State")
+do
+	local ShopPanel = requireModule(clientRoot.UI.ShopPanel)
+	local KitM = requireModule(clientRoot.UI.Kit)
+	for _, tab in { "EQUIPMENT", "UPGRADES", "LOADOUT", "COSMETICS", "CHALLENGES" } do
+		local holder = KitM.frame({})
+		local ok, err = pcall(function()
+			ShopPanel.build(holder, {
+				tabs = function(_, names, onSelect)
+					return function(name)
+						onSelect(name)
+					end
+				end,
+				backButton = function() end,
+			}, tab)
+		end)
+		check(ok, "supply room tab " .. tab .. ": " .. tostring(err))
+		frames(2)
+		-- click every button and card once
+		for _, d in holder:GetDescendants() do
+			if d:IsA("GuiButton") then
+				local ok2, err2 = pcall(function()
+					signalFor(d, "MouseEnter"):Fire()
+					signalFor(d, "Activated"):Fire()
+				end)
+				check(ok2, "supply room " .. tab .. " click: " .. tostring(err2))
+			end
+		end
+		frames(2)
+		signalFor(holder, "Destroying"):Fire()
+		holder:Destroy()
+	end
+	fire("ToolEvent", { kind = "gear", gear = gearSnapshot })
+	check(State.gear == gearSnapshot, "gear snapshot reaches State")
 end
 
 section("lobby")
