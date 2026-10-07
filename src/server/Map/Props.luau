@@ -82,7 +82,8 @@ function Props.officeChair(parent, cf: CFrame, rng)
 	D(m, "Pole", Vector3.new(0.25, 1.4, 0.25), at(cf, 0, 1.0, 0), C.metalDark, M.Metal)
 	for i = 0, 4 do
 		local a = math.rad(i * 72)
-		D(m, "Leg", Vector3.new(0.18, 0.15, 1.1), cf * CFrame.new(0, 0.3, 0) * CFrame.Angles(0, a, 0) * CFrame.new(0, 0, -0.55), C.metalDark, M.Metal)
+		D(m, "Leg", Vector3.new(0.18, 0.15, 1.1), cf * CFrame.new(0, 0.32, 0) * CFrame.Angles(0, a, 0) * CFrame.new(0, 0, -0.55), C.metalDark, M.Metal)
+		Build.ball(m, "Caster", 0.24, cf * CFrame.Angles(0, a, 0) * CFrame.new(0, 0.12, -1.0), C.black, M.Rubber, { CanCollide = false })
 	end
 	if rng:Chance(0.3) then
 		m:PivotTo(cf * CFrame.Angles(0, math.rad(rng:Number(-35, 35)), 0))
@@ -214,7 +215,7 @@ function Props.desk(parent, cf: CFrame, rng, opts)
 	if opts.monitor ~= false and rng:Chance(0.7) then
 		Props.crt(m, at(top, rng:Number(-1.2, 0.2), 0, 0.4, 0, 180 + rng:Number(-15, 15), 0), rng)
 	end
-	if rng:Chance(0.6) then
+	if opts.papers ~= false and rng:Chance(0.6) then
 		Props.paperStack(m, at(top, rng:Number(-2.4, -1.2), 0, rng:Number(-0.6, 0.6)), rng)
 	end
 	if opts.phone ~= false and rng:Chance(0.45) then
@@ -323,18 +324,20 @@ function Props.metalShelf(parent, cf: CFrame, rng, opts)
 	opts = opts or {}
 	local m = model(parent, "MetalShelf", cf)
 	local col = Build.vary(C.metal, rng)
-	for _, x in { -2.9, 2.9 } do
+	local width = opts.width or 6
+	local hw = width / 2
+	for _, x in { -(hw - 0.1), hw - 0.1 } do
 		for _, z in { -0.85, 0.85 } do
 			P(m, "Post", Vector3.new(0.2, 7, 0.2), at(cf, x, 3.5, z), col, M.Metal)
 		end
 	end
 	for i = 0, 3 do
 		local y = 0.5 + i * 2.1
-		P(m, "Shelf", Vector3.new(6, 0.15, 2), at(cf, 0, y, 0), col, M.Metal)
-		local x = -2.4
-		while x < 2.4 do
+		P(m, "Shelf", Vector3.new(width, 0.15, 2), at(cf, 0, y, 0), col, M.Metal)
+		local x = -(hw - 0.6)
+		while x < hw - 0.6 do
 			if rng:Chance(opts.fill or 0.6) then
-				local w = rng:Number(0.9, 1.6)
+				local w = math.min(rng:Number(0.9, 1.6), hw - 0.6 - x)
 				local h = rng:Number(0.7, 1.5)
 				D(m, "Item", Vector3.new(w, h, rng:Number(1, 1.7)), at(cf, x + w / 2, y + 0.08 + h / 2, rng:Number(-0.15, 0.15), 0, rng:Number(-8, 8), 0), Build.vary(rng:Pick({ C.cardboard, C.beige, C.metalDark, C.paper }), rng, 0.1), rng:Pick({ M.Cardboard, M.Plastic }))
 				x += w + 0.1
@@ -346,7 +349,7 @@ function Props.metalShelf(parent, cf: CFrame, rng, opts)
 			local spot = Instance.new("Attachment")
 			spot.Name = "ItemSpot"
 			spot.Parent = m:FindFirstChild("Shelf")
-			spot.WorldCFrame = at(cf, rng:Number(-2, 2), y + 0.1, -0.4)
+			spot.WorldCFrame = at(cf, rng:Number(-(hw - 1), hw - 1), y + 0.1, -0.4)
 			spot:AddTag("ItemSpot")
 		end
 	end
@@ -630,9 +633,11 @@ end
 
 function Props.fireExtinguisher(parent, cf: CFrame)
 	local m = model(parent, "Extinguisher", cf)
-	Build.cylinder(m, "Body", 1.8, 0.6, at(cf, 0, 2.4, -0.35, 0, 0, 90), Color3.fromRGB(120, 36, 32), M.SmoothPlastic, { CanCollide = false })
-	D(m, "Top", Vector3.new(0.3, 0.4, 0.3), at(cf, 0, 3.45, -0.35), C.black, M.Metal)
-	D(m, "Bracket", Vector3.new(0.7, 0.2, 0.3), at(cf, 0, 2, -0.12), C.metalDark, M.Metal)
+	-- cf stands 0.42 off the wall finish (backed placement); the bracket reaches back to it
+	Build.cylinder(m, "Body", 1.8, 0.6, at(cf, 0, 2.4, -0.15, 0, 0, 90), Color3.fromRGB(120, 36, 32), M.SmoothPlastic, { CanCollide = false })
+	D(m, "Top", Vector3.new(0.3, 0.4, 0.3), at(cf, 0, 3.45, -0.15), C.black, M.Metal)
+	D(m, "Bracket", Vector3.new(0.7, 0.2, 0.55), at(cf, 0, 2, 0.12), C.metalDark, M.Metal)
+	D(m, "Plate", Vector3.new(0.9, 1.8, 0.06), at(cf, 0, 2.6, 0.38), C.metalDark, M.Metal)
 	return m
 end
 
@@ -867,9 +872,15 @@ function Props.wheelchair(parent, cf: CFrame, rng)
 	return m
 end
 
-function Props.curtain(parent, cf: CFrame, width: number, rng)
+-- A privacy curtain on a track hung from the ceiling (ceilingH above cf).
+function Props.curtain(parent, cf: CFrame, width: number, rng, ceilingH: number?)
 	local m = model(parent, "Curtain", cf)
-	D(m, "Rail", Vector3.new(width, 0.12, 0.12), at(cf, 0, 8.5, 0), C.metal, M.Metal)
+	local railY = 8.5
+	D(m, "Rail", Vector3.new(width, 0.12, 0.12), at(cf, 0, railY, 0), C.metal, M.Metal)
+	local top = ceilingH or 13
+	for _, x in { -width / 2 + 0.3, width / 2 - 0.3 } do
+		D(m, "Hanger", Vector3.new(0.08, top - railY, 0.08), at(cf, x, (railY + top) / 2, 0), C.metal, M.Metal)
+	end
 	local folds = math.floor(width / 0.8)
 	for i = 0, folds - 1 do
 		D(m, "Fold", Vector3.new(0.85, 7, 0.08), at(cf, -width / 2 + 0.4 + i * 0.8, 4.9, (i % 2) * 0.12, 0, (i % 2 == 0) and 12 or -12, 0), Build.vary(Color3.fromRGB(150, 168, 164), rng, 0.04), M.Fabric, { Transparency = 0.1 })
@@ -940,17 +951,19 @@ end
 
 function Props.valveWheel(parent, cf: CFrame)
 	local m = model(parent, "Valve", cf)
-	Build.cylinder(m, "Wheel", 0.15, 1.2, cf * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(110, 30, 28), M.Metal, { CanCollide = false })
-	D(m, "Stem", Vector3.new(0.15, 0.15, 0.6), at(cf, 0, 0, 0.3), C.metalDark, M.Metal)
+	-- a wall flange, a short stem and the wheel standing off the wall
+	Build.cylinder(m, "Flange", 0.1, 0.6, cf * CFrame.new(0, 0, -0.06) * CFrame.Angles(0, math.rad(90), 0), C.metalDark, M.Metal, { CanCollide = false })
+	D(m, "Stem", Vector3.new(0.15, 0.15, 0.5), at(cf, 0, 0, -0.3), C.metalDark, M.Metal)
+	Build.cylinder(m, "Wheel", 0.15, 1.2, cf * CFrame.new(0, 0, -0.6) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(110, 30, 28), M.Metal, { CanCollide = false })
 	return m
 end
 
 function Props.freezer(parent, cf: CFrame, rng)
 	local m = model(parent, "Freezer", cf)
 	local col = Build.vary(Color3.fromRGB(170, 176, 178), rng, 0.03)
-	P(m, "Body", Vector3.new(3.6, 3.4, 2.4), at(cf, 0, 1.7, 0), col, M.Metal)
-	P(m, "Lid", Vector3.new(3.6, 0.3, 2.4), at(cf, 0, 3.55, 0), col:Lerp(C.black, 0.05), M.Metal)
-	D(m, "Frost", Vector3.new(3.4, 0.05, 2.2), at(cf, 0, 3.72, 0), Color3.fromRGB(220, 230, 240), M.Ice, { Transparency = 0.3 })
+	P(m, "Body", Vector3.new(3.2, 3.4, 2.4), at(cf, 0, 1.7, 0), col, M.Metal)
+	P(m, "Lid", Vector3.new(3.2, 0.3, 2.4), at(cf, 0, 3.55, 0), col:Lerp(C.black, 0.05), M.Metal)
+	D(m, "Frost", Vector3.new(3, 0.05, 2.2), at(cf, 0, 3.72, 0), Color3.fromRGB(220, 230, 240), M.Ice, { Transparency = 0.3 })
 	tagModel(m, "Locker")
 	return m
 end
@@ -979,13 +992,22 @@ function Props.forklift(parent, cf: CFrame, rng)
 	return m
 end
 
+-- A step ladder leaning against the wall behind it (+Z local is the wall side).
 function Props.ladder(parent, cf: CFrame)
 	local m = model(parent, "Ladder", cf)
 	local col = Color3.fromRGB(150, 140, 110)
-	D(m, "RailL", Vector3.new(0.2, 8, 0.2), at(cf, -0.8, 4, 0, -12, 0, 0), col, M.Wood)
-	D(m, "RailR", Vector3.new(0.2, 8, 0.2), at(cf, 0.8, 4, 0, -12, 0, 0), col, M.Wood)
+	local lean = math.rad(12)
+	local length = 8
+	-- rails: feet 0.8 out from the wall, tops resting against it
+	local axis = Vector3.new(0, math.cos(lean), math.sin(lean))
+	local mid = Vector3.new(0, length / 2 * math.cos(lean), 0)
+	for _, x in { -0.8, 0.8 } do
+		D(m, "Rail", Vector3.new(0.2, length, 0.2), cf * CFrame.new(x, mid.Y, 0) * CFrame.Angles(-lean, 0, 0), col, M.Wood)
+	end
 	for i = 0, 6 do
-		D(m, "Rung", Vector3.new(1.6, 0.12, 0.12), at(cf, 0, 0.9 + i * 1.05, -0.2 - i * 0.22), col, M.Wood)
+		local y = 0.9 + i * 1.05
+		local t = y / axis.Y - length / 2
+		D(m, "Rung", Vector3.new(1.6, 0.12, 0.12), cf * CFrame.new(0, y, axis.Z * t), col, M.Wood)
 	end
 	return m
 end

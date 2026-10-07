@@ -130,6 +130,15 @@ for _, seed in { 1, 42, 1337, 99991, 123456 } do
 		check(map.Expansions.CorridorStretch ~= nil and map.Expansions.BoilerExpand ~= nil, "expansions built")
 		check(map.ShrinkWall ~= nil, "shrink wall built")
 		check(#(map.Residents or {}) >= 1, "residents placed")
+		-- geometry audit: nothing through walls, floating, blocking walkways or doors
+		local GeometryValidator = requireModule(Server.Map.GeometryValidator)
+		local report = GeometryValidator.run(map)
+		check(#report.issues == 0, string.format("seed %d geometry: %s", seed, GeometryValidator.summary(report)))
+		for i, issue in report.issues do
+			if i <= 5 then
+				print(string.format("    [%s] %s %s in %s: %s", issue.severity, issue.kind, issue.name, tostring(issue.room), issue.detail))
+			end
+		end
 		for _, tag in { "FuseBox", "BreakerPanel", "Keypad", "SymbolCabinet", "OfferingTable", "TapeRecorder", "SecurityOverride", "BoardedPassage" } do
 			local n = 0
 			for _, d in map.Root:GetDescendants() do
@@ -254,6 +263,35 @@ for _, seed in { 1, 42, 1337, 99991, 123456 } do
 					check(#state.code == 4, "code")
 				elseif p == "SYMBOLS" then
 					check(#state.symbols == 4, "symbols")
+				end
+			end
+			-- every item and note rests on a surface, inside nothing
+			local audit = Instance.new("Folder")
+			audit.Name = "AuditPickups"
+			audit.Parent = workspace
+			for _, sp in spawned do
+				if sp.model and sp.id ~= "PHOTOGRAPH" then
+					sp.model.Parent = audit
+				end
+			end
+			local GeometryValidator = requireModule(Server.Map.GeometryValidator)
+			local extra = { audit }
+			local docs = currentMap.Root:FindFirstChild("Documents")
+			if docs then
+				table.insert(extra, docs)
+			end
+			local report = GeometryValidator.run(currentMap, { extra = extra })
+			local itemIssues = {}
+			for _, issue in report.issues do
+				local inst = issue.inst
+				if inst:IsDescendantOf(audit) or (docs and inst:IsDescendantOf(docs)) then
+					table.insert(itemIssues, issue)
+				end
+			end
+			check(#itemIssues == 0, string.format("seed %d: items and notes placed cleanly (%d issues)", seed, #itemIssues))
+			for i, issue in itemIssues do
+				if i <= 5 then
+					print(string.format("    [%s] %s %s in %s: %s", issue.severity, issue.kind, issue.name, tostring(issue.room), issue.detail))
 				end
 			end
 			print(string.format("  seed %d: puzzles %s, quota %d, items %d", seed, table.concat(state.puzzles, "+"), state.quota, #spawned))

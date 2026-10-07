@@ -1142,6 +1142,7 @@ function MapBuilder.build(seed: number, parent: Instance)
 		EntranceCells = {},
 		ExitCells = {},
 		Expansions = {},
+		LayoutOrigin = Layout.Origin,
 	}, Map)
 
 	collectRooms(map)

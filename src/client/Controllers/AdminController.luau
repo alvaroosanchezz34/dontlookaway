@@ -97,7 +97,7 @@ local function build()
 	Kit.stroke(panel, C.Danger, 1, 0.3)
 	Kit.text({ Text = "ADMIN  ·  owner tools", Size = UDim2.fromOffset(600, 30), Position = UDim2.fromOffset(20, 12), FontFace = Kit.F.Heading, TextSize = 20, TextColor3 = C.Danger, Parent = panel })
 	message = Kit.text({ Text = "", Size = UDim2.fromOffset(800, 24), Position = UDim2.fromOffset(660, 14), TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Mono, TextSize = 14, Parent = panel })
-	local commands = Kit.frame({ Size = UDim2.fromOffset(300, 800), Position = UDim2.fromOffset(20, 60), BackgroundTransparency = 1, Parent = panel })
+	local commands = Kit.scroll(panel, { Size = UDim2.fromOffset(310, 820), Position = UDim2.fromOffset(20, 60) })
 	Kit.list(commands, 6)
 	local entries = {
 		{ "Refresh", "refresh" },
@@ -112,6 +112,12 @@ local function build()
 		{ "Release ANOMALIES", "releaseLock", "ANOMALIES" },
 		{ "Teleport to target", "teleport", true },
 		{ "Kill me (test death)", "killSelf" },
+		{ "Geometry check (toggle)", "geometryCheck" },
+		{ "Blackout L1", "blackout", 1 },
+		{ "Blackout L2", "blackout", 2 },
+		{ "Blackout L3", "blackout", 3 },
+		{ "Blackout L4", "blackout", 4 },
+		{ "End blackout", "blackout", 0 },
 	}
 	for i, e in entries do
 		Kit.button({ Text = e[1], Size = UDim2.fromOffset(290, 36), TextSize = 14, LayoutOrder = i, Parent = commands }, function()

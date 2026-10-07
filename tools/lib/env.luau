@@ -22,6 +22,26 @@ local Vector3 = roblox.Vector3
 -- Engine polyfills
 ------------------------------------------------------------------------------------
 
+-- Lune's CFrame.lookAt negates the Z axis of the look direction (a look along -Z
+-- comes out facing +Z). The game relies on lookAt everywhere, so modules get a
+-- CFrame table whose lookAt matches the engine.
+local function lookAt(at, target, up)
+	local look = target - at
+	if look.Magnitude < 1e-9 then
+		return CFrame.new(at)
+	end
+	look = look.Unit
+	up = up or Vector3.new(0, 1, 0)
+	local right = look:Cross(up)
+	if right.Magnitude < 1e-6 then
+		right = look:Cross(Vector3.new(0, 0, 1))
+	end
+	right = right.Unit
+	local upv = right:Cross(look)
+	return CFrame.new(at.X, at.Y, at.Z, right.X, upv.X, -look.X, right.Y, upv.Y, -look.Y, right.Z, upv.Z, -look.Z)
+end
+local CFrameFixed = setmetatable({ lookAt = lookAt }, { __index = CFrame })
+
 -- BasePart.Position derives from CFrame in the engine
 for _, className in { "BasePart", "Part", "WedgePart", "MeshPart", "TrussPart", "CornerWedgePart" } do
 	roblox.implementProperty(className, "Position", function(self)
@@ -294,7 +314,7 @@ local function envFor(scriptInstance)
 		Instance = Instance,
 		Vector3 = roblox.Vector3,
 		Vector2 = roblox.Vector2,
-		CFrame = roblox.CFrame,
+		CFrame = CFrameFixed,
 		Color3 = roblox.Color3,
 		UDim = roblox.UDim,
 		UDim2 = roblox.UDim2,
@@ -337,6 +357,7 @@ end
 
 
 return {
+	CFrame = CFrameFixed,
 	roblox = roblox,
 	game = game,
 	workspace = workspace,

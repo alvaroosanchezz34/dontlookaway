@@ -228,6 +228,44 @@ COMMANDS.difficulty = function(_admin, value)
 	return "difficulty is chosen by the lobby host; current " .. Registry.RoundService:GetDifficulty() .. " (" .. tostring(value) .. ")"
 end
 
+local geometryDebug: Folder? = nil
+
+-- Development: audit the current map's geometry and outline every prop
+-- (RED intersection, YELLOW suspicious, BLUE floating, GREEN correct). Toggles.
+COMMANDS.geometryCheck = function()
+	if geometryDebug then
+		geometryDebug:Destroy()
+		geometryDebug = nil
+		return "geometry debug off"
+	end
+	local map = Registry.MapService:GetMap()
+	if not map then
+		return "no map built"
+	end
+	local GeometryValidator = require(script.Parent.Parent.Map.GeometryValidator)
+	local report = GeometryValidator.run(map)
+	geometryDebug = GeometryValidator.visualize(report, workspace)
+	for i, issue in report.issues do
+		if i > 25 then
+			break
+		end
+		AdminService:Log(string.format("[%s] %s %s in %s: %s", issue.severity, issue.kind, issue.name, tostring(issue.room), issue.detail))
+	end
+	return GeometryValidator.summary(report)
+end
+
+COMMANDS.blackout = function(_admin, level)
+	if type(level) ~= "number" then
+		return "?"
+	end
+	if level <= 0 then
+		Registry.LightingService:EndBlackout()
+		return "blackout ended"
+	end
+	Registry.LightingService:Blackout(level, 30)
+	return "blackout level " .. level .. " for 30s"
+end
+
 COMMANDS.killSelf = function(admin)
 	Registry.RoundService:KillPlayer(admin, nil)
 	return "you died"
