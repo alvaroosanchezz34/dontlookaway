@@ -12,16 +12,16 @@ local AssetIds = {}
 
 -- Surface textures (assets/textures/<name>/<name>_<map>.png)
 AssetIds.Materials = {
-	plaster_aged = { color = 0, normal = 0, roughness = 0 },
-	wallpaper_damask = { color = 0, normal = 0, roughness = 0 },
-	carpet_worn = { color = 0, normal = 0, roughness = 0 },
-	tiles_worn = { color = 0, normal = 0, roughness = 0 },
-	ceiling_tile = { color = 0, normal = 0, roughness = 0 },
-	concrete_grimy = { color = 0, normal = 0, roughness = 0 },
-	wood_planks_worn = { color = 0, normal = 0, roughness = 0 },
-	brick_grimy = { color = 0, normal = 0, roughness = 0 },
-	marble_stained = { color = 0, normal = 0, roughness = 0 },
-	metal_worn = { color = 0, normal = 0, roughness = 0, metalness = 0 },
+	plaster_aged = { color = 107215450413033, normal = 84132935247783, roughness = 133763453720548 },
+	wallpaper_damask = { color = 120863078953479, normal = 128306199589493, roughness = 108623304443042 },
+	carpet_worn = { color = 81202392236431, normal = 124465885433566, roughness = 93225446930217 },
+	tiles_worn = { color = 122065870248615, normal = 82385264798496, roughness = 111455651778102 },
+	ceiling_tile = { color = 97904610194705, normal = 111698571339009, roughness = 121520549999929 },
+	concrete_grimy = { color = 140127750101492, normal = 124397282736215, roughness = 92823511814189 },
+	wood_planks_worn = { color = 106950480297885, normal = 101530558258022, roughness = 114210085469558 },
+	brick_grimy = { color = 108837060381955, normal = 105803676660296, roughness = 95359754553547 },
+	marble_stained = { color = 118681339278410, normal = 134150185593168, roughness = 105892051510999 },
+	metal_worn = { color = 127374912032906, normal = 114374607971326, roughness = 71774178091112, metalness = 109152295762614 },
 }
 
 -- THE OBSERVER (assets/observer/*.obj and observer_skin_*.png).
@@ -57,7 +57,7 @@ AssetIds.Observer = {
 		LowerLeg = 0,
 		Foot = 0,
 	},
-	skin = { color = 0, normal = 0, roughness = 0 },
+	skin = { color = 73026626049237, normal = 83633682521540, roughness = 128909048447810 },
 }
 
 function AssetIds.url(id: number?): string?

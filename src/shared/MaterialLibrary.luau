@@ -91,6 +91,9 @@ function MaterialLibrary.apply()
 	local ok, err = pcall(function()
 		if RunService:IsServer() then
 			createVariants()
+			if MaterialLibrary.count() > 0 then
+				print(string.format("[MaterialLibrary] %d custom textures active", MaterialLibrary.count()))
+			end
 		end
 		applyOverrides()
 	end)

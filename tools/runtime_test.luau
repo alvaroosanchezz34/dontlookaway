@@ -186,6 +186,14 @@ do
 	local ObserverRig = requireModule(RS.Shared.ObserverRig)
 	local MeshMeta = requireModule(RS.Shared.Config.ObserverMeshMeta)
 	local MaterialService = game:GetService("MaterialService")
+	-- remember the real ids, then test the "nothing uploaded" fallback
+	local saved = {}
+	for key, entry in AssetIds.Materials do
+		saved[key] = table.clone(entry)
+		for map in entry do
+			entry[map] = 0
+		end
+	end
 	-- with no ids nothing is created and the plain rig is used
 	check(MaterialLibrary.count() == 0, "no textures configured by default")
 	MaterialLibrary.apply()
@@ -210,8 +218,10 @@ do
 		end
 	end
 	check(count == 10, "apply is idempotent (" .. count .. " variants)")
-	for _, entry in AssetIds.Materials do
-		entry.color, entry.normal, entry.roughness = 0, 0, 0
+	for key, entry in AssetIds.Materials do
+		for map, value in saved[key] do
+			entry[map] = value
+		end
 	end
 	for _, v in MaterialService:GetChildren() do
 		v:Destroy()
