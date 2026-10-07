@@ -32,7 +32,8 @@ local S = {
 	click = "rbxasset://sounds/clickfast.wav",
 	switch = "rbxasset://sounds/switch.wav",
 	button = "rbxasset://sounds/button.wav",
-	swoosh = "rbxasset://sounds/swoosh.wav",
+	-- breathy, airy source (swoosh.wav is not shipped with current clients)
+	swoosh = "rbxasset://sounds/action_swim.mp3",
 	hit = "rbxasset://sounds/hit.wav",
 	glass = "rbxasset://sounds/glassbreak.wav",
 	snap = "rbxasset://sounds/snap.wav",

@@ -386,6 +386,18 @@ function RoundService:StartRound(players: { Player }, chosenDifficulty: string)
 	if state ~= RS.Lobby or #players == 0 then
 		return false
 	end
+	-- a failure while starting must never leave the server stuck in STARTING
+	local ok, result = pcall(self._startRound, self, players, chosenDifficulty)
+	if ok then
+		return result
+	end
+	warn("[RoundService] round failed to start: " .. tostring(result))
+	roundToken += 1
+	pcall(returnToLobby)
+	return false
+end
+
+function RoundService:_startRound(players: { Player }, chosenDifficulty: string)
 	roundToken += 1
 	local token = roundToken
 	difficulty = if GameConfig.Difficulty[chosenDifficulty] then chosenDifficulty else Enums.Difficulty.Normal

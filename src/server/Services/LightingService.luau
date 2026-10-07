@@ -77,8 +77,12 @@ function LightingService:ApplyPreset(name: string, duration: number?)
 		OutdoorAmbient = preset.OutdoorAmbient,
 		ExposureCompensation = preset.ExposureCompensation,
 	}):Play()
-	TweenService:Create(cc, info, preset.cc):Play()
-	TweenService:Create(atmosphere, info, preset.atmosphere):Play()
+	if cc and cc.Parent then
+		TweenService:Create(cc, info, preset.cc):Play()
+	end
+	if atmosphere and atmosphere.Parent then
+		TweenService:Create(atmosphere, info, preset.atmosphere):Play()
+	end
 end
 
 function LightingService:GetPreset(): string
@@ -98,15 +102,25 @@ function LightingService:SetPower(on: boolean, keepPreset: boolean?)
 end
 
 function LightingService:Init()
-	Lighting.Technology = Enum.Technology.Future
-	Lighting.GlobalShadows = true
-	Lighting.Brightness = 0.35
-	Lighting.ClockTime = 0.4
-	Lighting.GeographicLatitude = 30
-	Lighting.EnvironmentDiffuseScale = 0.12
-	Lighting.EnvironmentSpecularScale = 0.35
-	Lighting.ShadowSoftness = 0.25
-	Lighting.FogEnd = 100000
+	-- Technology (Future) can't be written by scripts; it is set in default.project.json.
+	local props = {
+		GlobalShadows = true,
+		Brightness = 0.35,
+		ClockTime = 0.4,
+		GeographicLatitude = 30,
+		EnvironmentDiffuseScale = 0.12,
+		EnvironmentSpecularScale = 0.35,
+		ShadowSoftness = 0.25,
+		FogEnd = 100000,
+	}
+	for prop, value in props do
+		local ok, err = pcall(function()
+			(Lighting :: any)[prop] = value
+		end)
+		if not ok then
+			warn("[LightingService] " .. prop .. ": " .. tostring(err))
+		end
+	end
 	for _, child in Lighting:GetChildren() do
 		if child:IsA("PostEffect") or child:IsA("Atmosphere") or child:IsA("Sky") then
 			child:Destroy()

@@ -362,6 +362,14 @@ local okPause = pcall(function()
 	Registry.EmoteController:CloseWheel()
 end)
 check(okPause, "pause menu & emote wheel")
+check(not Registry.CameraController:HasOverride(), "lobby: no camera override blocks movement")
+
+-- the player can actually walk in the lobby
+local function walkCheck(label: string)
+	check(State.uiOpen == false, label .. ": no UI holds focus")
+	check(not Registry.CameraController:HasOverride(), label .. ": camera free (movement enabled)")
+end
+walkCheck("lobby")
 
 section("round")
 fire("RoundState", { state = "EXPLORING", difficulty = "NORMAL", seed = 7, elapsed = 0 })
@@ -369,6 +377,8 @@ localPlayer:SetAttribute("Status", "ALIVE")
 fire("Objective", { list = { { text = "Find the anomalies  1/7", done = false, primary = true }, { text = "Restore the power  (fuses 1/3)", done = false }, { text = "Exit locks released  0/4", done = false, dim = true } }, found = 1, quota = 7 })
 fire("InventoryState", { slots = { { id = "FUSE", count = 2 }, { id = "BATTERY", count = 1 }, false, { id = "MAINT_KEY", count = 1 } }, selected = 2, battery = 64, light = true })
 fire("PlayerStates", { { userId = 1, name = "Tester", status = "ALIVE" }, { userId = 2, name = "Friend", status = "DEAD" } })
+frames(2)
+walkCheck("round")
 fire("Notify", { kind = "item", text = "Fuse", item = "FUSE" })
 fire("Notify", { kind = "team", text = "Friend spotted an anomaly" })
 fire("Notify", { kind = "anomaly", text = "THE OTHER PAINTING", sub = "ANOMALY #001" })

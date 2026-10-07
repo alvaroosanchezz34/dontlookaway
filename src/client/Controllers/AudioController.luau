@@ -192,6 +192,7 @@ end
 
 function AudioController:Init()
 	SoundFactory.ensureGroups()
+	task.spawn(SoundFactory.validate)
 	duckValue.Changed:Connect(function(v)
 		duck = v
 		self:ApplyVolumes()

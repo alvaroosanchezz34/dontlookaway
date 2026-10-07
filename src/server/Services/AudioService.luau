@@ -108,6 +108,7 @@ end
 
 function AudioService:Init()
 	SoundFactory.ensureGroups()
+	task.spawn(SoundFactory.validate)
 end
 
 return AudioService

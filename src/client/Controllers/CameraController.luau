@@ -43,6 +43,7 @@ local lastLookSend = 0
 local wasFalling = false
 local lastCF = CFrame.new()
 local frozen = false
+local overrideActive = false -- an override produced the camera last frame
 
 function CameraController:SetOverride(name: string, priority: number, fn: (number) -> (CFrame?, number?))
 	overrides[name] = { priority = priority, fn = fn }
@@ -52,8 +53,10 @@ function CameraController:ClearOverride(name: string)
 	overrides[name] = nil
 end
 
+-- True only while an override is actually driving the camera. Overrides stay
+-- registered (the menu one lives forever) and return nil when they don't apply.
 function CameraController:HasOverride(): boolean
-	return next(overrides) ~= nil
+	return overrideActive
 end
 
 function CameraController:Shake(amount: number)
@@ -204,18 +207,23 @@ local function step(dt: number)
 	camera.CameraType = Enum.CameraType.Scriptable
 	updateMouseLock()
 	applyLookInput(dt)
-	-- highest priority override wins
-	local best, bestP = nil, -math.huge
+	-- highest priority override that applies wins
+	local list = {}
 	for _, o in overrides do
-		if o.priority > bestP then
-			best, bestP = o, o.priority
-		end
+		table.insert(list, o)
 	end
+	table.sort(list, function(a, b)
+		return a.priority > b.priority
+	end)
 	local cf: CFrame? = nil
 	local overrideFov: number? = nil
-	if best then
-		cf, overrideFov = best.fn(dt)
+	for _, o in list do
+		cf, overrideFov = o.fn(dt)
+		if cf then
+			break
+		end
 	end
+	overrideActive = cf ~= nil
 	if not cf then
 		cf = fpsCFrame(dt)
 	end
