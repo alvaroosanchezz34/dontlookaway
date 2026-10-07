@@ -427,7 +427,7 @@ local function buildPause()
 				MenuController:SetPaused(false)
 				Net.event("Lobby"):FireServer("menu")
 			else
-				Registry.HUDController:Hint("You can leave once you are back in the waiting room.", 3)
+				Registry.HUDController:Hint("You can leave once you are back in the Field Office.", 3)
 			end
 		end },
 	}

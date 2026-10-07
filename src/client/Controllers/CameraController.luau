@@ -105,7 +105,7 @@ end
 local function updateMouseLock()
 	local lock = gameplayActive() and not State.uiOpen and State.inputType ~= "Touch"
 	if lock and State.status == "LOBBY" and State.inputType == "Keyboard" then
-		-- in the waiting room the cursor stays free for the lobby panel; hold RMB to look
+		-- in the Field Office the cursor stays free for the lobby panel; hold RMB to look
 		lock = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 	end
 	UserInputService.MouseBehavior = if lock then Enum.MouseBehavior.LockCenter else Enum.MouseBehavior.Default

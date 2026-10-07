@@ -1,7 +1,7 @@
 --[[
 	LobbyService
 	Menu -> Lobby -> Round. Players press PLAY in the main menu to enter the
-	Waiting Room. Anyone can start: the first ready player starts a countdown,
+	Field Office (the lobby). Anyone can start: the first ready player starts a countdown,
 	which shortens when everyone present is ready. The host (longest in the lobby)
 	may change difficulty; NORMAL is the default, HARD unlocks after an escape.
 	Joining mid-round puts you in the lobby to wait or spectate; a participant who

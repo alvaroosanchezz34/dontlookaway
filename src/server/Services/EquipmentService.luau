@@ -524,7 +524,7 @@ USE.ANOMALY_LENS = function(player: Player, tool: Tool)
 end
 
 local function onTool(player: Player, action: any, index: any, a: any, b: any)
-	if type(action) ~= "string" or type(index) ~= "number" then
+	if type(action) ~= "string" or type(index) ~= "number" or index ~= index or math.abs(index) > 16 then
 		return
 	end
 	local belt = belts[player]
