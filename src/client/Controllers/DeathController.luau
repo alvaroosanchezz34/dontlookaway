@@ -14,9 +14,27 @@ local Kit = require(script.Parent.Parent.UI.Kit)
 
 local DeathController = {}
 
+local function afterDeath(delay: number)
+	task.delay(delay, function()
+		Registry.CameraController:ClearOverride("Death")
+		Registry.EffectsController:ResetPost()
+		if State.round.state ~= "RESULTS" and State.round.state ~= "RETURNING" and State.round.state ~= "LOBBY" then
+			Registry.SpectatorController:Begin(false)
+		end
+	end)
+end
+
 local function deathSequence(payload)
 	local cam = Registry.CameraController
 	local fx = Registry.EffectsController
+	-- caught by The Observer: one of the cinematic variants
+	if payload.variant then
+		Registry.MusicController:Force("DEATH", 7)
+		Registry.ScareController:Death(payload, function()
+			afterDeath(4.6)
+		end)
+		return
+	end
 	local start = os.clock()
 	local from = cam:GetCFrame()
 	local killer: CFrame? = payload.killer

@@ -78,6 +78,16 @@ local function onPing(player: Player, kind: any, position: any)
 		end
 	end
 	Net.fireList(list, "PingShow", payload)
+	Registry.ObserverService:OnPing(player, position)
+end
+
+-- A ping only one player sees, signed with someone else's name (the mimic).
+function PingService:FakePing(viewer: Player, kind: string, position: Vector3, fromName: string, fromUserId: number)
+	if not Pings.List[kind] then
+		return
+	end
+	counter += 1
+	Net.fire(viewer, "PingShow", { id = "p" .. counter, kind = kind, position = position, from = fromName, userId = fromUserId, duration = GameConfig.Ping.Duration })
 end
 
 function PingService:Init()

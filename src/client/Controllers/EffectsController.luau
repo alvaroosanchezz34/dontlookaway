@@ -97,6 +97,10 @@ function EffectsController:Glitch(strength: number, duration: number?)
 	Registry.CameraController:Shake(0.15 * strength)
 end
 
+function EffectsController:GetGrade(): ColorCorrectionEffect
+	return cc
+end
+
 function EffectsController:Blur(size: number, time: number)
 	Kit.tween(blur, time, { Size = size })
 end
@@ -299,14 +303,20 @@ handlers.WardBreak = function()
 	Registry.CameraController:Shake(0.5)
 end
 
-handlers.Jumpscare = function()
-	-- a face that is not a face, for a fraction of a second
-	local face = Kit.frame({ Size = UDim2.fromScale(0.38, 0.7), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), BackgroundColor3 = Color3.fromRGB(8, 8, 8), Parent = gui, ZIndex = 15 })
-	Kit.corner(face, 400)
-	Kit.frame({ Size = UDim2.new(0.03, 0, 0.6, 0), Position = UDim2.fromScale(0.485, 0.2), BackgroundColor3 = Color3.fromRGB(40, 38, 36), Parent = face, ZIndex = 16 })
-	Registry.CameraController:Shake(0.9)
-	EffectsController:Glitch(1, 0.3)
-	Debris:AddItem(face, if reduced() then 0.15 else 0.28)
+handlers.Jumpscare = function(p)
+	-- it is right there, for a fraction of a second
+	Registry.ScareController:Flash(p.kind)
+end
+
+handlers.ObserverClose = function()
+	-- it is close and you can hear it: the edges darken, your pulse jumps
+	Registry.CameraController:SetFovEffect(-3)
+	vignetteBase = 0.55
+	task.delay(1.2, function()
+		vignetteBase = 0.35
+		Registry.CameraController:SetFovEffect(0)
+	end)
+	Registry.AudioController:Play("HeartbeatFast", nil, { volume = 0.8 })
 end
 
 handlers.RealityCollapse = function()

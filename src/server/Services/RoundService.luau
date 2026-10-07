@@ -114,7 +114,8 @@ end
 -- Deaths & escapes
 ------------------------------------------------------------------------------------
 
-function RoundService:KillPlayer(player: Player, killerCF: CFrame?)
+-- info: how it happened (death cinematic variant and its context)
+function RoundService:KillPlayer(player: Player, killerCF: CFrame?, info: { [string]: any }?)
 	if not Registry.PlayerService:IsAlive(player) then
 		return
 	end
@@ -129,7 +130,11 @@ function RoundService:KillPlayer(player: Player, killerCF: CFrame?)
 	Registry.AnalyticsService:Death(player, self:GetElapsed())
 	local root = Util.getRoot(player)
 	local position = root and root.Position or Vector3.zero
-	Net.fire(player, "Death", { killer = killerCF, position = position })
+	local payload = { killer = killerCF, position = position }
+	for k, v in info or {} do
+		payload[k] = v
+	end
+	Net.fire(player, "Death", payload)
 	for _, p in Players:GetPlayers() do
 		if p ~= player and Registry.PlayerService:IsAlive(p) then
 			Net.fire(p, "Notify", { kind = "danger", text = player.DisplayName .. " was taken." })

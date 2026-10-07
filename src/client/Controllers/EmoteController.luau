@@ -57,13 +57,26 @@ local POSES = {
 
 local function animateCharacters()
 	local now = Workspace:GetServerTimeNow()
+	local models = {}
 	for _, p in Players:GetPlayers() do
-		local character = p.Character
-		if character then
+		if p.Character then
+			table.insert(models, p.Character)
+		end
+	end
+	-- mimics emote too (badly)
+	for _, m in Workspace:GetChildren() do
+		if m:IsA("Model") and m:GetAttribute("Mimic") then
+			table.insert(models, m)
+		end
+	end
+	for _, character in models do
+		do
 			local emote = character:GetAttribute("Emote")
 			local at = character:GetAttribute("EmoteAt")
-			if type(emote) == "string" and type(at) == "number" and now - at < DURATION and POSES[emote] then
-				local t = (now - at) / DURATION
+			local speed = character:GetAttribute("EmoteSpeed")
+			local duration = DURATION / (if type(speed) == "number" and speed > 0 then speed else 1)
+			if type(emote) == "string" and type(at) == "number" and now - at < duration and POSES[emote] then
+				local t = (now - at) / duration
 				local rs, ls, neck, waist, re = POSES[emote](t)
 				local function apply(m: Motor6D?, cf: CFrame?)
 					if m and cf then

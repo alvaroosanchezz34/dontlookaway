@@ -87,6 +87,20 @@ roblox.implementMethod("Instance", "WaitForChild", function(self, name)
 	return self:FindFirstChild(name)
 end)
 roblox.implementMethod("ParticleEmitter", "Emit", function() end)
+-- a pinhole camera projection (enough for HUD markers)
+roblox.implementMethod("Camera", "WorldToViewportPoint", function(self, point)
+	local cf = self.CFrame
+	local rel = cf:PointToObjectSpace(point)
+	local depth = -rel.Z
+	local viewport = Vector2.new(1920, 1080)
+	if depth <= 0.01 then
+		return Vector3.new(viewport.X / 2, viewport.Y / 2, depth), false
+	end
+	local f = (viewport.Y / 2) / math.tan(math.rad(35))
+	local x = viewport.X / 2 + rel.X / depth * f
+	local y = viewport.Y / 2 - rel.Y / depth * f
+	return Vector3.new(x, y, depth), x >= 0 and x <= viewport.X and y >= 0 and y <= viewport.Y
+end)
 
 ------------------------------------------------------------------------------------
 -- Engine services
@@ -312,7 +326,7 @@ local function frames(n)
 	for _ = 1, n do
 		env.syncPositions(workspace)
 		for name, fn in renderFns do
-			local ok, err = pcall(fn, 1 / 60)
+			local ok, err = xpcall(fn, function(e) return tostring(e) .. "\n" .. debug.traceback() end, 1 / 60)
 			check(ok, "render step " .. name .. ": " .. tostring(err))
 		end
 		for _, loop in loops do
@@ -413,6 +427,43 @@ fire("RoundState", { state = "ESCAPE", difficulty = "NORMAL", seed = 7, elapsed 
 frames(5)
 fire("Death", { killer = CFrame.new(5, 0, 5), position = Vector3.new(0, 3, 0) })
 frames(30)
+-- every Observer death cinematic plays through and cleans up after itself
+section("death cinematics")
+for _, variant in { "behind", "side", "front", "dark", "door", "mirror", "mimic" } do
+	local finished = false
+	local ok, err = pcall(function()
+		Registry.ScareController:Death({ variant = variant, position = Vector3.new(0, 3, 0), side = 1, door = Vector3.new(6, 0, 2), mirror = Vector3.new(0, 6, -8), mimicUserId = 2, mimicName = "Friend" }, function()
+			finished = true
+		end)
+	end)
+	check(ok, "death cinematic " .. variant .. ": " .. tostring(err))
+	local deadline = os.clock() + 4
+	while not finished and os.clock() < deadline do
+		frames(2)
+		task.wait(0.05)
+	end
+	frames(4)
+	task.wait(0.3)
+	check(finished, "death cinematic " .. variant .. " reaches the black screen")
+	check(not Registry.ScareController:IsActive(), "death cinematic " .. variant .. " cleans up")
+	local leftovers = 0
+	for _, d in workspace:GetChildren() do
+		if d.Name == "ObserverScare" then
+			leftovers += 1
+		end
+	end
+	check(leftovers == 0, "no scare rig left behind after " .. variant)
+	Registry.CameraController:ClearOverride("Death")
+end
+local okFlash = pcall(function()
+	Registry.ScareController:Flash("mimic")
+end)
+check(okFlash, "short scare")
+task.wait(0.4)
+frames(3)
+fire("Effect", { name = "ObserverClose" })
+fire("Effect", { name = "GuideMarker", at = Vector3.new(10, 3, 10), text = "MAIL ROOM" })
+frames(5)
 fire("Effect", { name = "Escaped", camera = CFrame.new(0, 10, 0), witness = true })
 frames(5)
 localPlayer:SetAttribute("Status", "DEAD")

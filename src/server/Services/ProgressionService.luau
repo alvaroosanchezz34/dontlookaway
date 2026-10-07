@@ -187,6 +187,13 @@ function ProgressionService:Challenge(player: Player, kind: string, value: any)
 	end
 end
 
+function ProgressionService:MimicSpotted(player: Player)
+	Registry.DataService:Update(player, function(d)
+		d.stats.mimicsSpotted += 1
+	end)
+	self:Challenge(player, "mimic", 1)
+end
+
 function ProgressionService:FalseReport(player: Player)
 	Registry.DataService:Update(player, function(d)
 		d.stats.falseReports += 1

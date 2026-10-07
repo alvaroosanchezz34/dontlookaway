@@ -60,6 +60,7 @@ local ORDER = {
 	"LobbyController",
 	"ResultsController",
 	"SpectatorController",
+	"ScareController",
 	"DeathController",
 	"AdminController",
 }

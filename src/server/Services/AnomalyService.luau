@@ -43,7 +43,7 @@ local Signal = require(ReplicatedStorage.Shared.Util.Signal)
 local Registry = require(script.Parent.Parent.Registry)
 local Props = require(script.Parent.Parent.Map.Props)
 local Build = require(script.Parent.Parent.Map.Build)
-local ObserverRig = require(script.Parent.Parent.Observer.ObserverRig)
+local ObserverRig = require(ReplicatedStorage.Shared.ObserverRig)
 
 local AnomalyService = {}
 
@@ -715,6 +715,10 @@ function AnomalyService:Report(player: Player, origin: any, dir: any)
 	end
 	if (origin - head.Position).Magnitude > 4 then
 		origin = head.Position
+	end
+	-- a teammate who is not a teammate
+	if Registry.ObserverService:ReportMimic(player, origin, dir) then
+		return
 	end
 	local best, bestScore = nil, math.huge
 	for _, inst in active do

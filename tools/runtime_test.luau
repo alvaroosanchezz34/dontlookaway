@@ -609,6 +609,14 @@ end
 ------------------------------------------------------------------------------------
 
 section("anomaly lifecycle")
+Registry.ObserverService = {
+	ReportMimic = function()
+		return false
+	end,
+	IsActive = function()
+		return false
+	end,
+}
 currentMap = maps[42]
 local objectiveState = Registry.ObjectiveService:Plan(currentMap, SeededRandom.new(42, "objectives"), 1)
 syncPositions(currentMap.Root)
