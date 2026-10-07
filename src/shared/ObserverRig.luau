@@ -300,19 +300,37 @@ function ObserverRig.loadMeshes(): number
 	if not RunService:IsServer() then
 		return 0
 	end
-	local ids = AssetIds.Observer.meshes
 	local skin = AssetIds.Observer.skin
 	local folder = ReplicatedStorage:FindFirstChild(TEMPLATE_FOLDER)
 	local loaded = 0
-	for meshName, id in ids do
-		local url = AssetIds.url(id)
-		if url and MeshMeta[meshName] then
-			local ok, mesh = pcall(function()
-				return game:GetService("AssetService"):CreateMeshPartAsync(url, {
+	for meshName in MeshMeta do
+		local meshUrl = AssetIds.url(AssetIds.Observer.meshes[meshName])
+		local modelId = AssetIds.Observer.models[meshName]
+		local ok, mesh = false, nil
+		if meshUrl then
+			ok, mesh = pcall(function()
+				return game:GetService("AssetService"):CreateMeshPartAsync(meshUrl, {
 					CollisionFidelity = Enum.CollisionFidelity.Box,
 					RenderFidelity = Enum.RenderFidelity.Precise,
 				})
 			end)
+		elseif AssetIds.url(modelId) then
+			-- the imported model (owned by the experience's creator) holds the MeshPart
+			ok, mesh = pcall(function()
+				local container = game:GetService("InsertService"):LoadAsset(modelId)
+				local found = container:FindFirstChildWhichIsA("MeshPart", true)
+				local copy = if found then found:Clone() else nil
+				container:Destroy()
+				if not copy then
+					error("no MeshPart inside model " .. tostring(modelId))
+				end
+				for _, d in copy:GetChildren() do
+					d:Destroy()
+				end
+				return copy
+			end)
+		end
+		if meshUrl or AssetIds.url(modelId) then
 			if ok and mesh then
 				mesh.Name = meshName
 				mesh.Size = MeshMeta[meshName].size

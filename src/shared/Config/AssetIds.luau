@@ -24,9 +24,25 @@ AssetIds.Materials = {
 	metal_worn = { color = 0, normal = 0, roughness = 0, metalness = 0 },
 }
 
--- THE OBSERVER (assets/observer/*.obj and observer_skin_*.png). Mesh ids are the
--- MeshId of each imported MeshPart.
+-- THE OBSERVER (assets/observer/*.obj and observer_skin_*.png).
+-- `models`: the Model asset Studio creates when a .obj is imported (Asset Manager,
+-- type "Modelo", named after the file). `meshes`: a raw mesh id, if preferred.
+-- Either works; a mesh id wins when both are set.
 AssetIds.Observer = {
+	models = {
+		UpperTorso = 133171989693937,
+		LowerTorso = 129218204675278,
+		Neck = 121327873576376,
+		Head = 81693864937120,
+		FaceL = 137474714940635,
+		FaceR = 84783262679053,
+		UpperArm = 114524026637038,
+		LowerArm = 118352438172157,
+		Hand = 105017445485151,
+		UpperLeg = 107974134887547,
+		LowerLeg = 84078826201154,
+		Foot = 133906447313908,
+	},
 	meshes = {
 		UpperTorso = 0,
 		LowerTorso = 0,

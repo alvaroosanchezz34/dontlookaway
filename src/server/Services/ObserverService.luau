@@ -1131,8 +1131,12 @@ function ObserverService:Start()
 	-- sculpted meshes (if uploaded) load in the background; the rig built above
 	-- is dressed as soon as they arrive, later copies are dressed on creation
 	task.spawn(function()
-		if ObserverRig.loadMeshes() > 0 and model then
-			ObserverRig.dress(model)
+		local count = ObserverRig.loadMeshes()
+		if count > 0 then
+			print(string.format("[ObserverService] sculpted Observer: %d meshes loaded", count))
+			if model then
+				ObserverRig.dress(model)
+			end
 		end
 	end)
 	local acc = 0
