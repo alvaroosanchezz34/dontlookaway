@@ -12,6 +12,7 @@
 		{ t = "Prop", target = Instance, prop = string, value = any }
 		{ t = "PropAll", target = Instance, class = string, prop = string, value = any }
 		{ t = "Attr", target = Instance, name = string, value = any }
+		{ t = "Tag", target = Instance, tag = string }                -- adds a CollectionService tag
 		{ t = "Clone", template = Instance, parent = Instance, cframe = CFrame?, name = string? }
 ]]
 
@@ -180,6 +181,16 @@ local function setAttr(target: Instance, name: string, value: any)
 	end
 end
 
+local function addTag(target: Instance, tag: string)
+	if target:HasTag(tag) then
+		return function() end
+	end
+	target:AddTag(tag)
+	return function()
+		target:RemoveTag(tag)
+	end
+end
+
 local function cloneInto(template: Instance, parent: Instance, cframe: CFrame?, name: string?)
 	local clone = template:Clone()
 	if name then
@@ -220,6 +231,8 @@ function RealityOps.apply(op): (() -> (), Instance?)
 		return setPropAll(target, op.class, op.prop, op.value)
 	elseif t == "Attr" and type(op.name) == "string" then
 		return setAttr(target, op.name, op.value)
+	elseif t == "Tag" and type(op.tag) == "string" then
+		return addTag(target, op.tag)
 	elseif t == "Clone" and typeof(op.template) == "Instance" and typeof(op.parent) == "Instance" then
 		local revert, clone = cloneInto(op.template, op.parent, op.cframe, op.name)
 		return revert, clone

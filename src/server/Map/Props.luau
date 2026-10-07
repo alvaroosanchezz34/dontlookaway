@@ -1038,7 +1038,7 @@ function Props.resident(parent, cf: CFrame, rng, pose: string?)
 	P(m, "ArmR", Vector3.new(0.8, 2.6, 0.8), at(cf, 1.42, hipY + 1.3, 0), suit, M.Fabric, { CanCollide = false })
 	local head = P(m, "Head", Vector3.new(1.15, 1.35, 1.15), at(cf, 0, hipY + 3.3, 0), skin, M.SmoothPlastic, { CanCollide = false })
 	head:SetAttribute("BaseCFrame", head.CFrame)
-	m.PrimaryPart = head
+	m:SetAttribute("OriginPivot", cf)
 	tagModel(m, "Resident")
 	return m
 end

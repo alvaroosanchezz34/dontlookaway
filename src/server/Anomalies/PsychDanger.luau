@@ -98,7 +98,12 @@ return {
 			end
 			return {
 				claim = phone,
-				ops = { { t = "Clone", template = emitter("PhoneRing"), parent = phone, cframe = base.CFrame } },
+				ops = {
+					{ t = "Clone", template = emitter("PhoneRing"), parent = phone, cframe = base.CFrame },
+					{ t = "Attr", target = base, name = "InteractKind", value = "Anomaly" },
+					{ t = "Attr", target = base, name = "Prompt", value = "Answer" },
+					{ t = "Tag", target = base, tag = "Interactable" },
+				},
 				anchors = { { pos = base.Position, radius = 1.8 } },
 				interactTarget = base,
 				lifetime = 70,
