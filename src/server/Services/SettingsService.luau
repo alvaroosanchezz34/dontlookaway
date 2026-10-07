@@ -21,9 +21,27 @@ local NUMBERS = {
 	ui = { 0, 1 },
 	sensitivity = { 0.05, 2 },
 	fov = { GameConfig.Camera.MinFOV, GameConfig.Camera.MaxFOV },
+	brightness = { 0, 1 },
+	subtitleSize = { 0, 1 },
 }
 
-local BOOLS = { headBob = true, cameraShake = true, reducedEffects = true, flashingAccepted = true, subtitles = true, invertY = true }
+local BOOLS = {
+	headBob = true,
+	cameraShake = true,
+	reducedEffects = true,
+	flashingAccepted = true,
+	subtitles = true,
+	invertY = true,
+	flashlightEffects = true,
+	audioIndicators = true,
+	reduceMotion = true,
+}
+
+-- enumerated string settings
+local CHOICES = {
+	graphics = { AUTO = true, LOW = true, MEDIUM = true, HIGH = true },
+	colorMode = { NORMAL = true, DEUTERANOPIA = true, PROTANOPIA = true, TRITANOPIA = true, HIGH_CONTRAST = true },
+}
 
 function SettingsService:Init()
 	Net.on("Settings", function(player, incoming)
@@ -42,6 +60,8 @@ function SettingsService:Init()
 					if range and Util.isFinite(value) then
 						data.settings[key] = math.clamp(value, range[1], range[2])
 					elseif BOOLS[key] and type(value) == "boolean" then
+						data.settings[key] = value
+					elseif CHOICES[key] and type(value) == "string" and CHOICES[key][value] then
 						data.settings[key] = value
 					end
 				end

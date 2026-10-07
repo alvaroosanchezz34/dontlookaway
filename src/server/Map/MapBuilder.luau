@@ -579,12 +579,19 @@ local function buildDoorsAndWindows(map, floor, folder, rng)
 							Build.detail(folder, "Reveal", Vector3.new(0.3, Layout.WindowTop - Layout.WindowSill, CELL), revealCF * CFrame.new(s * (CELL / 2 - 0.15), 0, 0), Color3.fromRGB(80, 72, 62), M.Wood)
 						end
 						-- moonlight from outside through the gaps between the boards
-						if rng:Chance(0.45) then
+						-- every window lets some of the night in: a soft wash, and on some a
+						-- sharp shaft through the boards (only those cast shadows, for speed)
+						map.WindowCount = (map.WindowCount or 0) + 1
+						local shaft = rng:Chance(0.5)
+						do
 							local outside = center - inward * (CELL / 2 + 7) + Vector3.new(0, 9, 0)
 							local holder = Build.part(folder, "Moon", Vector3.new(0.2, 0.2, 0.2), CFrame.lookAt(outside, facePos - Vector3.new(0, 4, 0) + inward * 6), Color3.new(), M.SmoothPlastic, { Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false })
-							local spot = Build.light(holder, "SpotLight", { Brightness = 1.6, Range = 34, Angle = 28, Face = Enum.NormalId.Front, Color = Color3.fromRGB(150, 172, 210), Shadows = true })
+							local spot = Build.light(holder, "SpotLight", { Brightness = if shaft then 1.9 else 1.1, Range = if shaft then 36 else 28, Angle = if shaft then 30 else 60, Face = Enum.NormalId.Front, Color = Color3.fromRGB(150, 172, 210), Shadows = shaft and map.WindowCount % 2 == 0 })
 							spot:AddTag("Moonlight")
 							-- soft visible shaft
+							if not shaft then
+								spot:SetAttribute("Wash", true)
+							end
 							local a0 = Instance.new("Attachment")
 							a0.Parent = holder
 							local target = Build.part(folder, "MoonTarget", Vector3.new(0.2, 0.2, 0.2), CFrame.new(facePos + inward * 9 - Vector3.new(0, (Layout.WindowSill + Layout.WindowTop) / 2 - 0.2, 0)), Color3.new(), M.SmoothPlastic, { Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false })
@@ -601,6 +608,7 @@ local function buildDoorsAndWindows(map, floor, folder, rng)
 							beam.Color = ColorSequence.new(Color3.fromRGB(170, 190, 220))
 							beam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.35, 0.93), NumberSequenceKeypoint.new(1, 1) })
 							beam.Segments = 1
+							beam.Enabled = shaft
 							beam.Parent = holder
 						end
 						break

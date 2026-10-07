@@ -192,6 +192,39 @@ function HUDController:Caption(text: string, duration: number?, speaker: string?
 	end)
 end
 
+-- Accessibility: a short label on a ring around the crosshair, pointing to where
+-- a meaningful sound came from. It follows the sound while it fades.
+function HUDController:SoundIndicator(position: Vector3, text: string)
+	local holder = Kit.frame({ Size = UDim2.fromOffset(200, 26), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Parent = gui })
+	local chip = Kit.frame({ Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Black, BackgroundTransparency = 0.4, Parent = holder })
+	Kit.corner(chip, 4)
+	local arrow = Kit.text({ Text = "▲", Size = UDim2.fromOffset(22, 22), Position = UDim2.fromOffset(4, 2), TextXAlignment = Enum.TextXAlignment.Center, FontFace = Kit.F.Heading, TextSize = 16, Parent = chip })
+	Kit.text({ Text = string.upper(text), Size = UDim2.new(1, -32, 1, 0), Position = UDim2.fromOffset(28, 0), FontFace = Kit.F.Mono, TextSize = 13, TextColor3 = C.TextDim, Parent = chip })
+	local start = os.clock()
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - start
+		if t > 2.6 or not holder.Parent then
+			conn:Disconnect()
+			holder:Destroy()
+			return
+		end
+		local camera = workspace.CurrentCamera
+		local rel = camera.CFrame:PointToObjectSpace(position)
+		local angle = math.atan2(rel.X, -rel.Z)
+		local radius = 0.2
+		holder.Position = UDim2.fromScale(0.5 + math.sin(angle) * radius * 0.6, 0.5 - math.cos(angle) * radius)
+		arrow.Rotation = math.deg(angle)
+		local alpha = math.clamp((t - 1.8) / 0.8, 0, 1)
+		chip.BackgroundTransparency = 0.4 + alpha * 0.6
+		for _, d in chip:GetChildren() do
+			if d:IsA("TextLabel") then
+				d.TextTransparency = alpha
+			end
+		end
+	end)
+end
+
 function HUDController:Toast(text: string, kind: string?, sub: string?)
 	local color = if kind == "danger" then C.Danger elseif kind == "warning" then Color3.fromRGB(214, 190, 140) elseif kind == "team" then Color3.fromRGB(190, 206, 220) else C.Text
 	local toast = Kit.frame({ Size = UDim2.fromOffset(560, if sub then 52 else 36), BackgroundColor3 = C.Black, BackgroundTransparency = 0.45, Parent = toastList })

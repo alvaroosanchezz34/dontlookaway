@@ -416,10 +416,44 @@ function EffectsController:Init()
 	blur.Parent = Lighting
 end
 
+-- Power failures: a hard dip as the lights die (only on the big ones, and only
+-- for a heartbeat), a jolt, sparks overhead. Eyes then adjust (LightController).
+local function onBlackout(p)
+	if State.status ~= "ALIVE" then
+		return
+	end
+	local level = p.level or 1
+	if level >= 3 then
+		EffectsController:Fade(if reduced() then 0.45 else 0.8, 0.05)
+		task.delay(0.18, function()
+			EffectsController:Fade(0, 0.9)
+		end)
+		Registry.CameraController:Shake(0.25)
+		Registry.CameraController:SetFovEffect(-4)
+		task.delay(0.6, function()
+			Registry.CameraController:SetFovEffect(0)
+		end)
+		local camera = Workspace.CurrentCamera
+		particleBurst(camera.CFrame.Position + camera.CFrame.LookVector * 6 + Vector3.new(0, 6, 0), Color3.fromRGB(255, 210, 140), 18, 12, 0.1)
+		if level >= 4 then
+			Registry.HUDController:Hint("Total blackout. Stay close. Keep your light on.", 4)
+		else
+			Registry.HUDController:Hint("The power is failing.", 3)
+		end
+	elseif level == 2 then
+		Registry.CameraController:Shake(0.1)
+	end
+end
+
 function EffectsController:Start()
 	Net.event("Effect").OnClientEvent:Connect(function(payload)
 		if type(payload) == "table" and type(payload.name) == "string" then
 			self:Handle(payload.name, payload)
+		end
+	end)
+	Net.event("Director").OnClientEvent:Connect(function(payload)
+		if type(payload) == "table" and payload.cue == "blackout" then
+			onBlackout(payload)
 		end
 	end)
 	RunService.RenderStepped:Connect(update)

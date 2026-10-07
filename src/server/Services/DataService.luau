@@ -73,6 +73,13 @@ local TEMPLATE = {
 		flashingAccepted = false,
 		subtitles = true,
 		invertY = false,
+		brightness = 0.5,
+		subtitleSize = 0.5,
+		flashlightEffects = true,
+		audioIndicators = false,
+		reduceMotion = false,
+		graphics = "AUTO",
+		colorMode = "NORMAL",
 	},
 	flags = {
 		tutorialDone = false,
@@ -218,10 +225,18 @@ local function validate(data)
 	s.ui = num(s.ui, 0.8, 0, 1)
 	s.sensitivity = num(s.sensitivity, GameConfig.Camera.DefaultSensitivity, 0.05, 2)
 	s.fov = num(s.fov, GameConfig.Camera.DefaultFOV, GameConfig.Camera.MinFOV, GameConfig.Camera.MaxFOV)
-	for _, b in { "headBob", "cameraShake", "reducedEffects", "flashingAccepted", "subtitles", "invertY" } do
+	s.brightness = num(s.brightness, 0.5, 0, 1)
+	s.subtitleSize = num(s.subtitleSize, 0.5, 0, 1)
+	for _, b in { "headBob", "cameraShake", "reducedEffects", "flashingAccepted", "subtitles", "invertY", "flashlightEffects", "audioIndicators", "reduceMotion" } do
 		if type(s[b]) ~= "boolean" then
 			s[b] = TEMPLATE.settings[b]
 		end
+	end
+	if s.graphics ~= "AUTO" and s.graphics ~= "LOW" and s.graphics ~= "MEDIUM" and s.graphics ~= "HIGH" then
+		s.graphics = "AUTO"
+	end
+	if s.colorMode ~= "NORMAL" and s.colorMode ~= "DEUTERANOPIA" and s.colorMode ~= "PROTANOPIA" and s.colorMode ~= "TRITANOPIA" and s.colorMode ~= "HIGH_CONTRAST" then
+		s.colorMode = "NORMAL"
 	end
 	for k, v in data.flags do
 		if type(v) ~= "boolean" then

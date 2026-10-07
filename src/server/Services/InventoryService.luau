@@ -25,6 +25,8 @@ type Slot = { id: string, count: number }
 type Inv = { slots: { Slot? }, selected: number, battery: number, light: boolean, lightSeconds: number, minBattery: number }
 
 local inventories: { [Player]: Inv } = {}
+local FL_REST_CAP = 12 -- percent a dead battery recovers to while switched off
+local FL_REST_RATE = 0.2 -- percent per second
 local pickupsFolder: Folder? = nil
 
 local function newInv(): Inv
@@ -520,6 +522,11 @@ function InventoryService:Start()
 			task.wait(1)
 			local drain = Registry.RoundService:GetDifficultyConfig().BatteryDrain
 			for player, inv in inventories do
+				if not inv.light and inv.battery < FL_REST_CAP and Registry.PlayerService:IsAlive(player) then
+					-- a rested battery recovers a little charge: never stuck without light for good
+					inv.battery = math.min(FL_REST_CAP, inv.battery + FL_REST_RATE)
+					player:SetAttribute("Battery", math.floor(inv.battery * 10) / 10)
+				end
 				if inv.light and Registry.PlayerService:IsAlive(player) then
 					inv.lightSeconds += 1
 					inv.battery = math.max(0, inv.battery - drain)

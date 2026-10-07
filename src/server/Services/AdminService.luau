@@ -43,10 +43,11 @@ local function isAdmin(player: Player): boolean
 		return true
 	end
 	if game.CreatorType == Enum.CreatorType.Group then
-		local ok, rank = pcall(function()
-			return player:GetRankInGroupAsync(game.CreatorId)
+		-- the group's owner is an admin
+		local ok, info = pcall(function()
+			return game:GetService("GroupService"):GetGroupInfoAsync(game.CreatorId)
 		end)
-		if ok and rank == 255 then
+		if ok and type(info) == "table" and type(info.Owner) == "table" and info.Owner.Id == player.UserId then
 			return true
 		end
 	end

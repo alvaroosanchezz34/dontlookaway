@@ -1141,6 +1141,49 @@ local function dressDoors(map, folder)
 end
 
 ------------------------------------------------------------------------------------
+-- Emergency beacons: red ceiling lamps along corridors and in stairwells that
+-- wake up when the power fails, so a dark building still has a pulse to follow.
+------------------------------------------------------------------------------------
+
+local function placeBeacons(map, folder)
+	map.Beacons = {}
+	local ids = {}
+	for id in map.Rooms do
+		table.insert(ids, id)
+	end
+	table.sort(ids)
+	for _, id in ids do
+		local room = map.Rooms[id]
+		if (room.kind == "corridor" or room.kind == "stairs" or room.kind == "dock" or room.kind == "reception") and not room.secret then
+			local floor = Layout.getFloor(room.floorId)
+			local cells = table.clone(room.cells)
+			table.sort(cells, function(a, b)
+				return a.x * 1000 + a.z < b.x * 1000 + b.z
+			end)
+			local placed = 0
+			local maxCount = if room.kind == "corridor" then math.clamp(math.floor(#cells / 10), 1, 4) else 1
+			local last: Vector3? = nil
+			for _, c in cells do
+				if placed >= maxCount then
+					break
+				end
+				-- away from light fixtures (they sit on x % 4 == 1/2 cells) and from each other
+				if (c.x + c.z) % 5 == 3 then
+					local pos = Layout.cellToWorld(floor.y, c.x, c.z) + Vector3.new(0, Layout.CeilingHeight, 0)
+					if not last or (pos - (last :: Vector3)).Magnitude > 22 then
+						local beacon = Props.emergencyBeacon(folder, CFrame.new(pos))
+						beacon:SetAttribute("Room", room.id)
+						table.insert(map.Beacons, beacon)
+						placed += 1
+						last = pos
+					end
+				end
+			end
+		end
+	end
+end
+
+------------------------------------------------------------------------------------
 -- Residents: unmoving occupants used by NPC anomalies
 ------------------------------------------------------------------------------------
 
@@ -1206,6 +1249,7 @@ function Furnisher.furnishAll(map, parent: Instance, rng)
 		end
 	end
 	dressDoors(map, parent)
+	placeBeacons(map, parent)
 	placeResidents(map, parent, rng:Derive("residents"))
 end
 

@@ -6,6 +6,13 @@
 	* dynamic silence: the director can duck the world before something happens
 	* body sounds: heartbeat and breathing driven by fear, stamina and the
 	  Observer's proximity
+	* the building reacts: ventilation and electrical hum die with the power,
+	  emergency alarms sound during major blackouts, and everything drains away
+	  as The Observer gets close (silence is the loudest warning)
+	* personal distant sounds placed around the listener in 3D (something
+	  settling behind you, a radio two rooms away, steps on another floor)
+	* accessibility: captions for meaningful sounds and on-screen direction
+	  indicators (Settings > Audio indicators)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,6 +25,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local SoundFactory = require(ReplicatedStorage.Shared.SoundFactory)
 local AudioLibrary = require(ReplicatedStorage.Shared.Config.AudioLibrary)
 local State = require(script.Parent.Parent.State)
+local Registry = require(script.Parent.Parent.Registry)
 
 local AudioController = {}
 
@@ -29,6 +37,41 @@ local duckValue = Instance.new("NumberValue")
 duckValue.Value = 1
 local lastHeartbeat = 0
 local lastBreath = 0
+local nextDistantAt = 0
+local random = Random.new()
+
+-- Meaningful sounds get a caption (when subtitles are on) and an on-screen
+-- direction indicator (when audio indicators are on).
+local CAPTIONS = {
+	DoorSlam = "door slams",
+	KnockDoor = "knocking",
+	ObserverStep = "heavy footsteps",
+	ObserverAppear = "something arrives",
+	ObserverScreech = "a shriek",
+	ObserverInhale = "a slow breath",
+	ObserverCrack = "joints cracking",
+	Whisper = "whispering",
+	PhoneRing = "phone ringing",
+	FootstepsBehind = "footsteps behind you",
+	DistantGroan = "a distant groan",
+	DistantFootsteps = "distant footsteps",
+	DistantRadio = "radio static",
+	Thud = "a heavy thud",
+	BulbPop = "a bulb bursts",
+	BoardsBreak = "wood splinters",
+	MusicBox = "a music box",
+	Falsetto = "someone humming",
+	BreathingCloset = "breathing",
+	ShutterOpen = "the shutter opens",
+	PowerDown = "the power fails",
+	ElectricSurge = "electricity crackles",
+	EmergencyAlarm = "emergency alarm",
+	ElevatorGroan = "cables groan",
+	MotionAlert = "motion sensor",
+}
+local lastCaption: { [string]: number } = {}
+
+local DISTANT = { "BuildingSettle", "ElevatorGroan", "DistantRadio", "BuildingSettle", "DistantFootsteps", "WoodCreak", "DistantPipe" }
 
 local GROUP_SETTING = {
 	Ambient = "ambient",
@@ -76,6 +119,12 @@ function AudioController:Play(key: string, at: any, opts: { [string]: any }?): S
 		return nil
 	end
 	sound:Play()
+	if typeof(at) == "Vector3" or (typeof(at) == "Instance" and at:IsA("BasePart")) then
+		local position = if typeof(at) == "Vector3" then at else (at :: BasePart).Position
+		AudioController:Describe(key, position)
+	elseif at == nil and (key == "PowerDown" or key == "ElectricSurge") then
+		AudioController:Describe(key, nil)
+	end
 	if not sound.Looped then
 		local cleanup = temp or sound
 		sound.Ended:Once(function()
@@ -88,6 +137,48 @@ function AudioController:Play(key: string, at: any, opts: { [string]: any }?): S
 		end)
 	end
 	return sound
+end
+
+-- Captions and direction indicators for a sound the player should know about.
+function AudioController:Describe(key: string, position: Vector3?)
+	local text = CAPTIONS[key]
+	if not text or State.status ~= "ALIVE" then
+		return
+	end
+	local camera = Workspace.CurrentCamera
+	if position and camera and (position - camera.CFrame.Position).Magnitude > 70 then
+		return
+	end
+	local now = os.clock()
+	if lastCaption[key] and now - lastCaption[key] < 2.5 then
+		return
+	end
+	lastCaption[key] = now
+	local hud = Registry.HUDController
+	if not hud or not hud.Caption then
+		return
+	end
+	local direction = ""
+	if position and camera then
+		local rel = camera.CFrame:PointToObjectSpace(position)
+		if rel.Z > 0 and math.abs(rel.X) < rel.Z then
+			direction = "behind"
+		elseif rel.X > 4 then
+			direction = "right"
+		elseif rel.X < -4 then
+			direction = "left"
+		elseif position.Y - camera.CFrame.Position.Y > 8 then
+			direction = "above"
+		elseif position.Y - camera.CFrame.Position.Y < -8 then
+			direction = "below"
+		end
+	end
+	if State.settings.subtitles then
+		hud:Caption("[" .. text .. (if direction ~= "" then ", " .. direction else "") .. "]", 2.4, "sound")
+	end
+	if State.settings.audioIndicators and position then
+		hud:SoundIndicator(position, text)
+	end
 end
 
 function AudioController:PlayUI(key: string)
@@ -138,20 +229,42 @@ local function zone(): string
 end
 
 local MIX = {
-	lobby = { AmbientRain = 0.25, AmbientAir = 0.2 },
+	lobby = { AmbientRain = 0.25, AmbientAir = 0.2, AmbientHum = 0.3 },
 	outside = { AmbientRain = 1, Wind = 0.9, AmbientDrone = 0.25 },
-	building = { AmbientDrone = 0.8, AmbientAir = 0.7, AmbientHum = 0.5, AmbientRain = 0.18 },
-	basement = { AmbientDrone = 1, AmbientAir = 0.4, AmbientHum = 0.25 },
+	building = { AmbientDrone = 0.8, AmbientAir = 0.7, AmbientHum = 0.5, AmbientRain = 0.18, Ventilation = 0.7, EmergencyAlarm = 1 },
+	basement = { AmbientDrone = 1, AmbientAir = 0.4, AmbientHum = 0.25, Ventilation = 0.4, EmergencyAlarm = 0.7 },
 }
+
+-- beds that only exist while the building has power
+local POWERED_BEDS = { AmbientHum = true, Ventilation = true }
 
 local function updateBeds(dt: number)
 	local z = zone()
 	local inMenu = State.status == "MENU"
 	local mix = MIX[z] or {}
+	local inRound = State.round.state ~= "LOBBY" and z ~= "lobby"
+	local power = workspace:GetAttribute("Power") == true
+	local blackout = workspace:GetAttribute("Blackout")
+	blackout = if type(blackout) == "number" then blackout else 0
+	local observer = State.observerDistance
 	for key, sound in beds do
 		local target = mix[key] or 0
 		if inMenu then
 			target *= 0.7
+		end
+		if inRound and POWERED_BEDS[key] and (not power or blackout >= 3) then
+			target *= 0.05
+		elseif inRound and POWERED_BEDS[key] and blackout >= 1 then
+			target *= 0.5
+		end
+		if key == "EmergencyAlarm" then
+			target *= if inRound and (blackout >= 3 or workspace:GetAttribute("Escape") == true) then 1 else 0
+		elseif key == "AmbientDrone" and inRound and (not power or blackout >= 2) then
+			target *= 1.25
+		end
+		-- the world holds its breath as The Observer gets close
+		if key ~= "EmergencyAlarm" and observer < 40 and State.status == "ALIVE" then
+			target *= 0.25 + 0.75 * (observer / 40)
 		end
 		if workspace:GetAttribute("Escape") and z ~= "outside" then
 			-- during the escape the building's hum drains away
@@ -162,6 +275,31 @@ local function updateBeds(dt: number)
 		bedTargets[key] = full
 		sound.Volume += (full - sound.Volume) * math.min(1, dt * 1.2)
 	end
+end
+
+-- Personal sounds placed around the listener so the building feels alive in 3D.
+local function distantLife()
+	local now = os.clock()
+	if State.status ~= "ALIVE" or now < nextDistantAt then
+		return
+	end
+	nextDistantAt = now + random:NextNumber(14, 34)
+	local z = zone()
+	if z ~= "building" and z ~= "basement" then
+		return
+	end
+	if State.observerDistance < 50 then
+		return
+	end
+	local camera = Workspace.CurrentCamera
+	local angle = random:NextNumber(0, math.pi * 2)
+	local dist = random:NextNumber(22, 55)
+	local pos = camera.CFrame.Position + Vector3.new(math.cos(angle) * dist, random:NextNumber(-10, 12), math.sin(angle) * dist)
+	local key = DISTANT[random:NextInteger(1, #DISTANT)]
+	if key == "DistantRadio" and random:NextNumber() < 0.5 then
+		key = "BuildingSettle"
+	end
+	AudioController:Play(key, pos)
 end
 
 local function updateBody()
@@ -207,7 +345,7 @@ function AudioController:Start()
 	task.wait(1)
 	SoundFactory.ensureGroups()
 	self:ApplyVolumes()
-	for _, key in { "AmbientDrone", "AmbientAir", "AmbientHum", "AmbientRain", "Wind" } do
+	for _, key in { "AmbientDrone", "AmbientAir", "AmbientHum", "AmbientRain", "Wind", "Ventilation", "EmergencyAlarm" } do
 		bed(key)
 	end
 	Net.event("Sound").OnClientEvent:Connect(function(payload)
@@ -223,6 +361,7 @@ function AudioController:Start()
 		if bodyAcc > 0.1 then
 			bodyAcc = 0
 			updateBody()
+			distantLife()
 		end
 	end)
 end

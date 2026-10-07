@@ -580,20 +580,41 @@ function Props.roomPlate(parent, wallCf: CFrame, number: string)
 	return m, label
 end
 
+-- Battery-backed exit sign: it stays lit through every power failure, a fixed
+-- point of reference when everything else is dark.
 function Props.exitSign(parent, cf: CFrame)
 	local m = model(parent, "ExitSign", cf)
 	D(m, "Rod", Vector3.new(0.1, 1, 0.1), at(cf, 0, 0.5, 0), C.metalDark, M.Metal)
 	local box = D(m, "Box", Vector3.new(2.2, 0.8, 0.3), at(cf, 0, -0.3, 0), Color3.fromRGB(26, 30, 28), M.SmoothPlastic)
 	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local gui = Build.surfaceGui(box, face, 50)
-		gui.LightInfluence = 0.15
-		gui.Brightness = 1.4
-		local label = Build.text(gui, { Name = "Label", Size = UDim2.fromScale(0.9, 0.8), Position = UDim2.fromScale(0.05, 0.1), Text = "EXIT", TextColor3 = Color3.fromRGB(140, 210, 160) })
+		gui.LightInfluence = 0
+		gui.Brightness = 2.2
+		local bg = Build.frame(gui, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(14, 40, 24), BackgroundTransparency = 0.1 })
+		bg.Name = "Panel"
+		local label = Build.text(gui, { Name = "Label", Size = UDim2.fromScale(0.9, 0.8), Position = UDim2.fromScale(0.05, 0.1), Text = "EXIT", TextColor3 = Color3.fromRGB(150, 236, 170) })
 		label:SetAttribute("Original", "EXIT")
 	end
-	local glow = Build.light(box, "PointLight", { Brightness = 0.35, Range = 7, Color = Color3.fromRGB(120, 200, 150), Shadows = false })
-	glow:SetAttribute("PoweredLight", true)
+	local glow = Build.light(box, "PointLight", { Brightness = 0.6, Range = 9, Color = Color3.fromRGB(110, 210, 140), Shadows = false })
+	glow.Name = "Glow"
 	tagModel(m, "Sign", "ExitSign")
+	return m
+end
+
+-- Ceiling emergency beacon: a caged red lamp with a slowly rotating reflector.
+-- Dormant while the building has power; clients spin it during failures.
+function Props.emergencyBeacon(parent, cf: CFrame)
+	local m = model(parent, "EmergencyBeacon", cf)
+	D(m, "Mount", Vector3.new(0.9, 0.25, 0.9), at(cf, 0, -0.12, 0), C.metalDark, M.Metal)
+	local dome = Build.ball(m, "Dome", 0.75, at(cf, 0, -0.45, 0), Color3.fromRGB(90, 20, 18), M.Glass, { Transparency = 0.25, CanCollide = false, CastShadow = false })
+	local rotor = D(m, "Rotor", Vector3.new(0.2, 0.2, 0.2), at(cf, 0, -0.45, 0), Color3.new(), M.SmoothPlastic, { Transparency = 1, CanCollide = false, CastShadow = false, CanQuery = false })
+	for i, dir in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local spot = Build.light(rotor, "SpotLight", { Brightness = 0, Range = 22, Angle = 55, Face = dir, Color = Color3.fromRGB(255, 52, 40), Shadows = false })
+		spot.Name = "Beam" .. i
+	end
+	local glow = Build.light(dome, "PointLight", { Brightness = 0, Range = 8, Color = Color3.fromRGB(255, 60, 48), Shadows = false })
+	glow.Name = "Glow"
+	tagModel(m, "EmergencyBeacon")
 	return m
 end
 

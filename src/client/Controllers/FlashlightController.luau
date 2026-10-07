@@ -1,10 +1,21 @@
 --[[
 	FlashlightController
-	Your flashlight is a shadow-casting SpotLight that follows the camera with a
-	little weight. Teammates' flashlights follow their heads and the pitch they are
-	looking at, so you can see where a friend is looking from across a hall.
-	Battery is server authoritative; this only renders it. Interference: the
-	closer The Observer is, the more every flashlight stutters.
+	The flashlight is a physical object in your hand, not a cone glued to the
+	screen:
+	  * two shadow-casting spot lights (a tight hot centre and a soft wide spill)
+	    give a real falloff, plus a faint bounce around you
+	  * it hangs below and to the right of the view and follows it on a spring, so
+	    fast turns drag the beam and it settles with a little overshoot
+	  * it warms up when switched on (a stutter, then full brightness)
+	  * dust hangs in the beam and a very faint volumetric cone shows its shape
+	  * a weak battery dims it and makes it unsteady but never blinds you; the HUD
+	    and a soft beep warn at 20%, 10% and 5%
+	  * The Observer interferes with it: the closer it is, the more it stutters,
+	    and during an attack it strobes
+	Teammates' flashlights follow their heads and the pitch they are looking at,
+	so you can see where a friend is looking from across a hall.
+	Battery and equipment tiers are server authoritative (player attributes):
+	  Battery, Flashlight, FlashlightRange, FlashlightAngle, FlashlightPower
 	Cosmetics change the colour and beam effect, never brightness or range.
 ]]
 
@@ -25,16 +36,23 @@ local player = Players.LocalPlayer
 local FL = GameConfig.Flashlight
 
 local holder: Part
-local spot: SpotLight
+local core: SpotLight
+local spill: SpotLight
 local fill: PointLight
 local dust: ParticleEmitter
 local hazeBeam: Beam
-local lagCF = CFrame.new()
+local coneBeam: Beam
+local springPos = Vector3.zero
+local springVel = Vector3.zero
+local springRot = CFrame.new()
 local localOn = false
 local pendingUntil = 0
+local switchedAt = 0
 local others: { [Player]: { part: Part, light: SpotLight } } = {}
 local random = Random.new()
 local flickerUntil = 0
+local lastWarned = 100
+local intensity = 0 -- smoothed 0..1 output (warm-up / switch-off)
 
 local function makeHolder(name: string): Part
 	local p = Instance.new("Part")
@@ -50,6 +68,13 @@ local function makeHolder(name: string): Part
 	return p
 end
 
+local function stats(): (number, number, number)
+	local range = player:GetAttribute("FlashlightRange")
+	local angle = player:GetAttribute("FlashlightAngle")
+	local power = player:GetAttribute("FlashlightPower")
+	return (if type(range) == "number" then range else FL.Range), (if type(angle) == "number" then angle else FL.Angle), (if type(power) == "number" then power else FL.Brightness)
+end
+
 function FlashlightController:IsOn(): boolean
 	return localOn
 end
@@ -62,24 +87,33 @@ function FlashlightController:Toggle()
 	local want = not localOn
 	if want and battery <= 0 then
 		Registry.AudioController:PlayUI("FlashlightDead")
-		Registry.HUDController:Hint("The battery is dead. Find batteries.", 3)
+		Registry.HUDController:Hint("The battery is dead. Use a battery, or let it rest.", 3)
+		-- a dead flashlight still clicks and sputters once
+		flickerUntil = os.clock() + 0.12
 		return
 	end
 	localOn = want
 	pendingUntil = os.clock() + 1.2
+	if want then
+		switchedAt = os.clock()
+	end
 	Registry.AudioController:PlayUI(if want then "FlashlightOn" else "FlashlightOff")
+	Registry.CameraController:Shake(0.04)
 	Net.event("Flashlight"):FireServer(want)
+end
+
+local function effectsEnabled(): boolean
+	return State.settings.flashlightEffects ~= false and State.settings.graphics ~= "LOW"
 end
 
 local function applyCosmetics()
 	local color = player:GetAttribute("FlashlightColor")
 	if typeof(color) == "Color3" then
-		spot.Color = color
+		core.Color = color
+		spill.Color = color
 		fill.Color = color
+		coneBeam.Color = ColorSequence.new(color)
 	end
-	local effect = player:GetAttribute("BeamEffect") or "clean"
-	dust.Enabled = effect == "dust" or effect == "haze"
-	hazeBeam.Enabled = effect == "haze"
 end
 
 local function interference(): number
@@ -88,6 +122,21 @@ local function interference(): number
 		return 1 - d / GameConfig.Observer.PresenceRadius
 	end
 	return 0
+end
+
+local function warnBattery(battery: number)
+	for _, threshold in { 20, 10, 5 } do
+		if battery <= threshold and lastWarned > threshold then
+			lastWarned = threshold
+			Registry.AudioController:PlayUI("LowBattery")
+			Registry.HUDController:Hint(string.format("Battery %d%%. Find batteries.", threshold), 2.5)
+			return
+		end
+	end
+	if battery > lastWarned + 5 then
+		-- recharged
+		lastWarned = 100
+	end
 end
 
 local function update(dt: number)
@@ -99,37 +148,86 @@ local function update(dt: number)
 	if State.status ~= "ALIVE" then
 		localOn = false
 	end
-	local target = camera.CFrame * CFrame.new(0.55, -0.45, -0.4)
-	lagCF = lagCF:Lerp(target, Util.damp(22, dt))
-	holder.CFrame = CFrame.new(lagCF.Position) * (camera.CFrame - camera.CFrame.Position)
+	-- spring-follow: the light lags behind fast turns and settles with overshoot
+	local target = camera.CFrame * CFrame.new(0.55, -0.5, -0.45)
+	local stiffness, damping = 220, 22
+	local accel = (target.Position - springPos) * stiffness - springVel * damping
+	springVel += accel * math.min(dt, 1 / 30)
+	springPos += springVel * math.min(dt, 1 / 30)
+	if (springPos - target.Position).Magnitude > 6 then
+		springPos = target.Position
+		springVel = Vector3.zero
+	end
+	local camRot = camera.CFrame - camera.CFrame.Position
+	springRot = springRot:Lerp(camRot, Util.damp(16, dt))
+	-- hand sway while walking
+	local t = os.clock()
+	local moving = State.sprinting and 1 or 0.4
+	local sway = CFrame.Angles(math.noise(t * 0.7, 1) * 0.012 * moving, math.noise(t * 0.7, 2) * 0.016 * moving, 0)
+	holder.CFrame = CFrame.new(springPos) * springRot * sway
+
 	local battery = player:GetAttribute("Battery") or 100
-	local brightness = FL.Brightness
+	local range, angle, power = stats()
 	local on = localOn
+	local brightness = power
 	if on then
-		-- weak battery: dimmer and unsteady
+		warnBattery(battery)
+		-- warm-up: a stutter, then full output
+		local since = os.clock() - switchedAt
+		if since < 0.18 then
+			brightness *= if since < 0.05 or (since > 0.09 and since < 0.12) then 0.25 else 0.8
+		end
+		-- weak battery: dimmer and unsteady, never black
 		if battery < FL.LowBatteryThreshold then
-			brightness *= 0.55 + 0.45 * (battery / FL.LowBatteryThreshold)
-			if random:NextNumber() < 0.012 then
-				flickerUntil = os.clock() + random:NextNumber(0.05, 0.25)
+			brightness *= 0.5 + 0.5 * (battery / FL.LowBatteryThreshold)
+			local chance = if battery < 8 then 0.03 else 0.012
+			if random:NextNumber() < chance then
+				flickerUntil = os.clock() + random:NextNumber(0.05, 0.22)
 			end
 		end
 		local i = interference()
-		if i > 0 and random:NextNumber() < 0.02 + i * 0.12 then
+		local attacking = Workspace:GetAttribute("ObserverState") == "ATTACKING"
+		if attacking and i > 0.4 then
+			-- strobe
+			brightness *= if math.floor(os.clock() * 14) % 2 == 0 then 1 else 0.1
+		elseif i > 0 and random:NextNumber() < 0.02 + i * 0.12 then
 			flickerUntil = os.clock() + random:NextNumber(0.04, 0.12 + i * 0.3)
 		end
-		if (player:GetAttribute("BeamEffect") == "flicker") and random:NextNumber() < 0.004 then
+		if player:GetAttribute("BeamEffect") == "flicker" and random:NextNumber() < 0.004 then
 			flickerUntil = os.clock() + 0.06
 		end
 		if os.clock() < flickerUntil then
-			brightness *= random:NextNumber(0, 0.35)
+			brightness *= random:NextNumber(0.25, 0.5)
 		end
+		-- the faintest living flicker of a real bulb
+		brightness *= 0.97 + math.noise(t * 6, 3) * 0.03
+	elseif os.clock() < flickerUntil then
+		-- a dead light sputtering on a click
+		on = true
+		brightness *= 0.12
 	end
-	spot.Enabled = on
-	fill.Enabled = on
-	spot.Brightness = brightness
-	fill.Brightness = brightness * 0.06
-	dust.Rate = if on then 6 else 0
-	hazeBeam.Enabled = on and player:GetAttribute("BeamEffect") == "haze"
+	intensity += ((if on then 1 else 0) - intensity) * Util.damp(if on then 30 else 18, dt)
+	local out = brightness * intensity
+	local lit = intensity > 0.02
+	core.Enabled = lit
+	spill.Enabled = lit
+	fill.Enabled = lit
+	core.Range = range + 6
+	core.Angle = angle * 0.42
+	core.Brightness = out * 0.75
+	spill.Range = range
+	spill.Angle = angle
+	spill.Brightness = out * 0.7
+	fill.Brightness = out * 0.05
+	local fx = effectsEnabled()
+	local effect = player:GetAttribute("BeamEffect") or "clean"
+	dust.Rate = if lit and fx then (if effect == "dust" or effect == "haze" then 14 else 5) else 0
+	hazeBeam.Enabled = lit and fx and effect == "haze"
+	coneBeam.Enabled = lit and fx
+	coneBeam.Width1 = math.tan(math.rad(angle * 0.5)) * 2 * 18
+	local coneAlpha = 1 - math.clamp(intensity * (brightness / math.max(power, 0.01)), 0, 1) * 0.045
+	coneBeam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, coneAlpha), NumberSequenceKeypoint.new(0.3, 1 - (1 - coneAlpha) * 0.7), NumberSequenceKeypoint.new(1, 1) })
+
 	-- teammates' lights
 	for other, rec in others do
 		local character = other.Character
@@ -146,7 +244,16 @@ local function update(dt: number)
 			if typeof(color) == "Color3" then
 				rec.light.Color = color
 			end
-			local b = FL.Brightness
+			local oRange = other:GetAttribute("FlashlightRange")
+			local oAngle = other:GetAttribute("FlashlightAngle")
+			local oPower = other:GetAttribute("FlashlightPower")
+			rec.light.Range = if type(oRange) == "number" then oRange else FL.Range
+			rec.light.Angle = if type(oAngle) == "number" then oAngle else FL.Angle
+			local b = if type(oPower) == "number" then oPower else FL.Brightness
+			local ob = other:GetAttribute("Battery") or 100
+			if ob < FL.LowBatteryThreshold then
+				b *= 0.5 + 0.5 * (ob / FL.LowBatteryThreshold)
+			end
 			if os.clock() < flickerUntil then
 				b *= 0.3
 			end
@@ -174,35 +281,50 @@ end
 
 function FlashlightController:Init()
 	holder = makeHolder("LocalFlashlight")
-	spot = Instance.new("SpotLight")
-	spot.Range = FL.Range
-	spot.Angle = FL.Angle
-	spot.Brightness = FL.Brightness
-	spot.Shadows = true
-	spot.Face = Enum.NormalId.Front
-	spot.Enabled = false
-	spot.Parent = holder
-	-- a faint fill so the immediate surroundings are not pitch black around the cone
+	core = Instance.new("SpotLight")
+	core.Name = "Core"
+	core.Range = FL.Range + 6
+	core.Angle = FL.Angle * 0.42
+	core.Brightness = FL.Brightness
+	core.Shadows = true
+	core.Face = Enum.NormalId.Front
+	core.Enabled = false
+	core.Parent = holder
+	spill = Instance.new("SpotLight")
+	spill.Name = "Spill"
+	spill.Range = FL.Range
+	spill.Angle = FL.Angle
+	spill.Brightness = FL.Brightness
+	spill.Shadows = true
+	spill.Face = Enum.NormalId.Front
+	spill.Enabled = false
+	spill.Parent = holder
+	-- light bouncing back off whatever you point at: the space around you never goes black
 	fill = Instance.new("PointLight")
-	fill.Range = 9
+	fill.Range = 10
 	fill.Brightness = 0.12
 	fill.Shadows = false
 	fill.Enabled = false
 	fill.Parent = holder
 	-- dust motes hanging in the beam
 	local dustAttachment = Instance.new("Attachment")
-	dustAttachment.Position = Vector3.new(0, 0, -8)
+	dustAttachment.Position = Vector3.new(0, 0, -7)
 	dustAttachment.Parent = holder
 	dust = Instance.new("ParticleEmitter")
 	dust.Rate = 0
-	dust.Lifetime = NumberRange.new(2, 4)
-	dust.Speed = NumberRange.new(0.1, 0.4)
+	dust.Lifetime = NumberRange.new(2.5, 4.5)
+	dust.Speed = NumberRange.new(0.05, 0.3)
 	dust.SpreadAngle = Vector2.new(180, 180)
-	dust.Size = NumberSequence.new(0.05)
+	dust.Size = NumberSequence.new(0.045)
 	dust.LightInfluence = 1
-	dust.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.4, 0.3), NumberSequenceKeypoint.new(1, 1) })
+	dust.LightEmission = 0.15
+	dust.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.4, 0.35), NumberSequenceKeypoint.new(1, 1) })
 	dust.Shape = Enum.ParticleEmitterShape.Box
+	dust.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	dust.Rotation = NumberRange.new(0, 360)
+	dust.RotSpeed = NumberRange.new(-20, 20)
 	dust.Parent = dustAttachment
+	dustAttachment.CFrame = CFrame.new(0, 0, -7)
 	local a0 = Instance.new("Attachment")
 	a0.Parent = holder
 	local a1 = Instance.new("Attachment")
@@ -218,6 +340,21 @@ function FlashlightController:Init()
 	hazeBeam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.86), NumberSequenceKeypoint.new(1, 1) })
 	hazeBeam.Enabled = false
 	hazeBeam.Parent = holder
+	-- a barely-there volumetric cone so the beam has a shape in the air
+	local c1 = Instance.new("Attachment")
+	c1.Position = Vector3.new(0, 0, -18)
+	c1.Parent = holder
+	coneBeam = Instance.new("Beam")
+	coneBeam.Attachment0 = a0
+	coneBeam.Attachment1 = c1
+	coneBeam.Width0 = 0.25
+	coneBeam.Width1 = 14
+	coneBeam.FaceCamera = true
+	coneBeam.LightEmission = 0.25
+	coneBeam.LightInfluence = 0
+	coneBeam.Segments = 6
+	coneBeam.Enabled = false
+	coneBeam.Parent = holder
 end
 
 function FlashlightController:Start()
@@ -235,6 +372,7 @@ function FlashlightController:Start()
 	player:GetAttributeChangedSignal("FlashlightColor"):Connect(applyCosmetics)
 	player:GetAttributeChangedSignal("BeamEffect"):Connect(applyCosmetics)
 	applyCosmetics()
+	springPos = Workspace.CurrentCamera.CFrame.Position
 	Registry.InputController.Action:Connect(function(action, began)
 		if action == "Flashlight" and began then
 			self:Toggle()
