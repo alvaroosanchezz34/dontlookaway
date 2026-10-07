@@ -48,6 +48,11 @@ AssetIds.Observer.meshes.Head = 1234567893
 
 O, más fácil: **pásame la lista de nombres e IDs** y lo relleno yo.
 
+Después de cambiar IDs ejecuta `python3 tools/sync_assets.py`: Roblox no deja que
+los scripts del juego creen materiales ni asignen la piel, así que ese script
+escribe los MaterialVariant (`src/materials/`), la piel (`src/shared/ObserverSkin.model.json`)
+y la sustitución de materiales base en `default.project.json`, y Rojo los mete en el lugar.
+
 Con los IDs puestos:
 - las texturas sustituyen automáticamente a los materiales de Roblox
   (`src/shared/MaterialLibrary.luau`);

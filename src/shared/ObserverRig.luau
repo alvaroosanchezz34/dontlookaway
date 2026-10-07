@@ -311,7 +311,6 @@ function ObserverRig.loadMeshes(): number
 	if not RunService:IsServer() then
 		return 0
 	end
-	local skin = AssetIds.Observer.skin
 	local folder = ReplicatedStorage:FindFirstChild(TEMPLATE_FOLDER)
 	local loaded = 0
 	for meshName in MeshMeta do
@@ -349,13 +348,11 @@ function ObserverRig.loadMeshes(): number
 				mesh.Material = Enum.Material.SmoothPlastic
 				mesh.Reflectance = 0.06
 				mesh.CastShadow = true
-				local color = AssetIds.url(skin.color)
-				if color then
-					local look = Instance.new("SurfaceAppearance")
-					look.ColorMap = color
-					look.NormalMap = AssetIds.url(skin.normal) or ""
-					look.RoughnessMap = AssetIds.url(skin.roughness) or ""
-					look.Parent = mesh
+				-- the PBR skin is a SurfaceAppearance placed in the game by Rojo
+				-- (scripts may not set its maps): ReplicatedStorage.Shared.ObserverSkin
+				local skinTemplate = script.Parent:FindFirstChild("ObserverSkin")
+				if skinTemplate then
+					skinTemplate:Clone().Parent = mesh
 				end
 				if not folder then
 					folder = Instance.new("Folder")

@@ -1,0 +1,11 @@
+{
+  "ClassName": "MaterialVariant",
+  "Properties": {
+    "BaseMaterial": "Metal",
+    "StudsPerTile": 6,
+    "ColorMap": "rbxassetid://127374912032906",
+    "NormalMap": "rbxassetid://114374607971326",
+    "RoughnessMap": "rbxassetid://71774178091112",
+    "MetalnessMap": "rbxassetid://109152295762614"
+  }
+}

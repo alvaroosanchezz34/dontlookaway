@@ -186,46 +186,22 @@ do
 	local ObserverRig = requireModule(RS.Shared.ObserverRig)
 	local MeshMeta = requireModule(RS.Shared.Config.ObserverMeshMeta)
 	local MaterialService = game:GetService("MaterialService")
-	-- remember the real ids, then test the "nothing uploaded" fallback
-	local saved = {}
+	-- the variants are written into the place by Rojo (tools/sync_assets.py)
+	check(MaterialLibrary.count() == 10, "ten custom textures in MaterialService, got " .. MaterialLibrary.count())
 	for key, entry in AssetIds.Materials do
-		saved[key] = table.clone(entry)
-		for map in entry do
-			entry[map] = 0
-		end
+		check(entry.color > 0, "texture uploaded: " .. key)
 	end
-	-- with no ids nothing is created and the plain rig is used
-	check(MaterialLibrary.count() == 0, "no textures configured by default")
-	MaterialLibrary.apply()
-	check(MaterialService:FindFirstChild("DLA_Plaster") == nil, "no variants without ids")
-	local plain = ObserverRig.build(nil, { localCopy = true })
-	check(plain:GetAttribute("Sculpted") ~= true, "plain rig without meshes")
-	-- pretend everything was uploaded
-	for _, entry in AssetIds.Materials do
-		entry.color, entry.normal, entry.roughness = 1001, 1002, 1003
-	end
-	MaterialLibrary.apply()
-	check(MaterialLibrary.count() == 10, "ten textures counted")
 	local plaster = MaterialService:FindFirstChild("DLA_Plaster")
-	check(plaster ~= nil and plaster:IsA("MaterialVariant") and plaster.BaseMaterial == Enum.Material.Plaster, "plaster variant created")
-	check(plaster ~= nil and plaster.ColorMap == "rbxassetid://1001" and plaster.NormalMap == "rbxassetid://1002", "variant maps set")
-	check(MaterialService:FindFirstChild(MaterialLibrary.Wallpaper) ~= nil and MaterialService:FindFirstChild(MaterialLibrary.CeilingTile) ~= nil, "named variants created")
-	MaterialLibrary.apply()
-	local count = 0
-	for _, v in MaterialService:GetChildren() do
-		if v:IsA("MaterialVariant") then
-			count += 1
-		end
-	end
-	check(count == 10, "apply is idempotent (" .. count .. " variants)")
-	for key, entry in AssetIds.Materials do
-		for map, value in saved[key] do
-			entry[map] = value
-		end
-	end
-	for _, v in MaterialService:GetChildren() do
-		v:Destroy()
-	end
+	check(plaster ~= nil and plaster:IsA("MaterialVariant") and plaster.BaseMaterial == Enum.Material.Plaster, "plaster variant present")
+	check(plaster ~= nil and plaster.StudsPerTile == 10, "plaster tiling")
+	check(MaterialService:FindFirstChild(MaterialLibrary.Wallpaper) ~= nil and MaterialService:FindFirstChild(MaterialLibrary.CeilingTile) ~= nil, "named variants present")
+	local okOverride, plasterName = pcall(function()
+		return (MaterialService :: any).PlasterName
+	end)
+	check(not okOverride or plasterName == "DLA_Plaster", "plaster override set in the project")
+	check(RS.Shared:FindFirstChild("ObserverSkin") ~= nil and RS.Shared.ObserverSkin:IsA("SurfaceAppearance"), "observer skin template present")
+	local plain = ObserverRig.build(nil, { localCopy = true })
+	check(plain:GetAttribute("Sculpted") ~= true, "plain rig until the meshes load")
 	-- sculpted Observer: templates stand in for the uploaded meshes
 	local folder = Instance.new("Folder")
 	folder.Name = "ObserverMeshes"

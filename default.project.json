@@ -88,8 +88,17 @@
     "MaterialService": {
       "$className": "MaterialService",
       "$properties": {
-        "Use2022Materials": true
-      }
+        "Use2022Materials": true,
+        "PlasterName": "DLA_Plaster",
+        "CarpetName": "DLA_Carpet",
+        "CeramicTilesName": "DLA_Tiles",
+        "ConcreteName": "DLA_Concrete",
+        "WoodPlanksName": "DLA_WoodPlanks",
+        "BrickName": "DLA_Brick",
+        "MarbleName": "DLA_Marble",
+        "MetalName": "DLA_Metal"
+      },
+      "$path": "src/materials"
     },
     "SoundService": {
       "$className": "SoundService",
