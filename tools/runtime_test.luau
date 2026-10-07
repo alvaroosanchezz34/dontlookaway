@@ -177,6 +177,76 @@ end
 -- 3. Objective planning is always solvable
 ------------------------------------------------------------------------------------
 
+section("lobby (field office)")
+do
+	local Lobby = requireModule(Server.Map.Lobby)
+	local holder = Instance.new("Folder")
+	holder.Name = "LobbyTest"
+	holder.Parent = workspace
+	local ok, lobby = pcall(Lobby.build, holder)
+	check(ok, "build lobby: " .. tostring(lobby))
+	if ok then
+		check(#lobby.Spawns == 4, "four lobby spawns")
+		check(lobby.Boards and lobby.Boards.Leaderboard and #lobby.Boards.Leaderboard.rows >= 10, "leaderboard board")
+		local O, size = lobby.Center, lobby.Size
+		local minX, maxX = O.X - size.X / 2 + 0.15, O.X + size.X / 2 - 0.15
+		local minZ, maxZ = O.Z - size.Z / 2 + 0.15, O.Z + size.Z / 2 - 0.15
+		-- every free-standing model stays inside the room, on the floor, and clear of the others
+		local boxes = {}
+		for _, m in lobby.Root:GetChildren() do
+			if m:IsA("Model") and #m:GetChildren() > 0 then
+				local cf, sz = m:GetBoundingBox()
+				local p = cf.Position
+				local lo = p - sz / 2
+				local hi = p + sz / 2
+				check(lo.X >= minX - 0.25 and hi.X <= maxX + 0.25 and lo.Z >= minZ - 0.25 and hi.Z <= maxZ + 0.25, "lobby prop inside the room: " .. m.Name .. string.format(" (%.1f..%.1f, %.1f..%.1f)", lo.X - O.X, hi.X - O.X, lo.Z - O.Z, hi.Z - O.Z))
+				check(lo.Y >= O.Y - 0.3, "lobby prop above the floor: " .. m.Name)
+				local wallMounted = lo.Y > O.Y + 2 or m.Name == "Sign" or m.Name == "Clock" or m.Name == "Extinguisher"
+				if not wallMounted then
+					table.insert(boxes, { name = m.Name, lo = lo, hi = hi })
+				end
+			end
+		end
+		for i = 1, #boxes do
+			for j = i + 1, #boxes do
+				local a, b = boxes[i], boxes[j]
+				local pad = 0.05
+				local overlap = a.lo.X < b.hi.X - pad and b.lo.X < a.hi.X - pad and a.lo.Z < b.hi.Z - pad and b.lo.Z < a.hi.Z - pad and a.lo.Y < b.hi.Y - pad and b.lo.Y < a.hi.Y - pad
+				-- a CRT sits on its table by design
+				if overlap and not ((a.name == "Table" and b.name == "CRT") or (a.name == "CRT" and b.name == "Table")) then
+					check(false, "lobby props overlap: " .. a.name .. " / " .. b.name)
+				end
+			end
+		end
+		-- each terminal can be walked up to: 3 studs in front of the screen are free
+		for _, d in lobby.Root:GetDescendants() do
+			if d:IsA("BasePart") and d:GetAttribute("InteractKind") == "Kiosk" then
+				local model = d:FindFirstAncestorWhichIsA("Model")
+				local front = d.CFrame.Position + d.CFrame.LookVector * 3
+				front = Vector3.new(front.X, O.Y + 2, front.Z)
+				local blocked = nil
+				for _, b in boxes do
+					if model and b.name == model.Name then
+						continue
+					end
+					if front.X > b.lo.X and front.X < b.hi.X and front.Z > b.lo.Z and front.Z < b.hi.Z and front.Y > b.lo.Y and front.Y < b.hi.Y then
+						blocked = b.name
+					end
+				end
+				check(blocked == nil, "terminal reachable: " .. tostring(d:GetAttribute("Kiosk")) .. " (blocked by " .. tostring(blocked) .. ")")
+				check(front.X > minX and front.X < maxX and front.Z > minZ and front.Z < maxZ, "terminal faces into the room: " .. tostring(d:GetAttribute("Kiosk")))
+			end
+		end
+		for _, sp in lobby.Spawns do
+			for _, b in boxes do
+				local p = sp.Position
+				check(not (p.X > b.lo.X - 1 and p.X < b.hi.X + 1 and p.Z > b.lo.Z - 1 and p.Z < b.hi.Z + 1), "lobby spawn clear of " .. b.name)
+			end
+		end
+	end
+	holder:Destroy()
+end
+
 section("objectives")
 syncPositions(workspace)
 local Registry = requireModule(Server.Registry)

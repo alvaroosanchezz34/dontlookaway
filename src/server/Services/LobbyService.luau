@@ -167,10 +167,22 @@ local function onLobby(player: Player, action: any, value: any)
 	end
 end
 
+-- Field Office stations: kiosk kind -> menu panel and tab.
+local STATIONS = {
+	JOURNAL = { "JOURNAL", "ALL" },
+	RECORD = { "JOURNAL", "RECORD" },
+	SHOP = { "SHOP", "EQUIPMENT" },
+	SUPPLY = { "SHOP", "EQUIPMENT" },
+	LOADOUT = { "SHOP", "LOADOUT" },
+	COSMETICS = { "SHOP", "COSMETICS" },
+	CHALLENGES = { "SHOP", "CHALLENGES" },
+	TUTORIAL = { "HOWTO" },
+}
+
 local function onKiosk(player: Player, target: Instance): boolean
-	local kind = target:GetAttribute("Kiosk")
-	if kind == "JOURNAL" or kind == "SHOP" then
-		Net.fire(player, "Effect", { name = "OpenPanel", panel = kind })
+	local station = STATIONS[target:GetAttribute("Kiosk")]
+	if station then
+		Net.fire(player, "Effect", { name = "OpenPanel", panel = station[1], tab = station[2] })
 		return true
 	end
 	return false

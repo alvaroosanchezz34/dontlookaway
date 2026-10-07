@@ -37,6 +37,7 @@ local ORDER = {
 	"PingService",
 	"RoundService",
 	"LobbyService",
+	"LeaderboardService",
 	"AdminService",
 }
 

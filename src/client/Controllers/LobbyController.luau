@@ -1,6 +1,6 @@
 --[[
 	LobbyController
-	The Waiting Room panel: who is here, who is ready, difficulty (host only),
+	The Field Office panel (lobby): who is here, who is ready, difficulty (host only),
 	READY, INVITE, the countdown, and - if a round is already running - a way to
 	spectate it while you wait.
 ]]
@@ -73,10 +73,10 @@ local function render()
 		statusLabel.Text = "A ROUND IS IN PROGRESS   " .. Util.formatTime(s.roundElapsed or 0)
 		countdownLabel.Text = "You will join the next one."
 	elseif s.countdown then
-		statusLabel.Text = string.format("%d / %d IN THE WAITING ROOM", #(s.players or {}), s.maxPlayers or 4)
+		statusLabel.Text = string.format("%d / %d AT THE FIELD OFFICE", #(s.players or {}), s.maxPlayers or 4)
 		countdownLabel.Text = string.format("THE DOORS OPEN IN %d", math.ceil(s.countdown))
 	else
-		statusLabel.Text = string.format("%d / %d IN THE WAITING ROOM", #(s.players or {}), s.maxPlayers or 4)
+		statusLabel.Text = string.format("%d / %d AT THE FIELD OFFICE", #(s.players or {}), s.maxPlayers or 4)
 		countdownLabel.Text = "Ready up to start. Friends can join you here."
 	end
 end
@@ -86,7 +86,7 @@ function LobbyController:Init()
 	panel = Kit.frame({ Size = UDim2.fromOffset(460, 720), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -40, 0.5, 0), BackgroundColor3 = C.Panel, BackgroundTransparency = 0.12, Parent = gui })
 	Kit.corner(panel, 6)
 	Kit.stroke(panel, C.Line, 1, 0.3)
-	Kit.text({ Text = "THE WAITING ROOM", Size = UDim2.new(1, -48, 0, 40), Position = UDim2.fromOffset(24, 20), FontFace = Kit.F.Title, TextSize = 28, Parent = panel })
+	Kit.text({ Text = "THE FIELD OFFICE", Size = UDim2.new(1, -48, 0, 40), Position = UDim2.fromOffset(24, 20), FontFace = Kit.F.Title, TextSize = 28, Parent = panel })
 	statusLabel = Kit.text({ Text = "", Size = UDim2.new(1, -48, 0, 20), Position = UDim2.fromOffset(24, 62), FontFace = Kit.F.Mono, TextSize = 13, TextColor3 = C.TextDim, Parent = panel })
 	list = Kit.frame({ Size = UDim2.new(1, -48, 0, 220), Position = UDim2.fromOffset(24, 96), BackgroundTransparency = 1, Parent = panel })
 	Kit.list(list, 6)
@@ -112,7 +112,7 @@ function LobbyController:Init()
 	Kit.button({ Text = "MENU", Size = UDim2.new(0.5, -30, 0, 44), Position = UDim2.new(0.5, 6, 0, 574), TextSize = 14, Parent = panel }, function()
 		Registry.MenuController:SetPaused(true)
 	end)
-	Kit.text({ Text = "Walk to the kiosks for the JOURNAL and the SHOP. Hold right mouse to look around.", Size = UDim2.new(1, -48, 0, 40), Position = UDim2.fromOffset(24, 640), FontFace = Kit.F.Light, TextSize = 13, TextColor3 = C.Muted, Parent = panel })
+	Kit.text({ Text = "Walk up to the terminals: SUPPLY, LOADOUT, WARDROBE, RECORDS, ORDERS and ORIENTATION. Ready up, then meet at the door.", Size = UDim2.new(1, -48, 0, 40), Position = UDim2.fromOffset(24, 640), FontFace = Kit.F.Light, TextSize = 13, TextColor3 = C.Muted, Parent = panel })
 	gui.Enabled = false
 end
 

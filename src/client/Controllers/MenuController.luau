@@ -128,7 +128,7 @@ local function howToPlay(body: Frame)
 	backButton(body)
 end
 
-local function journal(body: Frame)
+local function journal(body: Frame, tab: string?)
 	local profile = State.profile or {}
 	local entries = profile.journal or {}
 	local found = Util.count(entries)
@@ -201,45 +201,88 @@ local function journal(body: Frame)
 			showAnomalies(name)
 		end
 	end)
-	select("ALL")
+	select(if tab == "RECORD" then "RECORD" else "ALL")
 	backButton(body)
 end
 
-local function shop(body: Frame)
-	ShopPanel.build(body, { tabs = tabs, backButton = backButton })
+local function shop(body: Frame, tab: string?)
+	ShopPanel.build(body, { tabs = tabs, backButton = backButton }, tab)
 end
 
 local function sendSettings()
 	settingsDirty = true
 end
 
+local GRAPHICS_CHOICES = { "AUTO", "LOW", "MEDIUM", "HIGH" }
+local COLOR_CHOICES = { "NORMAL", "DEUTERANOPIA", "PROTANOPIA", "TRITANOPIA", "HIGH_CONTRAST" }
+local CHOICE_NAMES = { HIGH_CONTRAST = "HIGH CONTRAST" }
+
 local function settings(body: Frame)
 	local s = State.settings
 	local scroll = Kit.scroll(body, { Size = UDim2.new(1, 0, 1, -56) })
 	Kit.list(scroll, 2)
+	local order = 0
+	local function nextOrder(): number
+		order += 1
+		return order
+	end
 	local function changed()
 		State.SettingsChanged:Fire()
 		sendSettings()
 	end
-	local function slider(label: string, key: string, order: number)
-		local row = Kit.slider(scroll, label, s[key], function(v)
+	local function heading(text: string)
+		Kit.text({ Text = text, Size = UDim2.new(1, 0, 0, 44), TextYAlignment = Enum.TextYAlignment.Bottom, FontFace = Kit.F.Heading, TextSize = 15, TextColor3 = C.Muted, LayoutOrder = nextOrder(), Parent = scroll })
+	end
+	local function slider(label: string, key: string, format: ((number) -> string)?)
+		local row = Kit.slider(scroll, label, s[key] or 0.5, function(v)
+			s[key] = v
+			changed()
+		end, format)
+		row.LayoutOrder = nextOrder()
+	end
+	local function toggle(label: string, key: string)
+		local row = Kit.toggle(scroll, label, s[key] == true, function(v)
 			s[key] = v
 			changed()
 		end)
-		row.LayoutOrder = order
+		row.LayoutOrder = nextOrder()
 	end
-	slider("Master volume", "master", 1)
-	slider("Music", "music", 2)
-	slider("Sound effects", "sfx", 3)
-	slider("Ambience", "ambient", 4)
-	slider("Interface sounds", "ui", 5)
+	local function choice(label: string, key: string, options: { string })
+		local row = Kit.frame({ Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = 1, LayoutOrder = nextOrder(), Parent = scroll })
+		Kit.text({ Text = label, Size = UDim2.new(0.6, 0, 1, 0), TextSize = 18, TextColor3 = C.TextDim, Parent = row })
+		local button
+		local function show()
+			local v = s[key] or options[1]
+			button.Text = "‹  " .. (CHOICE_NAMES[v] or v) .. "  ›"
+		end
+		button = Kit.button({ Size = UDim2.fromOffset(250, 38), Position = UDim2.new(1, -250, 0.5, -19), TextSize = 15, Parent = row }, function()
+			local index = table.find(options, s[key]) or 1
+			s[key] = options[index % #options + 1]
+			show()
+			changed()
+		end)
+		show()
+	end
+	local pct = function(v: number)
+		return string.format("%d%%", math.floor(v * 100 + 0.5))
+	end
+
+	heading("AUDIO")
+	slider("Master volume", "master", pct)
+	slider("Music", "music", pct)
+	slider("Sound effects", "sfx", pct)
+	slider("Ambience", "ambient", pct)
+	slider("Interface sounds", "ui", pct)
+
+	heading("CONTROLS & CAMERA")
 	local sens = Kit.slider(scroll, "Look sensitivity", (s.sensitivity - 0.05) / 1.95, function(v)
 		s.sensitivity = 0.05 + v * 1.95
 		changed()
 	end, function(v)
 		return string.format("%.2f", 0.05 + v * 1.95)
 	end)
-	sens.LayoutOrder = 6
+	sens.LayoutOrder = nextOrder()
+	toggle("Invert look", "invertY")
 	local minF, maxF = GameConfig.Camera.MinFOV, GameConfig.Camera.MaxFOV
 	local fov = Kit.slider(scroll, "Field of view", (s.fov - minF) / (maxF - minF), function(v)
 		s.fov = math.floor(minF + v * (maxF - minF) + 0.5)
@@ -247,19 +290,26 @@ local function settings(body: Frame)
 	end, function(v)
 		return tostring(math.floor(minF + v * (maxF - minF) + 0.5))
 	end)
-	fov.LayoutOrder = 7
-	local function toggle(label: string, key: string, order: number)
-		local row = Kit.toggle(scroll, label, s[key] == true, function(v)
-			s[key] = v
-			changed()
-		end)
-		row.LayoutOrder = order
-	end
-	toggle("Head bob & motion", "headBob", 8)
-	toggle("Camera shake", "cameraShake", 9)
-	toggle("Reduced effects (no flashes or glitches)", "reducedEffects", 10)
-	toggle("Subtitles", "subtitles", 11)
-	toggle("Invert look", "invertY", 12)
+	fov.LayoutOrder = nextOrder()
+	toggle("Head bob", "headBob")
+	toggle("Camera shake", "cameraShake")
+
+	heading("GRAPHICS")
+	choice("Quality", "graphics", GRAPHICS_CHOICES)
+	slider("Brightness", "brightness", function(v)
+		return string.format("%+d", math.floor((v - 0.5) * 20 + 0.5))
+	end)
+	toggle("Flashlight effects (dust, beam)", "flashlightEffects")
+
+	heading("ACCESSIBILITY")
+	toggle("Subtitles", "subtitles")
+	slider("Subtitle size", "subtitleSize", function(v)
+		return tostring(math.floor(16 + v * 16 + 0.5))
+	end)
+	toggle("Sound direction indicators", "audioIndicators")
+	toggle("Reduced flashes & glitches", "reducedEffects")
+	toggle("Reduced motion (no sway, softer shake)", "reduceMotion")
+	choice("Colour mode", "colorMode", COLOR_CHOICES)
 	backButton(body)
 end
 
@@ -292,7 +342,7 @@ local PANELS = {
 	CREDITS = { title = "CREDITS", build = credits, size = UDim2.fromOffset(820, 640) },
 }
 
-function MenuController:OpenPanel(name: string)
+function MenuController:OpenPanel(name: string, tab: string?)
 	local def = PANELS[name]
 	if not def then
 		return
@@ -303,7 +353,7 @@ function MenuController:OpenPanel(name: string)
 	currentPanelName = name
 	State.setUIOpen(true)
 	Kit.sound("UIOpen")
-	def.build(body)
+	def.build(body, tab)
 	if State.inputType == "Gamepad" then
 		GuiService.SelectedObject = panel:FindFirstChildWhichIsA("GuiButton", true)
 	end

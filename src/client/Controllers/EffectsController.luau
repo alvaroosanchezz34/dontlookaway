@@ -330,7 +330,7 @@ handlers.RealityCollapse = function()
 end
 
 handlers.OpenPanel = function(p)
-	Registry.MenuController:OpenPanel(p.panel)
+	Registry.MenuController:OpenPanel(p.panel, p.tab)
 end
 
 function EffectsController:Register(name: string, fn: (any) -> ())

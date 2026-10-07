@@ -178,7 +178,7 @@ local function fpsCFrame(dt: number): CFrame?
 	end
 	landDip = math.max(0, landDip - dt * 1.4)
 	-- head bob
-	local motion = State.settings.headBob ~= false and not State.settings.reducedEffects
+	local motion = State.settings.headBob ~= false and not State.settings.reducedEffects and not State.settings.reduceMotion
 	local targetBob = if grounded and speed > 1 and motion then math.clamp(speed / GameConfig.Movement.WalkSpeed, 0, 1.6) else 0
 	bobAmount += (targetBob - bobAmount) * Util.damp(6, dt)
 	bobPhase += dt * GameConfig.Camera.HeadBobFrequency * math.pi * 2 * math.clamp(speed / GameConfig.Movement.WalkSpeed, 0.6, 1.5)
@@ -198,7 +198,7 @@ local function shakeOffset(dt: number): CFrame
 	end
 	trauma = math.max(0, trauma - dt * 1.3)
 	local t = os.clock() * 24
-	local s = trauma * trauma * (if State.settings.reducedEffects then 0.3 else 1)
+	local s = trauma * trauma * (if State.settings.reducedEffects or State.settings.reduceMotion then 0.3 else 1)
 	return CFrame.Angles(math.noise(t, 1) * 0.05 * s, math.noise(t, 2) * 0.05 * s, math.noise(t, 3) * 0.04 * s)
 end
 

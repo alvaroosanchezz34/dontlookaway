@@ -41,6 +41,7 @@ local ORDER = {
 	"CameraController",
 	"MovementController",
 	"EffectsController",
+	"AccessibilityController",
 	"LightController",
 	"DoorController",
 	"RealityController",

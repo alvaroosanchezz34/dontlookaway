@@ -12,6 +12,17 @@ GameConfig.Version = "1.0.0"
 
 GameConfig.MaxPlayers = 4
 
+-- Lines on the FIELD BULLETIN board in the lobby (max 7).
+GameConfig.News = {
+	"v" .. GameConfig.Version .. "  The Field Office is open.",
+	"New: equipment, upgrades and the tool belt.",
+	"New: daily and weekly orders on the board.",
+	"NIGHTMARE: escape on HARD to unlock it.",
+	"Reminder: the power fails. Carry spares.",
+	"Do not trust anyone who waves slowly.",
+	"Never open B-13.",
+}
+
 -- Owner / admin access. The place creator (or group owner) is always an admin.
 -- Additional trusted UserIds can be listed here.
 GameConfig.AdminUserIds = {}

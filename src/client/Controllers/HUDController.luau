@@ -182,6 +182,7 @@ function HUDController:Caption(text: string, duration: number?, speaker: string?
 	captionToken += 1
 	local token = captionToken
 	captionLabel.Text = text
+	captionLabel.TextSize = math.floor(16 + math.clamp(tonumber(State.settings.subtitleSize) or 0.5, 0, 1) * 16 + 0.5)
 	captionLabel.FontFace = if speaker == "tape" then Kit.F.Type else Kit.F.Body
 	captionLabel.TextColor3 = if speaker == "whisper" then C.TextDim else C.Text
 	Kit.tween(captionLabel, 0.3, { TextTransparency = 0 })
