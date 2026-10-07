@@ -528,10 +528,12 @@ fire("Results", {
 	ending = "THE_WITNESS",
 	team = "ESCAPED",
 	summary = { duration = 640, difficulty = "NORMAL", playerCount = 2, escapedCount = 1, anomaliesFound = 7, anomaliesMissed = 2, quota = 7, seed = 7 },
-	reward = { echoes = 120, xp = 300, levelBefore = 4, levelAfter = 5, xpInto = 20, xpNeed = 250, found = 4, newJournal = 2, achievements = { "ESCAPED" } },
+	reward = { echoes = 120, xp = 300, levelBefore = 4, levelAfter = 5, xpInto = 20, xpNeed = 250, found = 4, newJournal = 2, achievements = { "ESCAPED" }, breakdown = { { label = "Time in the building  10:40", echoes = 43, xp = 107 }, { label = "Escaped", echoes = 40, xp = 90 }, { label = "Played with friends  +10%", echoes = 8, xp = 20 } } },
 	roster = { { name = "Tester", outcome = "ESCAPED" }, { name = "Friend", outcome = "DEAD" } },
 })
 frames(5)
+task.wait(3.5)
+frames(3)
 fire("AdminData", { snapshot = { round = "EXPLORING", seed = 7, mapSeed = 7, difficulty = "NORMAL", elapsed = 100, phase = "CALM", dread = 10, observer = "DORMANT", players = { { name = "Tester", userId = 1, status = "ALIVE", room = "RECEPTION", battery = 80, light = true } }, active = { { id = "PAINTING_SWAP", scope = "GLOBAL", remaining = 90, players = 1 } }, stats = { spawned = 3, found = 1, missed = 0 }, objective = { puzzles = { "CODE", "DOORS" }, locks = { POWER = false }, quota = 7, found = 1, code = "1234" }, analytics = { roundsCompleted = 1, roundsStarted = 2 }, logs = { "line" }, anomalyIds = { "PAINTING_SWAP", "EXTRA_DOOR" }, dataMock = true }, message = "ok" })
 frames(5)
 fire("RoundState", { state = "LOBBY", difficulty = "NORMAL", seed = 7, elapsed = 0 })

@@ -113,10 +113,13 @@ Enums.MusicState = {
 
 Enums.PingKind = {
 	Anomaly = "ANOMALY",
+	FoundIt = "FOUND_IT",
 	ComeHere = "COME_HERE",
+	Wait = "WAIT",
 	Danger = "DANGER",
 	Door = "DOOR",
 	Item = "ITEM",
+	Objective = "OBJECTIVE",
 }
 
 return Enums

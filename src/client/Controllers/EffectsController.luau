@@ -227,10 +227,37 @@ handlers.PowerSurge = function()
 	Registry.CameraController:Shake(0.2)
 end
 
-handlers.EscapeStart = function()
+handlers.EscapeStart = function(p)
 	Registry.CameraController:Shake(0.6)
 	EffectsController:Glitch(0.8, 0.5)
 	EffectsController:Title("THE EXIT IS OPEN", "Get to the loading dock. Don't stop.", 3.2)
+	-- the way out is always marked: a run, not a search
+	if typeof(p.exit) == "Vector3" then
+		local exit = p.exit
+		task.delay(3.4, function()
+			if State.status == "ALIVE" then
+				Registry.HUDController:GuideMarker(exit, "EXIT")
+			end
+		end)
+		task.spawn(function()
+			local started = os.clock()
+			while State.status == "ALIVE" and State.round.state == "ESCAPE" and os.clock() - started < (tonumber(p.window) or 150) do
+				task.wait(18)
+				if State.status == "ALIVE" and State.round.state == "ESCAPE" then
+					Registry.HUDController:GuideMarker(exit, "EXIT")
+				end
+			end
+		end)
+	end
+end
+
+handlers.EscapeClosing = function(p)
+	Registry.CameraController:Shake(0.35)
+	Registry.AudioController:PlayUI("HeartbeatFast")
+	EffectsController:Title("THE DOORS ARE CLOSING", "Thirty seconds.", 2.4)
+	if typeof(p.exit) == "Vector3" then
+		Registry.HUDController:GuideMarker(p.exit, "EXIT")
+	end
 end
 
 handlers.PortalGlitch = function()

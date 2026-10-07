@@ -1,7 +1,9 @@
 --[[
 	PingController
-	Tap ping = ANOMALY at the crosshair. Hold ping = wheel (ANOMALY, COME HERE,
-	DANGER, DOOR, ITEM), release on a choice. Markers are visible through walls
+	Tap ping = a smart ping at the crosshair (ITEM on pickups, DOOR on doors,
+	OBJECTIVE on puzzles, otherwise ANOMALY?). Hold ping = wheel (ANOMALY?,
+	FOUND IT, COME HERE, WAIT FOR ME, DANGER, DOOR, ITEM, OBJECTIVE), release on a
+	choice. Markers are visible through walls
 	with distance, sender and colour. False pings (an anomaly) look almost the
 	same: no distance readout, and the name never quite settles.
 ]]
@@ -31,16 +33,37 @@ local hovered: string? = nil
 local markers: { [string]: { part: Part, gui: BillboardGui, dist: TextLabel, fake: boolean, name: TextLabel, from: string } } = {}
 local random = Random.new()
 
-local function aimPoint(): Vector3?
+local function aimHit(): RaycastResult?
 	local camera = Workspace.CurrentCamera
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = if player.Character then { player.Character } else {}
-	local hit = Workspace:Raycast(camera.CFrame.Position, camera.CFrame.LookVector * GameConfig.Ping.MaxDistance, params)
+	return Workspace:Raycast(camera.CFrame.Position, camera.CFrame.LookVector * GameConfig.Ping.MaxDistance, params)
+end
+
+local function aimPoint(): Vector3?
+	local hit = aimHit()
 	if hit then
 		return hit.Position + hit.Normal * 0.5
 	end
 	return nil
+end
+
+-- The quick ping reads what you are pointing at.
+local function smartKind(): string
+	local hit = aimHit()
+	local inst: Instance? = hit and hit.Instance
+	for _ = 1, 4 do
+		if not inst then
+			break
+		end
+		local kind = inst:GetAttribute("InteractKind")
+		if type(kind) == "string" and Pings.ForInteractKind[kind] then
+			return Pings.ForInteractKind[kind]
+		end
+		inst = inst.Parent
+	end
+	return "ANOMALY"
 end
 
 local function send(kind: string)
@@ -131,11 +154,11 @@ end
 
 function PingController:Init()
 	local gui = Kit.screen("PingWheel", 6)
-	wheel = Kit.frame({ Size = UDim2.fromOffset(460, 460), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1, Visible = false, Parent = gui })
+	wheel = Kit.frame({ Size = UDim2.fromOffset(560, 560), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1, Visible = false, Parent = gui })
 	for i, kind in Pings.Order do
 		local def = Pings.List[kind]
 		local angle = (i - 1) / #Pings.Order * math.pi * 2 - math.pi / 2
-		local button = Kit.button({ Text = def.label, Size = UDim2.fromOffset(150, 50), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, math.cos(angle) * 160, 0.5, math.sin(angle) * 160), TextColor3 = def.color, Parent = wheel }, function()
+		local button = Kit.button({ Text = def.label, Size = UDim2.fromOffset(150, 46), TextSize = 15, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, math.cos(angle) * 210, 0.5, math.sin(angle) * 190), TextColor3 = def.color, Parent = wheel }, function()
 			hovered = kind
 			closeWheel(true)
 		end)
@@ -163,7 +186,7 @@ function PingController:Start()
 			if wheelOpen then
 				closeWheel(true)
 			elseif os.clock() - pressAt < 0.28 then
-				send("ANOMALY")
+				send(smartKind())
 			end
 		end
 	end)

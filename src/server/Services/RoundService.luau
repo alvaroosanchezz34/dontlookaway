@@ -29,6 +29,7 @@ local difficulty = Enums.Difficulty.Normal
 local participants: { [number]: { player: Player?, name: string, outcome: string?, escapedAt: number?, diedAt: number?, witness: boolean?, lowBattery: boolean?, stats: any } } = {}
 local exploringStartedAt = 0
 local escapeStartedAt = 0
+local escapeWarned = false
 local endingReason: string? = nil
 local roundToken = 0
 
@@ -280,7 +281,11 @@ local function startEscape()
 	workspace:SetAttribute("Escape", true)
 	Registry.LightingService:ApplyPreset("ESCAPE", 3)
 	Registry.AudioService:Play2DAll("ExitUnlocked")
-	Net.fireAll("Effect", { name = "EscapeStart" })
+	if map and map.ExitShutter then
+		Registry.AudioService:PlayAt("EscapeDoor", map.ExitShutter:GetPivot().Position)
+	end
+	Net.fireAll("Effect", { name = "EscapeStart", exit = map and map.EscapeZone and map.EscapeZone.Position, window = GameConfig.Round.EscapeWindow })
+	escapeWarned = false
 	Registry.HorrorDirector:BeginEscape()
 	Registry.ObjectiveService:Push()
 	-- the building fights back: geometry and light shift, doors move
@@ -534,6 +539,10 @@ function RoundService:_startRound(players: { Player }, chosenDifficulty: string)
 							self:PlayerEscaped(p)
 						end
 					end
+				end
+				if not escapeWarned and os.clock() - escapeStartedAt > GameConfig.Round.EscapeWindow - 30 then
+					escapeWarned = true
+					Net.fireList(aliveParticipants(), "Effect", { name = "EscapeClosing", exit = zone.Position })
 				end
 				if os.clock() - escapeStartedAt > GameConfig.Round.EscapeWindow then
 					-- the shutter comes down
