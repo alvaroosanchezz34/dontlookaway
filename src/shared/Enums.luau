@@ -55,6 +55,7 @@ Enums.Rarity = {
 	Common = "COMMON",
 	Uncommon = "UNCOMMON",
 	Rare = "RARE",
+	Epic = "EPIC",
 	Legendary = "LEGENDARY",
 }
 

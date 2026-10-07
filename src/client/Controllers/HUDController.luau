@@ -538,6 +538,10 @@ function HUDController:Start()
 			self:Card("LEVEL UP", "LEVEL " .. tostring(p.level), unlocked, C.Text)
 		elseif p.type == "cosmetic" then
 			self:Toast("Unlocked: " .. (p.name or ""), "info")
+		elseif p.type == "challenge" then
+			self:Card("CHALLENGE COMPLETE", p.name or "", string.format("+%d ECHOES   +%d XP", p.echoes or 0, p.xp or 0), C.Good)
+		elseif p.type == "equipment" then
+			self:Card("NEW EQUIPMENT", p.name or "", p.description, Color3.fromRGB(150, 190, 230))
 		end
 	end)
 	Net.event("Caption").OnClientEvent:Connect(function(p)

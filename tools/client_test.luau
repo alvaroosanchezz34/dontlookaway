@@ -63,6 +63,8 @@ for _, pair in {
 	{ "Instance", "ChildAdded" },
 	{ "GuiButton", "Activated" },
 	{ "GuiButton", "MouseButton1Click" },
+	{ "GuiButton", "MouseButton1Down" },
+	{ "GuiButton", "MouseButton1Up" },
 	{ "GuiObject", "MouseEnter" },
 	{ "GuiObject", "MouseLeave" },
 	{ "GuiObject", "SelectionGained" },

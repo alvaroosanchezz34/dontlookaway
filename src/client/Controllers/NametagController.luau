@@ -59,6 +59,11 @@ local function nameFor(model: Model): (string, string)
 	if type(override) == "string" then
 		display = override
 	end
+	-- the badge glyph is never copied onto a mimic: one more tell
+	local badge = model:GetAttribute("Badge") or (owner and owner:GetAttribute("Badge"))
+	if type(badge) == "string" and badge ~= "" and not model:GetAttribute("Mimic") then
+		display = badge .. "  " .. display
+	end
 	return display, title
 end
 

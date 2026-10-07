@@ -183,6 +183,10 @@ GameConfig.Rewards = {
 	XPEscape = 90,
 	XPDeath = 20,
 	FirstDiscoveryBonusEchoes = 10,
+	EchoesPerLock = 8, -- each exit lock the team released
+	EchoesPerEvidence = 4, -- each anomaly documented with the instant camera
+	FriendsBonus = 0.1, -- +10% when you played with others
+	XPPerLock = 25,
 }
 
 GameConfig.Data = {

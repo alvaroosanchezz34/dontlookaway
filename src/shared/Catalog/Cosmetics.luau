@@ -13,12 +13,14 @@
 
 local Cosmetics = {}
 
-Cosmetics.Categories = { "FLASHLIGHT", "BEAM", "TRAIL", "EMOTE", "TITLE", "UI" }
+Cosmetics.Categories = { "FLASHLIGHT", "BEAM", "GLOVES", "BADGE", "TRAIL", "EMOTE", "TITLE", "UI" }
 
 Cosmetics.CategoryNames = {
-	FLASHLIGHT = "FLASHLIGHTS",
+	FLASHLIGHT = "FLASHLIGHT SKINS",
 	BEAM = "LIGHT EFFECTS",
-	TRAIL = "TRAILS",
+	GLOVES = "GLOVES",
+	BADGE = "BADGES",
+	TRAIL = "LOBBY TRAILS",
 	EMOTE = "EMOTES",
 	TITLE = "TITLES",
 	UI = "INTERFACE",
@@ -73,6 +75,28 @@ Cosmetics.List = {
 	{ id = "TI_UNSEEN", category = "TITLE", name = "Unseen", level = 25 },
 	{ id = "TI_VIP", category = "TITLE", name = "Patron", pass = "VIP" },
 
+	-- Gloves (your hands in first person, and your character's hands)
+	{ id = "GL_BARE", category = "GLOVES", name = "Bare Hands", default = true, color = nil },
+	{ id = "GL_WORK", category = "GLOVES", name = "Work Gloves", price = 200, color = Color3.fromRGB(150, 120, 80) },
+	{ id = "GL_LATEX", category = "GLOVES", name = "Latex", price = 300, color = Color3.fromRGB(200, 214, 220) },
+	{ id = "GL_LEATHER", category = "GLOVES", name = "Black Leather", level = 10, color = Color3.fromRGB(26, 24, 24) },
+	{ id = "GL_RUBBER", category = "GLOVES", name = "Rubber Gloves", price = 450, color = Color3.fromRGB(190, 160, 50) },
+	{ id = "GL_FIELD", category = "GLOVES", name = "Field Investigator", achievement = "DAILY_DEVOTION", color = Color3.fromRGB(70, 80, 66) },
+
+	-- Badges (a small mark beside your name)
+	{ id = "BD_NONE", category = "BADGE", name = "No Badge", default = true, glyph = "" },
+	{ id = "BD_EYE", category = "BADGE", name = "Open Eye", price = 250, glyph = "◉" },
+	{ id = "BD_KEY", category = "BADGE", name = "Old Key", level = 6, glyph = "⚿" },
+	{ id = "BD_MOON", category = "BADGE", name = "Crescent", price = 400, glyph = "☾" },
+	{ id = "BD_STAR", category = "BADGE", name = "Unblinking Star", achievement = "HARD_ESCAPE", glyph = "✦" },
+	{ id = "BD_SKULL", category = "BADGE", name = "Nightmare", achievement = "NIGHTMARE", glyph = "✕" },
+
+	-- Titles earned through the new milestones
+	{ id = "TI_INVESTIGATOR", category = "TITLE", name = "Field Investigator", achievement = "DAILY_DEVOTION" },
+	{ id = "TI_LIGHTKEEPER", category = "TITLE", name = "Lightkeeper", achievement = "POWER_OUTAGE" },
+	{ id = "TI_EYES", category = "TITLE", name = "Eyes Open", achievement = "DONT_BLINK" },
+	{ id = "TI_NIGHTMARE", category = "TITLE", name = "Nightmare", achievement = "NIGHTMARE" },
+
 	-- Interface accents
 	{ id = "UI_BONE", category = "UI", name = "Bone", default = true, accent = Color3.fromRGB(232, 228, 220) },
 	{ id = "UI_ASH", category = "UI", name = "Ash", price = 120, accent = Color3.fromRGB(170, 172, 176) },
@@ -89,6 +113,8 @@ end
 Cosmetics.Defaults = {
 	FLASHLIGHT = "FL_STANDARD",
 	BEAM = "BM_CLEAN",
+	GLOVES = "GL_BARE",
+	BADGE = "BD_NONE",
 	TRAIL = "TR_NONE",
 	TITLE = "TI_VISITOR",
 	UI = "UI_BONE",

@@ -106,7 +106,10 @@ local function onInteract(player: Player, action: any, target: any)
 		elseif action == "complete" then
 			local hold = holds[player]
 			holds[player] = nil
-			if not hold or hold.target ~= target or os.clock() - hold.started < holdTime * 0.8 then
+			-- the Steady Hands upgrade shortens holds (server-set attribute)
+			local mult = player:GetAttribute("HoldMultiplier")
+			mult = if type(mult) == "number" then math.clamp(mult, 0.5, 1) else 1
+			if not hold or hold.target ~= target or os.clock() - hold.started < holdTime * mult * 0.8 then
 				return
 			end
 		else

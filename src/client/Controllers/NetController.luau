@@ -82,6 +82,12 @@ function NetController:Start()
 		end
 		State.ProfileChanged:Fire(p)
 	end)
+	Net.event("Challenge").OnClientEvent:Connect(function(p)
+		if type(p) == "table" then
+			State.challenges = p
+			State.ChallengesChanged:Fire(p)
+		end
+	end)
 	Net.event("Director").OnClientEvent:Connect(function(p)
 		if type(p) ~= "table" then
 			return

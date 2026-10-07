@@ -27,6 +27,8 @@ Net.Events = {
 	Admin = { rate = 6, burst = 10 },
 	Movement = { rate = 6, burst = 10 },
 	ClientFlag = { rate = 2, burst = 6 },
+	Gear = { rate = 3, burst = 6 },
+	Tool = { rate = 6, burst = 10 },
 
 	-- server -> client
 	RoundState = {},
@@ -48,11 +50,15 @@ Net.Events = {
 	Document = {},
 	PlayerStates = {},
 	LobbyState = {},
+	ToolState = {},
+	ToolEvent = {},
+	Challenge = {},
 }
 
 Net.Functions = {
 	GetProfile = { rate = 2, burst = 4 },
 	GetShop = { rate = 2, burst = 4 },
+	GetGear = { rate = 2, burst = 4 },
 }
 
 local FOLDER_NAME = "Remotes"

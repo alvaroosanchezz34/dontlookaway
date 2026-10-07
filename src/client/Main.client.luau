@@ -47,6 +47,7 @@ local ORDER = {
 	"WorldFXController",
 	"ObserverFX",
 	"FlashlightController",
+	"ToolController",
 	"NametagController",
 	"EmoteController",
 	"InteractController",

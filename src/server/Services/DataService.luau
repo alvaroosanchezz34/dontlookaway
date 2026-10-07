@@ -21,6 +21,8 @@ local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Cosmetics = require(ReplicatedStorage.Shared.Catalog.Cosmetics)
 local JournalCatalog = require(ReplicatedStorage.Shared.Catalog.JournalCatalog)
 local Achievements = require(ReplicatedStorage.Shared.Catalog.Achievements)
+local Equipment = require(ReplicatedStorage.Shared.Catalog.Equipment)
+local Challenges = require(ReplicatedStorage.Shared.Catalog.Challenges)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
 local Signal = require(ReplicatedStorage.Shared.Util.Signal)
 
@@ -29,7 +31,8 @@ local DataService = {}
 DataService.Loaded = Signal.new() -- (player, data)
 DataService.Changed = Signal.new() -- (player, data)
 
-local SCHEMA_VERSION = 1
+-- v1: launch. v2: equipment, loadout, upgrades, challenges, gloves & badges.
+local SCHEMA_VERSION = 2
 
 local TEMPLATE = {
 	version = SCHEMA_VERSION,
@@ -60,9 +63,26 @@ local TEMPLATE = {
 	equipped = {
 		FLASHLIGHT = Cosmetics.Defaults.FLASHLIGHT,
 		BEAM = Cosmetics.Defaults.BEAM,
+		GLOVES = Cosmetics.Defaults.GLOVES,
+		BADGE = Cosmetics.Defaults.BADGE,
 		TRAIL = Cosmetics.Defaults.TRAIL,
 		TITLE = Cosmetics.Defaults.TITLE,
 		UI = Cosmetics.Defaults.UI,
+	},
+	gear = {
+		owned = {},
+		flashlight = Equipment.Defaults.FLASHLIGHT,
+		battery = Equipment.Defaults.BATTERY,
+		loadout = {},
+	},
+	upgrades = {},
+	challenges = {
+		day = 0,
+		week = 0,
+		daily = {},
+		weekly = {},
+		dailiesDone = 0,
+		weekliesDone = 0,
 	},
 	settings = {
 		master = 1,
@@ -174,10 +194,22 @@ local function num(value, default, min, max)
 	return math.clamp(value, min or -math.huge, max or math.huge)
 end
 
+-- Upgrades older saves in place. Never removes anything a player earned.
+local function migrate(data)
+	local from = if type(data.version) == "number" then data.version else 1
+	if from < 2 then
+		-- v2 adds gear, upgrades and challenges: reconcile fills them with defaults.
+		-- Echoes, XP, journal, achievements and cosmetics carry over untouched.
+		data.gear = data.gear or Util.deepCopy(TEMPLATE.gear)
+	end
+	return data
+end
+
 local function validate(data)
 	if type(data) ~= "table" then
 		return Util.deepCopy(TEMPLATE)
 	end
+	migrate(data)
 	Util.reconcile(data, TEMPLATE)
 	data.version = SCHEMA_VERSION
 	data.echoes = math.floor(num(data.echoes, 0, 0, 1e9))
@@ -222,6 +254,67 @@ local function validate(data)
 		if not item or item.category ~= category then
 			data.equipped[category] = default
 		end
+	end
+	-- gear: only known, owned pieces; the loadout fits the slots it has
+	local gear = data.gear
+	local ownedGear = {}
+	if type(gear.owned) == "table" then
+		for id, v in gear.owned do
+			local item = Equipment.get(id)
+			if item and v == true and not item.default then
+				ownedGear[id] = true
+			end
+		end
+	end
+	gear.owned = ownedGear
+	local function ownsGear(id: any, kind: string): boolean
+		local item = type(id) == "string" and Equipment.get(id)
+		return item ~= nil and item.kind == kind and (item.default == true or ownedGear[id] == true)
+	end
+	if not ownsGear(gear.flashlight, "FLASHLIGHT") then
+		gear.flashlight = Equipment.Defaults.FLASHLIGHT
+	end
+	if not ownsGear(gear.battery, "BATTERY") then
+		gear.battery = Equipment.Defaults.BATTERY
+	end
+	local upgrades = {}
+	if type(data.upgrades) == "table" then
+		for id, level in data.upgrades do
+			local def = Equipment.UpgradesById[id]
+			if def and Util.isFinite(level) then
+				upgrades[id] = math.clamp(math.floor(level), 0, #def.levels)
+			end
+		end
+	end
+	data.upgrades = upgrades
+	local slots = Equipment.loadoutSlots(upgrades)
+	local loadout, seen = {}, {}
+	if type(gear.loadout) == "table" then
+		for _, id in gear.loadout do
+			if #loadout < slots and type(id) == "string" and not seen[id] and ownsGear(id, "TOOL") then
+				seen[id] = true
+				table.insert(loadout, id)
+			end
+		end
+	end
+	gear.loadout = loadout
+	-- challenges: known ids, sane progress
+	local ch = data.challenges
+	ch.day = math.floor(num(ch.day, 0, 0, 1e7))
+	ch.week = math.floor(num(ch.week, 0, 0, 1e7))
+	ch.dailiesDone = math.floor(num(ch.dailiesDone, 0, 0, 1e7))
+	ch.weekliesDone = math.floor(num(ch.weekliesDone, 0, 0, 1e7))
+	for _, bucket in { "daily", "weekly" } do
+		local clean = {}
+		if type(ch[bucket]) == "table" then
+			for id, rec in ch[bucket] do
+				local def = Challenges.ById[id]
+				if def and type(rec) == "table" then
+					clean[id] = { p = math.floor(num(rec.p, 0, 0, def.goal)), done = rec.done == true }
+				end
+			end
+		end
+		ch[bucket] = clean
 	end
 	local s = data.settings
 	s.master = num(s.master, 1, 0, 1)

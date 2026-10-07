@@ -1,7 +1,8 @@
 --[[
 	MenuController
 	Main menu over a slow cinematic tour of the building, the pause menu, and the
-	panels: HOW TO PLAY, JOURNAL (anomalies + record), SHOP, SETTINGS, CREDITS.
+	panels: HOW TO PLAY, JOURNAL (anomalies + record), SUPPLY ROOM (equipment,
+	upgrades, loadout, cosmetics, challenges: see UI/ShopPanel), SETTINGS, CREDITS.
 	Also the one-time flashing lights warning.
 ]]
 
@@ -13,11 +14,11 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local JournalCatalog = require(ReplicatedStorage.Shared.Catalog.JournalCatalog)
 local Achievements = require(ReplicatedStorage.Shared.Catalog.Achievements)
-local Cosmetics = require(ReplicatedStorage.Shared.Catalog.Cosmetics)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
 local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local ShopPanel = require(script.Parent.Parent.UI.ShopPanel)
 
 local MenuController = {}
 
@@ -171,6 +172,11 @@ local function journal(body: Frame)
 			{ "BEST ESCAPE", if (stats.bestTime or 0) > 0 then Util.formatTime(stats.bestTime) else "-" },
 			{ "OBSERVER SIGHTINGS", stats.observerSightings or 0 },
 			{ "SECRET ENDINGS", stats.secretEndings or 0 },
+			{ "BLACKOUTS SURVIVED", stats.blackoutsSurvived or 0 },
+			{ "MIMICS UNMASKED", stats.mimicsSpotted or 0 },
+			{ "ROUNDS WITH FRIENDS", stats.roundsWithFriends or 0 },
+			{ "NIGHTMARE ESCAPES", stats.nightmareEscapes or 0 },
+			{ "ECHOES EARNED", stats.creditsEarned or 0 },
 		}
 		for i, l in lines do
 			local row = Kit.frame({ Size = UDim2.new(1, -12, 0, 30), BackgroundTransparency = 1, LayoutOrder = i, Parent = scroll })
@@ -181,10 +187,11 @@ local function journal(body: Frame)
 		local unlocked = profile.achievements or {}
 		for i, a in Achievements.List do
 			local has = unlocked[a.id] ~= nil
+			local hidden = a.secret and not has
 			local row = Kit.frame({ Size = UDim2.new(1, -12, 0, 46), BackgroundColor3 = C.PanelLight, BackgroundTransparency = if has then 0.2 else 0.7, LayoutOrder = 100 + i, Parent = scroll })
 			Kit.corner(row, 4)
-			Kit.text({ Text = a.name, Size = UDim2.new(0.5, -12, 1, 0), Position = UDim2.fromOffset(12, 0), FontFace = Kit.F.Heading, TextSize = 15, TextColor3 = if has then C.Text else C.Muted, Parent = row })
-			Kit.text({ Text = a.description, Size = UDim2.new(0.5, -12, 1, 0), Position = UDim2.fromScale(0.5, 0), TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Light, TextSize = 13, TextColor3 = C.TextDim, Parent = row })
+			Kit.text({ Text = if hidden then "SECRET" else a.name, Size = UDim2.new(0.5, -12, 1, 0), Position = UDim2.fromOffset(12, 0), FontFace = Kit.F.Heading, TextSize = 15, TextColor3 = if has then C.Text else C.Muted, Parent = row })
+			Kit.text({ Text = if hidden then "Some things are only found by looking." else a.description, Size = UDim2.new(0.5, -12, 1, 0), Position = UDim2.fromScale(0.5, 0), TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Light, TextSize = 13, TextColor3 = C.TextDim, Parent = row })
 		end
 	end
 	local select = tabs(body, { "ALL", "VISUAL", "ENVIRONMENT", "NPC", "PSYCHOLOGICAL", "DANGEROUS", "RECORD" }, function(name)
@@ -199,68 +206,7 @@ local function journal(body: Frame)
 end
 
 local function shop(body: Frame)
-	local content = Kit.frame({ Size = UDim2.new(1, 0, 1, -110), Position = UDim2.fromOffset(0, 50), BackgroundTransparency = 1, Parent = body })
-	local balance = Kit.text({ Text = "", Size = UDim2.new(0.4, 0, 0, 24), Position = UDim2.new(0.6, 0, 1, -38), TextXAlignment = Enum.TextXAlignment.Left, FontFace = Kit.F.Mono, TextSize = 16, Parent = body })
-	local category = "FLASHLIGHT"
-	local function render()
-		content:ClearAllChildren()
-		local ok, data = pcall(function()
-			return Net.func("GetShop"):InvokeServer()
-		end)
-		if not ok or type(data) ~= "table" then
-			Kit.text({ Text = "The shop is unavailable right now.", Size = UDim2.new(1, 0, 0, 30), TextColor3 = C.TextDim, Parent = content })
-			return
-		end
-		balance.Text = "ECHOES  " .. Util.formatNumber(data.echoes or 0)
-		local scroll = Kit.scroll(content)
-		Kit.new("UIGridLayout", { CellSize = UDim2.fromOffset(250, 128), CellPadding = UDim2.fromOffset(12, 12), SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroll })
-		for i, item in data.items do
-			if item.category == category then
-				local def = Cosmetics.get(item.id)
-				local card = Kit.frame({ BackgroundColor3 = C.PanelLight, BackgroundTransparency = 0.2, LayoutOrder = i, Parent = scroll })
-				Kit.corner(card, 4)
-				Kit.padding(card, 12)
-				if def and (def.light or def.accent or def.color) then
-					local sw = Kit.frame({ Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -18, 0, 0), BackgroundColor3 = def.light or def.accent or def.color, Parent = card })
-					Kit.corner(sw, 9)
-				end
-				Kit.text({ Text = item.name, Size = UDim2.new(1, -26, 0, 22), FontFace = Kit.F.Heading, TextSize = 17, Parent = card })
-				local info = if item.owned then "OWNED" elseif item.price then (Util.formatNumber(item.price) .. " ECHOES") elseif item.lock then item.lock else ""
-				Kit.text({ Text = info, Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, 26), FontFace = Kit.F.Mono, TextSize = 13, TextColor3 = C.TextDim, Parent = card })
-				local label, action = nil, nil
-				if item.category == "EMOTE" then
-					label = if item.owned then "OWNED" else (if item.price then "BUY" else nil)
-					action = if not item.owned and item.price then "buy" else nil
-				elseif item.equipped then
-					label = "EQUIPPED"
-				elseif item.owned then
-					label, action = "EQUIP", "equip"
-				elseif item.price then
-					label, action = "BUY", "buy"
-				elseif item.lock == "PASS" and item.pass then
-					label, action = "GET PASS", "pass"
-				end
-				if label then
-					local b = Kit.button({ Text = label, Size = UDim2.new(1, 0, 0, 36), Position = UDim2.new(0, 0, 1, -36), TextSize = 14, Style = if action == "buy" or action == "pass" then "primary" else "ghost", Parent = card }, function()
-						if action == "pass" then
-							Net.event("Shop"):FireServer("pass", item.pass)
-						elseif action then
-							Net.event("Shop"):FireServer(action, item.id)
-							task.delay(0.5, render)
-						end
-					end)
-					b.Active = action ~= nil
-				end
-			end
-		end
-	end
-	local select = tabs(body, { "FLASHLIGHT", "BEAM", "TRAIL", "EMOTE", "TITLE", "UI" }, function(name)
-		category = name
-		render()
-	end)
-	select("FLASHLIGHT")
-	Kit.text({ Text = "Cosmetic only. Nothing here helps you survive.", Size = UDim2.new(0.6, 0, 0, 24), Position = UDim2.new(0, 0, 1, -38), FontFace = Kit.F.Light, TextSize = 14, TextColor3 = C.Muted, Parent = body })
-	backButton(body)
+	ShopPanel.build(body, { tabs = tabs, backButton = backButton })
 end
 
 local function sendSettings()
@@ -341,7 +287,7 @@ end
 local PANELS = {
 	HOWTO = { title = "HOW TO PLAY", build = howToPlay, size = UDim2.fromOffset(920, 820) },
 	JOURNAL = { title = "ANOMALY JOURNAL", build = journal, size = UDim2.fromOffset(1400, 880) },
-	SHOP = { title = "SHOP", build = shop, size = UDim2.fromOffset(1400, 880) },
+	SHOP = { title = "SUPPLY ROOM", build = shop, size = UDim2.fromOffset(1400, 880) },
 	SETTINGS = { title = "SETTINGS", build = settings, size = UDim2.fromOffset(920, 860) },
 	CREDITS = { title = "CREDITS", build = credits, size = UDim2.fromOffset(820, 640) },
 }

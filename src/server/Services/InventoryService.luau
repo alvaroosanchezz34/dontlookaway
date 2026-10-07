@@ -22,7 +22,9 @@ InventoryService.ItemPicked = Signal.new() -- (player, itemId, pickupInstance)
 InventoryService.ItemRemoved = Signal.new() -- (player, itemId)
 
 type Slot = { id: string, count: number }
-type Inv = { slots: { Slot? }, selected: number, battery: number, light: boolean, lightSeconds: number, minBattery: number }
+-- battery is kept in percent of the cell; a bigger cell (capacity) drains slower
+-- in percent and a spare battery restores fewer percent of it.
+type Inv = { slots: { Slot? }, selected: number, battery: number, light: boolean, lightSeconds: number, minBattery: number, capacity: number, drainMult: number }
 
 local inventories: { [Player]: Inv } = {}
 local FL_REST_CAP = 12 -- percent a dead battery recovers to while switched off
@@ -30,7 +32,7 @@ local FL_REST_RATE = 0.2 -- percent per second
 local pickupsFolder: Folder? = nil
 
 local function newInv(): Inv
-	return { slots = {}, selected = 1, battery = GameConfig.Flashlight.MaxBattery, light = false, lightSeconds = 0, minBattery = GameConfig.Flashlight.MaxBattery }
+	return { slots = {}, selected = 1, battery = GameConfig.Flashlight.MaxBattery, light = false, lightSeconds = 0, minBattery = GameConfig.Flashlight.MaxBattery, capacity = 100, drainMult = 1 }
 end
 
 local function get(player: Player): Inv
@@ -442,7 +444,7 @@ local function useSlot(player: Player, index: number)
 			Net.fire(player, "Notify", { kind = "info", text = "The flashlight is already full." })
 			return
 		end
-		inv.battery = math.min(GameConfig.Flashlight.MaxBattery, inv.battery + GameConfig.Flashlight.BatteryItemRestore)
+		inv.battery = math.min(GameConfig.Flashlight.MaxBattery, inv.battery + GameConfig.Flashlight.BatteryItemRestore * (100 / inv.capacity))
 		InventoryService:Remove(player, "BATTERY", 1)
 		Registry.AudioService:Play2D({ player }, "FlashlightOn", { speed = 0.7 })
 		Net.fire(player, "Notify", { kind = "info", text = "Flashlight recharged." })
@@ -479,9 +481,17 @@ function InventoryService:GetRoundStats(player: Player)
 	return { lightSeconds = inv.lightSeconds, battery = inv.battery, minBattery = inv.minBattery }
 end
 
--- Resets everything for a new round.
-function InventoryService:Reset(player: Player)
-	inventories[player] = newInv()
+-- Resets everything for a new round. gear: { capacity, drainMult, spareCells }
+function InventoryService:Reset(player: Player, gear: { [string]: any }?)
+	local inv = newInv()
+	if gear then
+		inv.capacity = math.clamp(gear.capacity or 100, 50, 300)
+		inv.drainMult = math.clamp(gear.drainMult or 1, 0.3, 2)
+	end
+	inventories[player] = inv
+	for _ = 1, (gear and gear.spareCells) or 0 do
+		self:Add(player, "BATTERY")
+	end
 	self:Push(player)
 end
 
@@ -541,7 +551,7 @@ function InventoryService:Start()
 				end
 				if inv.light and Registry.PlayerService:IsAlive(player) then
 					inv.lightSeconds += 1
-					inv.battery = math.max(0, inv.battery - drain)
+					inv.battery = math.max(0, inv.battery - drain * inv.drainMult * (100 / inv.capacity))
 					inv.minBattery = math.min(inv.minBattery, inv.battery)
 					if inv.battery <= 0 then
 						inv.light = false

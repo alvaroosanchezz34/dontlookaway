@@ -210,6 +210,17 @@ function Kit.button(props: { [string]: any }, onClick: (() -> ())?): TextButton
 	button.SelectionLost:Connect(function()
 		hover(false)
 	end)
+	-- click feedback: a quick press-in
+	local press = Kit.new("UIScale", { Parent = button })
+	button.MouseButton1Down:Connect(function()
+		Kit.tween(press, 0.06, { Scale = 0.96 })
+	end)
+	button.MouseButton1Up:Connect(function()
+		Kit.tween(press, 0.12, { Scale = 1 })
+	end)
+	button.MouseLeave:Connect(function()
+		Kit.tween(press, 0.12, { Scale = 1 })
+	end)
 	if onClick then
 		button.Activated:Connect(function()
 			sound("UIClick")

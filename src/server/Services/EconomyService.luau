@@ -134,6 +134,10 @@ function EconomyService:ApplyCosmetics(player: Player)
 	local trail = Cosmetics.get(data.equipped.TRAIL)
 	local ui = Cosmetics.get(data.equipped.UI)
 	local title = Cosmetics.get(data.equipped.TITLE)
+	local gloves = Cosmetics.get(data.equipped.GLOVES)
+	local badge = Cosmetics.get(data.equipped.BADGE)
+	player:SetAttribute("GloveColor", gloves and gloves.color or nil)
+	player:SetAttribute("Badge", badge and badge.glyph or "")
 	player:SetAttribute("FlashlightColor", fl and fl.light or Color3.new(1, 1, 1))
 	player:SetAttribute("FlashlightBody", fl and fl.body or Color3.new(0.1, 0.1, 0.1))
 	player:SetAttribute("BeamEffect", beam and beam.effect or "clean")
@@ -143,6 +147,7 @@ function EconomyService:ApplyCosmetics(player: Player)
 	player:SetAttribute("Title", title and title.name or "Visitor")
 	if player.Character then
 		player.Character:SetAttribute("Title", player:GetAttribute("Title"))
+		player.Character:SetAttribute("Badge", player:GetAttribute("Badge"))
 	end
 end
 

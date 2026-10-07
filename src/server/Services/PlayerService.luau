@@ -147,6 +147,7 @@ local function configureCharacter(player: Player, character: Model)
 	end)
 	local tag = player:GetAttribute("Title")
 	character:SetAttribute("Title", tag)
+	character:SetAttribute("Badge", player:GetAttribute("Badge"))
 	character:SetAttribute("PlayerName", player.DisplayName)
 end
 

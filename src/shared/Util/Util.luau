@@ -52,7 +52,8 @@ end
 -- Fills missing keys of `target` using `template`, recursively. Returns target.
 function Util.reconcile(target, template)
 	for key, value in template do
-		if target[key] == nil then
+		if target[key] == nil or (type(value) == "table" and type(target[key]) ~= "table") then
+			-- missing, or corrupted into the wrong type: restore the default shape
 			target[key] = Util.deepCopy(value)
 		elseif type(value) == "table" and type(target[key]) == "table" and next(value) ~= nil then
 			-- only recurse into "shape" tables (templates with keys)

@@ -82,6 +82,15 @@ function MobileControls:Init()
 		IC:Trigger("Notes", true)
 		IC:Trigger("Notes", false)
 	end)
+	makeButton("ToolCycle", "TOOL", UDim2.new(1, -400, 1, -230), 64, function()
+		IC:Trigger("CycleTool", true)
+		IC:Trigger("CycleTool", false)
+	end)
+	makeButton("ToolUse", "USE TOOL", UDim2.new(1, -390, 1, -140), 82, function()
+		IC:Trigger("UseTool", true)
+	end, function()
+		IC:Trigger("UseTool", false)
+	end)
 	makeButton("Menu", "MENU", UDim2.new(1, -70, 0, 70), 70, function()
 		IC:Trigger("Pause", true)
 		IC:Trigger("Pause", false)
@@ -109,6 +118,9 @@ function MobileControls:Start()
 		buttons.Ping.Visible = alive
 		buttons.Notes.Visible = alive
 		buttons.Emote.Visible = lobby or alive
+		local belt = State.tools and State.tools.tools or {}
+		buttons.ToolCycle.Visible = alive and #belt > 0
+		buttons.ToolUse.Visible = alive and (State.tools.selected or 0) > 0
 		buttons.Sprint.Text = if State.sprinting then "RUN •" else "RUN"
 		buttons.Flashlight.Text = if Players.LocalPlayer:GetAttribute("Flashlight") then "LIGHT •" else "LIGHT"
 	end)

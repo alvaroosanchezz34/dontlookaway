@@ -338,6 +338,20 @@ local function results()
 		anomaliesMissed = anomalyStats.missed,
 		quota = (Registry.ObjectiveService:GetState() or { quota = 0 }).quota,
 	}
+	local teamMisreports = 0
+	for _, n in anomalyStats.misreports do
+		teamMisreports += n
+	end
+	local locksReleased = 0
+	local objective = Registry.ObjectiveService:GetState()
+	if objective then
+		for _, v in objective.locks do
+			if v then
+				locksReleased += 1
+			end
+		end
+	end
+	summary.locksReleased = locksReleased
 	for userId, rec in participants do
 		local player = rec.player
 		if player and player.Parent then
@@ -354,6 +368,10 @@ local function results()
 				playerCount = count,
 				escapedCount = escaped,
 				misreports = anomalyStats.misreports[player] or 0,
+				teamMisreports = teamMisreports,
+				anomaliesMissed = anomalyStats.missed,
+				locksReleased = locksReleased,
+				diedAt = rec.diedAt,
 			})
 			local roster = {}
 			for _, other in participants do
@@ -371,6 +389,7 @@ local function returnToLobby()
 	Registry.PuzzleService:Clear()
 	Registry.ObjectiveService:Clear()
 	Registry.InventoryService:ClearPickups()
+	Registry.EquipmentService:EndRound()
 	workspace:SetAttribute("Escape", false)
 	Registry.LightingService:EndBlackout(true)
 	Registry.LightingService:SetPower(false, true)
@@ -430,7 +449,7 @@ function RoundService:_startRound(players: { Player }, chosenDifficulty: string)
 	Registry.ObjectiveService:Plan(map, SeededRandom.new(seed, "objectives"), #players)
 	-- arrive outside, in the rain
 	for i, p in players do
-		Registry.InventoryService:Reset(p)
+		Registry.InventoryService:Reset(p, Registry.EquipmentService:PrepareRound(p))
 		local spawn = map.CourtyardSpawns[(i - 1) % #map.CourtyardSpawns + 1]
 		task.spawn(function()
 			Registry.PlayerService:SpawnAt(p, spawn)
@@ -594,7 +613,7 @@ function RoundService:TryRejoin(player: Player): boolean
 		local map = Registry.MapService:GetMap()
 		local vestibule = map and map.Rooms.G_e
 		if vestibule then
-			Registry.InventoryService:Reset(player)
+			Registry.InventoryService:Reset(player, Registry.EquipmentService:PrepareRound(player))
 			task.spawn(function()
 				Registry.PlayerService:SpawnAt(player, CFrame.lookAt(vestibule.center + Vector3.new(0, 3, 0), vestibule.center + Vector3.new(0, 3, -10)))
 				Registry.PlayerService:SetStatus(player, Status.Alive)

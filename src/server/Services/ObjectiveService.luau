@@ -33,6 +33,7 @@ ObjectiveService.PuzzleNames = {
 }
 
 local state = nil
+local readBy: { [Player]: { [string]: boolean } } = {}
 local docs: { [string]: { title: string, body: string, kind: string? } } = {}
 local docFolder: Folder? = nil
 
@@ -157,6 +158,7 @@ end
 
 function ObjectiveService:Plan(map, rng, playerCount: number)
 	usedSpots = {}
+	readBy = {}
 	docs = {}
 	if docFolder then
 		docFolder:Destroy()
@@ -476,6 +478,12 @@ local function onRead(player: Player, target: Instance): boolean
 	Net.fire(player, "Document", { id = id, title = doc.title, body = doc.body, kind = doc.kind })
 	if Registry.GuidanceService then
 		Registry.GuidanceService:DocumentRead(id)
+	end
+	-- each note counts once per player per night (no farming the same paper)
+	readBy[player] = readBy[player] or {}
+	if not readBy[player][id] then
+		readBy[player][id] = true
+		Registry.ProgressionService:Challenge(player, "note", 1)
 	end
 	return true
 end

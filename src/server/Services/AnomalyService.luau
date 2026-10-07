@@ -682,9 +682,9 @@ end
 -- Reports (FOCUS detection)
 ------------------------------------------------------------------------------------
 
-local function matchScore(origin: Vector3, dir: Vector3, center: Vector3, radius: number): number?
+local function matchScore(origin: Vector3, dir: Vector3, center: Vector3, radius: number, range: number?): number?
 	local t = (center - origin):Dot(dir)
-	if t < 0 or t > GameConfig.Report.MaxDistance then
+	if t < 0 or t > (range or GameConfig.Report.MaxDistance) then
 		return nil
 	end
 	local closest = origin + dir * t
@@ -696,7 +696,8 @@ local function matchScore(origin: Vector3, dir: Vector3, center: Vector3, radius
 	return perpendicular / allowed
 end
 
-function AnomalyService:Report(player: Player, origin: any, dir: any)
+-- opts (server callers only, e.g. the instant camera): range, photo
+function AnomalyService:Report(player: Player, origin: any, dir: any, opts: { [string]: any }?)
 	if not enabled or not Registry.PlayerService:IsAlive(player) then
 		return
 	end
@@ -704,10 +705,13 @@ function AnomalyService:Report(player: Player, origin: any, dir: any)
 		return
 	end
 	local now = os.clock()
-	if lastReport[player] and now - lastReport[player] < GameConfig.Report.Cooldown then
-		return
+	local range = if opts and type(opts.range) == "number" then math.min(opts.range, 160) else nil
+	if not (opts and opts.photo) then
+		if lastReport[player] and now - lastReport[player] < GameConfig.Report.Cooldown then
+			return
+		end
+		lastReport[player] = now
 	end
-	lastReport[player] = now
 	dir = dir.Unit
 	local head = Util.getHead(player)
 	if not head then
@@ -728,7 +732,7 @@ function AnomalyService:Report(player: Player, origin: any, dir: any)
 				for _, anchor in inst.spec.anchors or {} do
 					local center = anchorPosition(anchor)
 					if center then
-						local score = matchScore(origin, dir, center, anchor.radius or 2)
+						local score = matchScore(origin, dir, center, anchor.radius or 2, range)
 						if score and score < bestScore then
 							local ignore = if typeof(anchor.pos) == "Instance" then anchor.pos else nil
 							local losTarget = center - (center - origin).Unit * math.min((anchor.radius or 2), (center - origin).Magnitude - 0.1)
@@ -742,7 +746,11 @@ function AnomalyService:Report(player: Player, origin: any, dir: any)
 		end
 	end
 	if best then
-		self:Resolve(best, player, "report")
+		self:Resolve(best, player, if opts and opts.photo then "photo" else "report")
+		return
+	end
+	-- a photograph of nothing is just a photograph
+	if opts and opts.photo then
 		return
 	end
 	-- nothing there. Was it something a teammate fixed a moment ago?

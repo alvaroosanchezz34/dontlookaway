@@ -48,6 +48,9 @@ local State = {
 	uiOpen = false, -- a menu panel has focus (mouse unlocked)
 	phase = "CALM",
 	storyPhase = "ARRIVAL",
+	tools = { tools = {}, selected = 0 }, -- this round's equipment belt
+	gear = nil, -- owned equipment / loadout / upgrades (from EquipmentService)
+	challenges = nil, -- daily / weekly challenge snapshot
 
 	ProfileChanged = Signal.new(),
 	SettingsChanged = Signal.new(),
@@ -58,6 +61,8 @@ local State = {
 	StatusChanged = Signal.new(),
 	InputTypeChanged = Signal.new(),
 	UIOpenChanged = Signal.new(),
+	GearChanged = Signal.new(),
+	ChallengesChanged = Signal.new(),
 }
 
 function State.setUIOpen(open: boolean)

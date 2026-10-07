@@ -198,11 +198,17 @@ local function watchers(): { Player }
 	return list
 end
 
+local totalStare: { [Player]: number } = {}
+
 local function updateStare(watching: { Player }, dt: number)
 	local blinkAfter = Registry.RoundService:GetDifficultyConfig().BlinkAfter
 	for _, p in Players:GetPlayers() do
 		if table.find(watching, p) then
 			stareTime[p] = (stareTime[p] or 0) + dt
+			totalStare[p] = (totalStare[p] or 0) + dt
+			if totalStare[p] >= 30 then
+				Registry.ProgressionService:Award(p, "THE_TALL_MAN")
+			end
 			if stareTime[p] >= blinkAfter then
 				stareTime[p] = 0
 				blinkingUntil[p] = os.clock() + GameConfig.Observer.StareForcedBlinkDuration
@@ -560,10 +566,26 @@ function ObserverService:GetPosition(): Vector3?
 	return nil
 end
 
+-- A hunt that ends with its target alive: that is surviving it.
+local function huntSurvived()
+	if mode ~= "hunt" then
+		return
+	end
+	for p in metThisRound do
+		if p.Parent and Registry.PlayerService:IsAlive(p) then
+			Registry.ProgressionService:Award(p, "FIRST_CONTACT")
+			if p == target then
+				Registry.ProgressionService:Award(p, "DONT_BLINK")
+			end
+		end
+	end
+end
+
 function ObserverService:Vanish()
 	if mode == nil then
 		return
 	end
+	huntSurvived()
 	setState(S.Disappearing)
 	local pos = self:GetPosition()
 	if pos then
@@ -1076,6 +1098,8 @@ end
 function ObserverService:BeginRound()
 	active = true
 	metThisRound = {}
+	totalStare = {}
+	closeTime = {}
 	guardianAwarded = {}
 	stareTime = {}
 	blinkingUntil = {}
@@ -1092,6 +1116,10 @@ function ObserverService:EndRound()
 		mimicData = nil
 	end
 	park()
+end
+
+function ObserverService:GetMimic(): Model?
+	return mimic
 end
 
 function ObserverService:GetModel(): Model?

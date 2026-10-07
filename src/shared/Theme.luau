@@ -1,7 +1,8 @@
 --[[
 	Theme
 	UI visual identity: black, dark grey, bone white, and a very restrained red that
-	is reserved exclusively for danger.
+	is reserved exclusively for danger, plus a single cold blue accent for
+	selection and progress.
 ]]
 
 local Theme = {}
@@ -19,6 +20,7 @@ Theme.Colors = {
 	Good = Color3.fromRGB(190, 206, 190),
 	Stamina = Color3.fromRGB(200, 198, 190),
 	Battery = Color3.fromRGB(226, 220, 196),
+	Accent = Color3.fromRGB(140, 186, 214), -- the one cold accent: selection, owned, progress
 }
 
 Theme.Fonts = {

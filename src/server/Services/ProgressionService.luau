@@ -20,6 +20,7 @@ local Registry = require(script.Parent.Parent.Registry)
 local ProgressionService = {}
 
 local roundFound: { [Player]: number } = {}
+local sessionRounds: { [Player]: number } = {}
 local roundAchievements: { [Player]: { string } } = {}
 local roundJournal: { [Player]: number } = {}
 
@@ -49,6 +50,8 @@ function ProgressionService:Snapshot(player: Player)
 		stats = data.stats,
 		flags = data.flags,
 		passes = Registry.EconomyService:PassList(player),
+		gear = data.gear,
+		upgrades = data.upgrades,
 	}
 end
 
@@ -153,12 +156,21 @@ function ProgressionService:AnomalyReported(reporter: Player?, credited: { Playe
 				end
 			end)
 			roundFound[player] = (roundFound[player] or 0) + 1
+			self:Challenge(player, "anomaly", 1)
+			if def.category == "DANGEROUS" then
+				self:Challenge(player, "dangerous", 1)
+			end
 			if isNew then
 				roundJournal[player] = (roundJournal[player] or 0) + 1
 				Net.fire(player, "Unlock", { type = "journal", id = def.id, number = entry.number, name = entry.name, rarity = entry.rarity, description = entry.description })
 				Registry.AudioService:Play2D({ player }, "JournalEntry")
 			else
-				Net.fire(player, "Notify", { kind = "anomaly", text = entry.name, sub = JournalCatalog.format(entry.number) })
+				-- Field Notes: the write-up includes what kind of thing it was
+				local sub = JournalCatalog.format(entry.number)
+				if player:GetAttribute("FieldNotes") then
+					sub ..= "  ·  " .. entry.rarity .. " " .. entry.category
+				end
+				Net.fire(player, "Notify", { kind = "anomaly", text = entry.name, sub = sub })
 			end
 			if def.rarity == "LEGENDARY" then
 				self:Award(player, "LEGENDARY_SIGHT")
@@ -216,6 +228,10 @@ end
 
 function ProgressionService:PuzzleSolved(kind: string, players: { Player })
 	for _, player in players do
+		self:Challenge(player, "puzzle", 1)
+		if kind == "POWER" then
+			self:Challenge(player, "power", 1)
+		end
 		local all = false
 		Registry.DataService:Update(player, function(d)
 			d.puzzlesSolved[kind] = true
@@ -232,7 +248,8 @@ function ProgressionService:PuzzleSolved(kind: string, players: { Player })
 	end
 end
 
--- End of round: rewards, statistics, achievements. Returns the summary shown in RESULTS.
+-- End of round: rewards, statistics, achievements. Returns the summary shown in RESULTS,
+-- including an itemised breakdown of every Echo earned.
 function ProgressionService:RoundEnded(player: Player, info)
 	local data = Registry.DataService:Get(player)
 	if not data then
@@ -243,24 +260,64 @@ function ProgressionService:RoundEnded(player: Player, info)
 	local minutes = math.min(info.duration, GameConfig.Round.MaxRoundTime) / 60
 	local found = roundFound[player] or 0
 	local mult = (GameConfig.Difficulty[info.difficulty] or GameConfig.Difficulty.NORMAL).RewardMultiplier or 1
-	local echoes = R.EchoesPerMinute * minutes + R.EchoesPerAnomaly * found
-	local xp = R.XPPerMinute * minutes + R.XPPerAnomaly * found
+	local fieldNotes = (data.upgrades.FIELD_NOTES or 0) > 0
+	local evidence = Registry.EquipmentService:GetEvidence(player)
+	local breakdown = {}
+	local function add(label: string, echoes: number, xp: number)
+		echoes = math.floor(echoes + 0.5)
+		xp = math.floor(xp + 0.5)
+		if echoes ~= 0 or xp ~= 0 then
+			table.insert(breakdown, { label = label, echoes = echoes, xp = xp })
+		end
+	end
+	local survived = if escaped then (info.escapedAt or info.duration) elseif info.diedAt then info.diedAt else info.duration
+	add(string.format("Time in the building  %s", Util.formatTime(survived)), R.EchoesPerMinute * minutes, R.XPPerMinute * minutes)
+	add(string.format("Anomalies documented  %d", found), R.EchoesPerAnomaly * found * (if fieldNotes then 1.1 else 1), R.XPPerAnomaly * found)
+	if evidence > 0 then
+		add(string.format("Photographic evidence  %d", evidence), R.EchoesPerEvidence * evidence, 0)
+	end
+	local locks = info.locksReleased or 0
+	if locks > 0 then
+		add(string.format("Exit locks released  %d/4", locks), R.EchoesPerLock * locks, R.XPPerLock * locks)
+	end
 	if escaped then
-		echoes += R.EchoesEscape
-		xp += R.XPEscape
+		add("Escaped", R.EchoesEscape, R.XPEscape)
 		if info.playerCount > 1 and info.escapedCount == info.playerCount then
-			echoes += R.EchoesSurvivedTeamBonus
+			add("Nobody left behind", R.EchoesSurvivedTeamBonus, 0)
 		end
 	elseif info.outcome == "DEAD" then
-		xp += R.XPDeath
+		add("Taken", 0, R.XPDeath)
 	end
-	echoes = math.floor(echoes * mult + 0.5)
-	xp = math.floor(xp * mult + 0.5)
+	local subtotalEchoes, subtotalXP = 0, 0
+	for _, row in breakdown do
+		subtotalEchoes += row.echoes
+		subtotalXP += row.xp
+	end
+	if info.playerCount > 1 then
+		add("Played with friends  +10%", subtotalEchoes * R.FriendsBonus, subtotalXP * R.FriendsBonus)
+	end
+	subtotalEchoes, subtotalXP = 0, 0
+	for _, row in breakdown do
+		subtotalEchoes += row.echoes
+		subtotalXP += row.xp
+	end
+	if mult ~= 1 then
+		add(string.format("%s difficulty  x%.1f", info.difficulty, mult), subtotalEchoes * (mult - 1), subtotalXP * (mult - 1))
+	end
+	local echoes, xp = 0, 0
+	for _, row in breakdown do
+		echoes += row.echoes
+		xp += row.xp
+	end
 	local levelBefore = Progression.fromTotal(data.xp)
 	Registry.DataService:Update(player, function(d)
 		d.echoes += echoes
 		d.xp += xp
 		d.stats.rounds += 1
+		d.stats.creditsEarned += echoes
+		if info.playerCount > 1 then
+			d.stats.roundsWithFriends += 1
+		end
 		if escaped then
 			d.stats.escapes += 1
 			d.flags.hardUnlocked = true
@@ -284,7 +341,27 @@ function ProgressionService:RoundEnded(player: Player, info)
 			end
 		end
 	end)
+	sessionRounds[player] = (sessionRounds[player] or 0) + 1
+	-- recurring challenges
+	self:Challenge(player, "round", 1)
+	if info.playerCount > 1 then
+		self:Challenge(player, "friends", 1)
+	end
+	if escaped then
+		self:Challenge(player, "escape", 1)
+		self:Challenge(player, "survive", 1)
+		if info.difficulty == "HARD" or info.difficulty == "NIGHTMARE" then
+			self:Challenge(player, "hard", 1)
+		end
+		if info.misreports == 0 then
+			self:Challenge(player, "clean", 1)
+		end
+	end
+	-- achievements
 	self:Award(player, "FIRST_NIGHT")
+	if sessionRounds[player] >= 5 then
+		self:Award(player, "INSOMNIAC")
+	end
 	if escaped then
 		self:Award(player, "ESCAPED")
 		if (info.lightSeconds or 999) < 60 then
@@ -317,6 +394,9 @@ function ProgressionService:RoundEnded(player: Player, info)
 		if info.misreports == 0 and found > 0 then
 			self:Award(player, "PERFECT_EYE")
 		end
+		if info.escapedCount == info.playerCount and (info.teamMisreports or 0) == 0 and (info.anomaliesMissed or 0) == 0 then
+			self:Award(player, "PERFECT_INVESTIGATION")
+		end
 	end
 	local after = Registry.DataService:Get(player)
 	local levelAfter, into, need = Progression.fromTotal(after.xp)
@@ -337,11 +417,15 @@ function ProgressionService:RoundEnded(player: Player, info)
 	local summary = {
 		echoes = echoes,
 		xp = xp,
+		breakdown = breakdown,
 		levelBefore = levelBefore,
 		levelAfter = levelAfter,
 		xpInto = into,
 		xpNeed = need,
 		found = found,
+		evidence = evidence,
+		survived = survived,
+		outcome = info.outcome,
 		newJournal = roundJournal[player] or 0,
 		achievements = names,
 		totalEchoes = after.echoes,
@@ -364,6 +448,7 @@ function ProgressionService:Start()
 		syncAttributes(player)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
+		sessionRounds[player] = nil
 		roundFound[player] = nil
 		roundAchievements[player] = nil
 		roundJournal[player] = nil

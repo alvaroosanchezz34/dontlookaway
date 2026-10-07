@@ -30,6 +30,19 @@ Achievements.List = {
 	{ id = "GUARDIAN", name = "EYES FOR EACH OTHER", description = "Freeze The Observer while it hunts a teammate.", echoes = 60 },
 	{ id = "LEGENDARY_SIGHT", name = "ONCE IN A LIFETIME", description = "Report a legendary anomaly.", echoes = 200 },
 	{ id = "PUZZLE_MASTER", name = "CARETAKER", description = "Solve every kind of puzzle in the building.", echoes = 120 },
+	{ id = "FIRST_CONTACT", name = "FIRST CONTACT", description = "Survive your first encounter with The Observer.", echoes = 60 },
+	{ id = "DONT_BLINK", name = "DON'T BLINK", description = "Be hunted by The Observer and live.", echoes = 90 },
+	{ id = "POWER_OUTAGE", name = "POWER OUTAGE", description = "Make it through a major blackout.", echoes = 60 },
+	{ id = "NOT_MY_FRIEND", name = "NOT MY FRIEND", description = "Unmask something wearing a teammate's face.", echoes = 150 },
+	{ id = "PERFECT_INVESTIGATION", name = "PERFECT INVESTIGATION", description = "Everyone escapes, no false reports, nothing missed.", echoes = 250 },
+	{ id = "NIGHTMARE", name = "NIGHTMARE", description = "Escape on NIGHTMARE.", echoes = 400 },
+	{ id = "WELL_EQUIPPED", name = "WELL EQUIPPED", description = "Own every tool in the equipment shop.", echoes = 300 },
+	{ id = "DAILY_DEVOTION", name = "NIGHT SHIFT REGULAR", description = "Complete 10 daily challenges.", echoes = 200 },
+	-- secrets: their descriptions stay hidden until earned
+	{ id = "THE_TALL_MAN", name = "THE TALL MAN", description = "Hold its gaze for thirty seconds in one night.", echoes = 120, secret = true },
+	{ id = "SHUTTERBUG", name = "SAY CHEESE", description = "Photograph The Observer.", echoes = 120, secret = true },
+	{ id = "COLD_SPOT", name = "COLD SPOT", description = "See through a mimic with the thermal viewer.", echoes = 120, secret = true },
+	{ id = "INSOMNIAC", name = "INSOMNIAC", description = "Finish five rounds without leaving the building's server.", echoes = 100, secret = true },
 }
 
 Achievements.ById = {}

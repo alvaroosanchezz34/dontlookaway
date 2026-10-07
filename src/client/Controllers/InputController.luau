@@ -37,15 +37,23 @@ local BINDINGS = {
 	SpectateNext = { Enum.KeyCode.D, Enum.KeyCode.Right, Enum.KeyCode.ButtonR1 },
 	SpectatePrev = { Enum.KeyCode.A, Enum.KeyCode.Left, Enum.KeyCode.ButtonL1 },
 	Back = { Enum.KeyCode.ButtonB },
+	-- tool belt
+	Tool1 = { Enum.KeyCode.Five },
+	Tool2 = { Enum.KeyCode.Six },
+	Tool3 = { Enum.KeyCode.Seven },
+	Tool4 = { Enum.KeyCode.Eight },
+	Tool5 = { Enum.KeyCode.Nine },
+	CycleTool = { Enum.KeyCode.V, Enum.KeyCode.ButtonL1 },
+	UseTool = { Enum.KeyCode.T, Enum.KeyCode.ButtonR2 },
 }
 
 InputController.Bindings = BINDINGS
 
 -- Label shown in prompts for each action, per device.
 local LABELS = {
-	Keyboard = { Interact = "E", Flashlight = "F", Report = "RMB", Sprint = "SHIFT", Ping = "G", UseItem = "R", DropItem = "X", Notes = "TAB", Pause = "P", Journal = "J", Emote = "B" },
-	Gamepad = { Interact = "X", Flashlight = "Y", Report = "LT", Sprint = "L3", Ping = "RB", UseItem = "D-UP", DropItem = "D-DOWN", Notes = "VIEW", Pause = "MENU", Journal = "VIEW", Emote = "R3" },
-	Touch = { Interact = "TAP", Flashlight = "LIGHT", Report = "HOLD EYE", Sprint = "RUN", Ping = "PING", UseItem = "USE", DropItem = "DROP", Notes = "NOTES", Pause = "MENU", Journal = "JOURNAL", Emote = "EMOTE" },
+	Keyboard = { Interact = "E", Flashlight = "F", Report = "RMB", Sprint = "SHIFT", Ping = "G", UseItem = "R", DropItem = "X", Notes = "TAB", Pause = "P", Journal = "J", Emote = "B", CycleTool = "V", UseTool = "T", Tools = "5-9" },
+	Gamepad = { Interact = "X", Flashlight = "Y", Report = "LT", Sprint = "L3", Ping = "RB", UseItem = "D-UP", DropItem = "D-DOWN", Notes = "VIEW", Pause = "MENU", Journal = "VIEW", Emote = "R3", CycleTool = "LB", UseTool = "RT", Tools = "LB" },
+	Touch = { Interact = "TAP", Flashlight = "LIGHT", Report = "HOLD EYE", Sprint = "RUN", Ping = "PING", UseItem = "USE", DropItem = "DROP", Notes = "NOTES", Pause = "MENU", Journal = "JOURNAL", Emote = "EMOTE", CycleTool = "TOOL", UseTool = "USE TOOL", Tools = "TOOL" },
 }
 
 local held: { [string]: boolean } = {}
