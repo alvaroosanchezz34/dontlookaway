@@ -24,6 +24,47 @@ local MaterialLibrary = {}
 MaterialLibrary.Wallpaper = "DLA_Wallpaper"
 MaterialLibrary.CeilingTile = "DLA_CeilingTile"
 
+-- Built-in material (by name) -> custom variant that replaces it.
+local REPLACES = {
+	Plaster = "DLA_Plaster",
+	Carpet = "DLA_Carpet",
+	CeramicTiles = "DLA_Tiles",
+	Concrete = "DLA_Concrete",
+	WoodPlanks = "DLA_WoodPlanks",
+	Brick = "DLA_Brick",
+	Marble = "DLA_Marble",
+	Metal = "DLA_Metal",
+}
+
+--[[
+	Gives every part under `root` the custom texture for its material (unless it
+	already names a variant). The MaterialService base-material overrides cannot
+	be set by scripts or reliably by sync, so the building and the lobby are
+	dressed part by part when they are built. Returns how many parts changed.
+]]
+function MaterialLibrary.dress(root: Instance): number
+	local available = {}
+	for material, name in REPLACES do
+		if MaterialService:FindFirstChild(name) then
+			available[material] = name
+		end
+	end
+	if next(available) == nil then
+		return 0
+	end
+	local n = 0
+	for _, d in root:GetDescendants() do
+		if d:IsA("BasePart") and d.MaterialVariant == "" then
+			local name = available[d.Material.Name]
+			if name then
+				d.MaterialVariant = name
+				n += 1
+			end
+		end
+	end
+	return n
+end
+
 -- How many custom textures are present in this place.
 function MaterialLibrary.count(): number
 	local n = 0

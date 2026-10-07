@@ -202,6 +202,20 @@ do
 	check(RS.Shared:FindFirstChild("ObserverSkin") ~= nil and RS.Shared.ObserverSkin:IsA("SurfaceAppearance"), "observer skin template present")
 	local plain = ObserverRig.build(nil, { localCopy = true })
 	check(plain:GetAttribute("Sculpted") ~= true, "plain rig until the meshes load")
+	-- every built-in material with a custom texture gets it, part by part
+	local box = Instance.new("Model")
+	for _, mat in { Enum.Material.Plaster, Enum.Material.Carpet, Enum.Material.Neon } do
+		local p = Instance.new("Part")
+		p.Material = mat
+		p.Parent = box
+	end
+	local named = Instance.new("Part")
+	named.Material = Enum.Material.Plaster
+	named.MaterialVariant = MaterialLibrary.Wallpaper
+	named.Parent = box
+	local dressedCount = MaterialLibrary.dress(box)
+	check(dressedCount == 2, "dress textures plaster and carpet only (" .. tostring(dressedCount) .. ")")
+	check(named.MaterialVariant == MaterialLibrary.Wallpaper, "a chosen variant is kept")
 	-- sculpted Observer: templates stand in for the uploaded meshes
 	local folder = Instance.new("Folder")
 	folder.Name = "ObserverMeshes"

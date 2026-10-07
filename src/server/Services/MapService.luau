@@ -47,6 +47,8 @@ function MapService:Rebuild(seed: number)
 		return nil
 	end
 	currentMap = result
+	-- custom textures (assets/textures) on every surface of the building
+	MaterialLibrary.dress(currentMap.Root)
 	-- walls the anti-exploit clip check tests against
 	local walls = {}
 	for _, d in currentMap.Root.Structure:GetDescendants() do
@@ -82,6 +84,7 @@ end
 function MapService:Start()
 	MaterialLibrary.apply()
 	lobby = Lobby.build(workspace)
+	MaterialLibrary.dress(lobby.Root)
 	workspace:SetAttribute("LobbyCamera", lobby.Camera)
 	self:Rebuild(os.time() % 1000000)
 end
