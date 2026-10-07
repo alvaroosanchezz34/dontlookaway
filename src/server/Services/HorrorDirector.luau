@@ -1,10 +1,27 @@
 --[[
 	HorrorDirector
-	Paces fear. The round cycles through CALM -> TENSION -> FEAR -> RELIEF.
-	  CALM     anomalies happen, the building creaks, music is sparse
-	  TENSION  ambience thins, then SILENCE: clients duck their ambient beds
-	  FEAR     one event: a hunt, a sighting, a mimic or a (rare) scare
-	  RELIEF   nothing hunts you. Breathe.
+	Paces fear on two levels.
+
+	1. The story of a round (Enums.RoundPhase)
+	  ARRIVAL     lights on, nothing hunts, almost nothing changes. Players learn
+	              the building, the flashlight, the notes, how reporting works.
+	              It ends with THE OUTAGE: the power fails floor by floor and the
+	              fuse box burns out.
+	  UNEASE      small, deniable changes; failing lights; the building settles.
+	  DISTORTION  anomalies become clear; it starts to show itself far away;
+	              someone you know might be standing at the end of a corridor.
+	  DANGER      it hunts.
+	  COLLAPSE    the building turns hostile: more changes, a total blackout,
+	              shorter breathing room.
+	  ESCAPE      get out.
+	Phases advance on a timer (per difficulty) or earlier with progress.
+
+	2. The rhythm inside each phase (Enums.TensionPhase)
+	  CALM -> TENSION -> (silence) -> FEAR -> RELIEF -> CALM ...
+	  CALM always has something to do (anomalies to spot, ambient life);
+	  FEAR is one event (a hunt, a sighting, a mimic, a blackout, a scare);
+	  RELIEF guarantees breathing room. Never a scare every 20 seconds.
+
 	DREAD (0-100) accumulates from mistakes (false reports, missed anomalies,
 	broken rules) and shortens the calm. Dynamic difficulty scales with time,
 	progress and player count. Jumpscares are capped and spaced far apart.
@@ -17,17 +34,24 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Enums = require(ReplicatedStorage.Shared.Enums)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
+local Signal = require(ReplicatedStorage.Shared.Util.Signal)
 local SeededRandom = require(ReplicatedStorage.Shared.Util.SeededRandom)
 local Registry = require(script.Parent.Parent.Registry)
 
 local HorrorDirector = {}
 
+HorrorDirector.StoryPhaseChanged = Signal.new() -- (phase)
+
 local Phase = Enums.TensionPhase
+local Story = Enums.RoundPhase
 
 local rng = SeededRandom.new(1, "director")
 local running = false
 local phase = Phase.Calm
 local phaseEndsAt = 0
+local story = Story.Arrival
+local storyStartedAt = 0
+local outageDone = false
 local dread = 0
 local lastSpawnAt = 0
 local nextSpawnIn = 30
@@ -36,6 +60,8 @@ local nextAmbientIn = 20
 local lastHuntAt = -math.huge
 local lastSightingAt = -math.huge
 local lastScareAt = -math.huge
+local lastBlackoutAt = -math.huge
+local totalBlackoutDone = false
 local scaresThisRound = 0
 local usedScares: { [string]: boolean } = {}
 local roundStart = 0
@@ -50,44 +76,57 @@ function HorrorDirector:GetPhase(): string
 	return phase
 end
 
+function HorrorDirector:GetStoryPhase(): string
+	return story
+end
+
+function HorrorDirector:StoryIndex(): number
+	return table.find(Enums.RoundPhaseOrder, story) or 1
+end
+
+-- Has the round reached (at least) this story phase?
+function HorrorDirector:Reached(name: string): boolean
+	return self:StoryIndex() >= (table.find(Enums.RoundPhaseOrder, name) or 99)
+end
+
 function HorrorDirector:GetDread(): number
 	return dread
+end
+
+function HorrorDirector:IsRunning(): boolean
+	return running
 end
 
 local function elapsed(): number
 	return os.clock() - roundStart
 end
 
+local function inStory(): number
+	return os.clock() - storyStartedAt
+end
+
 local function cfg()
 	return Registry.RoundService:GetDifficultyConfig()
 end
 
--- 0.8 .. 1.6: grows with time, progress and team size
-local function aggression(): number
+local function locksReleased(): number
 	local state = Registry.ObjectiveService:GetState()
-	local progress = 0
+	local released = 0
 	if state then
-		local released = 0
 		for _, v in state.locks do
 			if v then
 				released += 1
 			end
 		end
-		progress = released / 4
 	end
-	local players = #Registry.PlayerService:GetAlive()
-	return math.clamp(0.8 + elapsed() / 900 + progress * 0.3 + math.max(0, players - 1) * 0.06 + dread / 250, 0.8, 1.6)
+	return released
 end
 
-function HorrorDirector:AddDread(amount: number, reason: string?, player: Player?)
-	dread = math.clamp(dread + amount, 0, 100)
-	if Registry.AdminService then
-		Registry.AdminService:Log(string.format("dread +%d (%s) -> %d", amount, reason or "?", dread))
-	end
-	-- too much dread draws attention to whoever caused it
-	if player and dread >= 70 and phase ~= Phase.Fear and not Registry.ObserverService:IsActive() and elapsed() > cfg().FirstSightingAt then
-		self:EnterFear(player)
-	end
+-- 0.8 .. 1.6: grows with time, progress and team size
+local function aggression(): number
+	local players = #Registry.PlayerService:GetAlive()
+	local storyBoost = (HorrorDirector:StoryIndex() - 1) * 0.06
+	return math.clamp(0.8 + elapsed() / 1200 + locksReleased() / 4 * 0.25 + math.max(0, players - 1) * 0.06 + dread / 250 + storyBoost, 0.8, 1.6)
 end
 
 local function setPhase(newPhase: string, duration: number)
@@ -97,11 +136,39 @@ local function setPhase(newPhase: string, duration: number)
 	Net.fireAll("Director", { cue = "phase", phase = newPhase })
 end
 
+local function setStory(newStory: string)
+	if story == newStory then
+		return
+	end
+	story = newStory
+	storyStartedAt = os.clock()
+	workspace:SetAttribute("RoundPhase", newStory)
+	Net.fireAll("Director", { cue = "story", phase = newStory })
+	HorrorDirector.StoryPhaseChanged:Fire(newStory)
+	if Registry.AdminService then
+		Registry.AdminService:Log("story phase -> " .. newStory)
+	end
+	if Registry.ObjectiveService then
+		Registry.ObjectiveService:Push()
+	end
+end
+
+function HorrorDirector:AddDread(amount: number, reason: string?, player: Player?)
+	dread = math.clamp(dread + amount, 0, 100)
+	if Registry.AdminService then
+		Registry.AdminService:Log(string.format("dread +%d (%s) -> %d", amount, reason or "?", dread))
+	end
+	-- too much dread draws attention to whoever caused it (only once it can show itself)
+	if player and dread >= 70 and phase ~= Phase.Fear and not Registry.ObserverService:IsActive() and self:Reached(Story.Distortion) then
+		self:EnterFear(player)
+	end
+end
+
 ------------------------------------------------------------------------------------
--- Ambient life
+-- Ambient life (never silent for long, never threatening on its own)
 ------------------------------------------------------------------------------------
 
-local AMBIENT = { "DistantPipe", "DistantKnock", "DistantMetal", "DistantGroan", "WoodCreak", "DistantPipe", "WoodCreak" }
+local AMBIENT = { "DistantPipe", "DistantKnock", "DistantMetal", "DistantGroan", "WoodCreak", "DistantPipe", "WoodCreak", "BuildingSettle", "ElevatorGroan" }
 
 local function randomAlive(): Player?
 	local alive = Registry.PlayerService:GetAlive()
@@ -118,12 +185,17 @@ local function ambientEvent()
 		return
 	end
 	local roll = rng:Number()
-	if roll < 0.55 then
+	local quiet = story == Story.Arrival
+	if roll < 0.55 or quiet then
 		-- a sound somewhere nearby, never on top of the player
 		local angle = rng:Number(0, math.pi * 2)
 		local dist = rng:Number(25, 60)
 		local pos = root.Position + Vector3.new(math.cos(angle) * dist, rng:Number(-6, 10), math.sin(angle) * dist)
-		Registry.AudioService:PlayAt(rng:Pick(AMBIENT), pos)
+		local key = rng:Pick(AMBIENT)
+		if quiet and key == "DistantGroan" then
+			key = "BuildingSettle"
+		end
+		Registry.AudioService:PlayAt(key, pos)
 	elseif roll < 0.8 then
 		-- lights flicker in the player's room
 		local map = Registry.MapService:GetMap()
@@ -277,17 +349,25 @@ SCARES.phone_burst = function(player, root)
 	return false
 end
 
-SCARES.observer_peek = function(player, root)
-	if Registry.ObserverService:IsActive() then
+SCARES.name_whisper = function(player)
+	-- your own name, from somewhere behind you
+	local root = Util.getRoot(player)
+	if not root then
 		return false
 	end
-	if Registry.ObserverService:Sighting(player) then
-		return true
-	end
-	return false
+	Registry.AudioService:PlayAtFor({ player }, "ObserverWhisperName", root.Position - Util.flat(root.CFrame.LookVector).Unit * 6 + Vector3.new(0, 2, 0), { volume = 0.9 })
+	Net.fire(player, "Caption", { text = "..." .. string.lower(player.DisplayName) .. "...", duration = 2.6, speaker = "whisper" })
+	return true
 end
 
-local SCARE_ORDER = { "door_slam", "bulb_pop", "vent_bang", "whisper_ear", "shadow_run", "falling_box", "mirror_flash", "lights_out_brief", "breath_neck", "radio_static", "phone_burst", "observer_peek" }
+SCARES.observer_peek = function(player, root)
+	if Registry.ObserverService:IsActive() or not HorrorDirector:Reached(Story.Distortion) then
+		return false
+	end
+	return Registry.ObserverService:Sighting(player)
+end
+
+local SCARE_ORDER = { "door_slam", "bulb_pop", "vent_bang", "whisper_ear", "shadow_run", "falling_box", "mirror_flash", "lights_out_brief", "breath_neck", "radio_static", "phone_burst", "name_whisper", "observer_peek" }
 
 local function tryScare(player: Player): boolean
 	if scaresThisRound >= MAX_SCARES or os.clock() - lastScareAt < 90 then
@@ -317,6 +397,85 @@ local function tryScare(player: Player): boolean
 		end
 	end
 	return false
+end
+
+------------------------------------------------------------------------------------
+-- Power: the outage and later blackouts
+------------------------------------------------------------------------------------
+
+-- THE OUTAGE: the end of ARRIVAL. Lights die floor by floor, the fuse box burns out.
+function HorrorDirector:TriggerOutage()
+	if outageDone then
+		return
+	end
+	outageDone = true
+	local map = Registry.MapService:GetMap()
+	Registry.AudioService:Play2DAll("ElectricSurge", { volume = 0.7 })
+	Net.fireAll("Director", { cue = "outageWarning" })
+	-- a few seconds of failing lights first
+	Registry.LightingService:Blackout(1, 6, { silent = true })
+	task.delay(5, function()
+		if not running then
+			return
+		end
+		Registry.LightingService:EndBlackout(true)
+		Registry.PuzzleService:BurnOut()
+		Registry.LightingService:SetPower(false)
+		Registry.AudioService:Play2DAll("PowerDown", { volume = 0.9 })
+		Net.fireAll("Director", { cue = "blackout", level = 3, duration = 0, outage = true })
+		if map and map.Rooms.B_d then
+			Registry.AudioService:PlayAt("Sparks", map.Rooms.B_d.center + Vector3.new(0, 6, 0), { volume = 1.2 })
+		end
+		Net.fireAll("Notify", { kind = "objective", text = "THE POWER IS OUT", sub = "Restore it: the fuse box is in Maintenance (B-04)" })
+		setStory(Story.Unease)
+		setPhase(Phase.Relief, 25)
+		Registry.ObjectiveService:Push()
+	end)
+end
+
+local function maybeBlackout(): boolean
+	-- only once the building has power again (before that it is already dark)
+	if not Registry.LightingService:IsPowered() or Registry.LightingService:GetBlackout() > 0 then
+		return false
+	end
+	if os.clock() - lastBlackoutAt < 110 then
+		return false
+	end
+	local level
+	if story == Story.Unease then
+		level = 1
+	elseif story == Story.Distortion then
+		level = rng:Pick({ 1, 2, 2 })
+	elseif story == Story.Danger then
+		level = rng:Pick({ 2, 3, 3 })
+	elseif story == Story.Collapse then
+		if not totalBlackoutDone then
+			level = 4
+			totalBlackoutDone = true
+		else
+			level = rng:Pick({ 2, 3 })
+		end
+	else
+		return false
+	end
+	lastBlackoutAt = os.clock()
+	local duration = ({ 8, 22, 28, 20 })[level] + rng:Number(0, 6)
+	Registry.LightingService:Blackout(level, duration)
+	if level >= 4 then
+		-- the building does something special in the dark
+		task.delay(2, function()
+			if running then
+				Registry.AnomalyService:TrySpawn(nil, { ignoreVisibility = true, darkOnly = true })
+			end
+		end)
+	end
+	return true
+end
+
+function HorrorDirector:OnBlackoutSurvived(level: number)
+	for _, p in Registry.PlayerService:GetAlive() do
+		Registry.ProgressionService:Challenge(p, "blackout", level)
+	end
 end
 
 ------------------------------------------------------------------------------------
@@ -364,7 +523,6 @@ end
 
 function HorrorDirector:EnterFear(forced: Player?)
 	local c = cfg()
-	local t = elapsed()
 	local victim = forced or mostIsolated()
 	if not victim then
 		setPhase(Phase.Relief, 20)
@@ -372,13 +530,19 @@ function HorrorDirector:EnterFear(forced: Player?)
 	end
 	setPhase(Phase.Fear, 40)
 	local agg = aggression()
-	local huntReady = t >= c.FirstHuntAt / agg and os.clock() - lastHuntAt >= rng:Range(c.HuntInterval) / agg
-	if huntReady and Registry.ObserverService:StartHunt(victim, { reason = "director" }) then
-		return
+	local dark = Registry.LightingService:GetBlackout() >= 3
+	-- hunts: from DANGER on (sooner after the previous one when it is dark)
+	if self:Reached(Story.Danger) then
+		local interval = rng:Range(c.HuntInterval) / agg * (if dark then 0.6 else 1)
+		if os.clock() - lastHuntAt >= interval and Registry.ObserverService:StartHunt(victim, { reason = "director" }) then
+			return
+		end
 	end
-	if t >= c.FirstSightingAt / agg and os.clock() - lastSightingAt > 70 then
+	-- sightings & mimics: from DISTORTION on
+	if self:Reached(Story.Distortion) and os.clock() - lastSightingAt > (if dark then 45 else 70) then
 		local viewer, imitated = separatedPair()
-		if viewer and rng:Chance(0.55) and Registry.ObserverService:Mimic(viewer, imitated) then
+		local mimicChance = 0.45 + c.ObserverCunning * 0.1
+		if viewer and rng:Chance(mimicChance) and Registry.ObserverService:Mimic(viewer, imitated) then
 			lastSightingAt = os.clock()
 			return
 		end
@@ -390,6 +554,10 @@ function HorrorDirector:EnterFear(forced: Player?)
 			lastSightingAt = os.clock()
 			return
 		end
+	end
+	-- a blackout can be the event itself
+	if self:Reached(Story.Unease) and rng:Chance(0.35) and maybeBlackout() then
+		return
 	end
 	if not tryScare(victim) then
 		-- nothing appropriate: let the tension dissolve on its own
@@ -411,9 +579,61 @@ end
 function HorrorDirector:OnMilestone(name: string)
 	if name == "power" then
 		-- a moment of relief when the lights come back
-		setPhase(Phase.Relief, 35)
+		setPhase(Phase.Relief, 40)
 		dread = math.max(0, dread - 15)
+		lastBlackoutAt = os.clock()
 	end
+end
+
+------------------------------------------------------------------------------------
+-- Story phase machine
+------------------------------------------------------------------------------------
+
+local function storyStep()
+	local c = cfg()
+	local durations = c.PhaseDurations or {}
+	local t = inStory()
+	local state = Registry.ObjectiveService:GetState()
+	local found = state and state.found or 0
+	local locks = locksReleased()
+	if story == Story.Arrival then
+		if t >= (c.ArrivalDuration or 180) then
+			HorrorDirector:TriggerOutage()
+		end
+	elseif story == Story.Unease then
+		if t >= (durations.UNEASE or 150) or (t > 60 and found >= 2) then
+			setStory(Story.Distortion)
+		end
+	elseif story == Story.Distortion then
+		if t >= (durations.DISTORTION or 160) or (t > 60 and locks >= 2) then
+			setStory(Story.Danger)
+		end
+	elseif story == Story.Danger then
+		if t >= (durations.DANGER or 200) or (t > 60 and locks >= 3) then
+			setStory(Story.Collapse)
+			Net.fireAll("Effect", { name = "Shake", strength = 0.5 })
+			Registry.AudioService:Play2DAll("StretchGroan", { volume = 1 })
+		end
+	end
+end
+
+-- Which anomalies fit the current phase (called by AnomalyService).
+function HorrorDirector:AllowsAnomaly(def): boolean
+	if not running then
+		return true
+	end
+	local cunning = cfg().ObserverCunning or 0
+	local tier = def.difficulty or 2
+	if story == Story.Arrival then
+		return false
+	elseif story == Story.Unease then
+		return tier <= 2 + math.min(cunning, 1) and def.category ~= Enums.AnomalyCategory.Dangerous and def.rarity ~= "LEGENDARY"
+	elseif story == Story.Distortion then
+		return tier <= 3 + math.min(cunning, 1) and def.category ~= Enums.AnomalyCategory.Dangerous and def.rarity ~= "LEGENDARY"
+	elseif story == Story.Danger then
+		return def.rarity ~= "LEGENDARY" or cunning >= 1
+	end
+	return true
 end
 
 ------------------------------------------------------------------------------------
@@ -430,6 +650,11 @@ local function spawnInterval(): number
 	elseif phase == Phase.Relief then
 		base *= 1.1
 	end
+	if story == Story.Unease then
+		base *= 1.25
+	elseif story == Story.Collapse then
+		base *= 0.75
+	end
 	-- keep the quota reachable: speed up when the clock is running out
 	local state = Registry.ObjectiveService:GetState()
 	if state and not state.locks.ANOMALIES then
@@ -445,8 +670,14 @@ end
 local function targetActive(): number
 	local players = #Registry.PlayerService:GetAlive()
 	local n = 1 + math.ceil(players / 2)
-	if Registry.RoundService:GetDifficulty() == Enums.Difficulty.Hard then
+	local d = Registry.RoundService:GetDifficulty()
+	if d == Enums.Difficulty.Hard then
 		n += 1
+	elseif d == Enums.Difficulty.Nightmare then
+		n += 2
+	end
+	if story == Story.Unease then
+		n = math.min(n, 2)
 	end
 	return n
 end
@@ -456,22 +687,22 @@ local function step()
 		return
 	end
 	local now = os.clock()
-	local t = elapsed()
 	dread = math.max(0, dread - 0.25)
-	-- anomalies
-	if t > 12 and Registry.AnomalyService:GetActiveCount() < targetActive() and now - lastSpawnAt > nextSpawnIn then
+	storyStep()
+	-- anomalies (none during ARRIVAL: the tutorial one is handled by RoundService)
+	if story ~= Story.Arrival and Registry.AnomalyService:GetActiveCount() < targetActive() and now - lastSpawnAt > nextSpawnIn then
 		lastSpawnAt = now
 		nextSpawnIn = spawnInterval()
 		Registry.AnomalyService:TrySpawn()
 	end
-	-- ambience
+	-- ambience: sparse while arriving, regular afterwards
 	if phase ~= Phase.Fear and now - lastAmbientAt > nextAmbientIn then
 		lastAmbientAt = now
-		nextAmbientIn = rng:Number(14, 32)
+		nextAmbientIn = if story == Story.Arrival then rng:Number(24, 45) else rng:Number(14, 32)
 		ambientEvent()
 	end
-	-- the opening of a round is always quiet
-	if t < GameConfig.Round.CalmOpening then
+	-- the opening is quiet: no tension cycle until the power fails
+	if story == Story.Arrival then
 		return
 	end
 	-- phase machine
@@ -494,8 +725,18 @@ local function step()
 			end)
 			phaseEndsAt = now + 12
 		elseif phase == Phase.Relief then
-			setPhase(Phase.Calm, rng:Number(40, 75) / aggression() * (1 - dread / 200))
+			local calm = rng:Number(40, 75) / aggression() * (1 - dread / 200)
+			if story == Story.Unease then
+				calm *= 1.3
+			elseif story == Story.Collapse then
+				calm *= 0.7
+			end
+			setPhase(Phase.Calm, calm)
 		end
+	end
+	-- the total blackout of the collapse happens even without a fear event
+	if story == Story.Collapse and not totalBlackoutDone and inStory() > 20 then
+		maybeBlackout()
 	end
 end
 
@@ -504,29 +745,66 @@ function HorrorDirector:BeginRound(seed: number)
 	running = true
 	roundStart = os.clock()
 	dread = 0
+	outageDone = false
+	totalBlackoutDone = false
 	lastSpawnAt = os.clock()
 	nextSpawnIn = 18
 	lastAmbientAt = os.clock()
-	nextAmbientIn = 12
+	nextAmbientIn = 20
 	lastHuntAt = -math.huge
 	lastSightingAt = -math.huge
+	lastBlackoutAt = os.clock()
 	lastScareAt = os.clock() - 30
 	scaresThisRound = 0
 	usedScares = {}
-	setPhase(Phase.Calm, GameConfig.Round.CalmOpening + 30)
+	story = ""
+	setStory(Story.Arrival)
+	setPhase(Phase.Calm, 9999)
 end
 
 function HorrorDirector:BeginEscape()
+	setStory(Story.Escape)
 	setPhase(Phase.Fear, 9999)
 end
 
 function HorrorDirector:EndRound()
 	running = false
+	Registry.LightingService:EndBlackout(true)
 	phase = Phase.Calm
+	story = Story.Arrival
 	workspace:SetAttribute("TensionPhase", Phase.Calm)
+	workspace:SetAttribute("RoundPhase", nil)
+end
+
+-- Admin: jump to the next story phase.
+function HorrorDirector:AdvanceStory()
+	if not running then
+		return
+	end
+	if story == Story.Arrival then
+		self:TriggerOutage()
+		return
+	end
+	local index = self:StoryIndex()
+	local nextPhase = Enums.RoundPhaseOrder[index + 1]
+	if nextPhase and nextPhase ~= Story.Escape then
+		setStory(nextPhase)
+	end
 end
 
 function HorrorDirector:Start()
+	Registry.LightingService.BlackoutChanged:Connect(function(level)
+		if level == 0 and running then
+			-- whoever is still standing survived it
+			local was = workspace:GetAttribute("LastBlackoutLevel") or 0
+			if was >= 3 then
+				HorrorDirector:OnBlackoutSurvived(was)
+			end
+		end
+		if level > 0 then
+			workspace:SetAttribute("LastBlackoutLevel", level)
+		end
+	end)
 	task.spawn(function()
 		while true do
 			task.wait(1)

@@ -23,7 +23,6 @@ local roundFound: { [Player]: number } = {}
 local roundAchievements: { [Player]: { string } } = {}
 local roundJournal: { [Player]: number } = {}
 
-local DIFFICULTY_MULT = { EASY = 0.8, NORMAL = 1, HARD = 1.4 }
 local PUZZLE_KINDS = { "POWER", "CODE", "SYMBOLS", "DOORS", "OFFERING" }
 
 ------------------------------------------------------------------------------------
@@ -181,6 +180,13 @@ function ProgressionService:AnomalyReported(reporter: Player?, credited: { Playe
 	end
 end
 
+-- Recurring challenges (daily / weekly) hear about everything here.
+function ProgressionService:Challenge(player: Player, kind: string, value: any)
+	if Registry.ChallengeService then
+		Registry.ChallengeService:Record(player, kind, value)
+	end
+end
+
 function ProgressionService:FalseReport(player: Player)
 	Registry.DataService:Update(player, function(d)
 		d.stats.falseReports += 1
@@ -229,7 +235,7 @@ function ProgressionService:RoundEnded(player: Player, info)
 	local escaped = info.outcome == "ESCAPED"
 	local minutes = math.min(info.duration, GameConfig.Round.MaxRoundTime) / 60
 	local found = roundFound[player] or 0
-	local mult = DIFFICULTY_MULT[info.difficulty] or 1
+	local mult = (GameConfig.Difficulty[info.difficulty] or GameConfig.Difficulty.NORMAL).RewardMultiplier or 1
 	local echoes = R.EchoesPerMinute * minutes + R.EchoesPerAnomaly * found
 	local xp = R.XPPerMinute * minutes + R.XPPerAnomaly * found
 	if escaped then
@@ -260,6 +266,11 @@ function ProgressionService:RoundEnded(player: Player, info)
 			end
 			if info.difficulty == "HARD" then
 				d.stats.hardEscapes += 1
+				d.flags.nightmareUnlocked = true
+			elseif info.difficulty == "NIGHTMARE" then
+				d.stats.hardEscapes += 1
+				d.stats.nightmareEscapes += 1
+				d.flags.nightmareUnlocked = true
 			end
 			if info.witness then
 				d.stats.secretEndings += 1
@@ -287,8 +298,11 @@ function ProgressionService:RoundEnded(player: Player, info)
 		if info.witness then
 			self:Award(player, "THE_WITNESS")
 		end
-		if info.difficulty == "HARD" then
+		if info.difficulty == "HARD" or info.difficulty == "NIGHTMARE" then
 			self:Award(player, "HARD_ESCAPE")
+		end
+		if info.difficulty == "NIGHTMARE" then
+			self:Award(player, "NIGHTMARE")
 		end
 		if (info.escapedAt or math.huge) < 540 then
 			self:Award(player, "QUICK_EXIT")

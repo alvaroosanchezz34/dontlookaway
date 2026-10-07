@@ -222,9 +222,19 @@ end }
 Registry.PuzzleService = requireModule(Server.Services.PuzzleService)
 Registry.ObjectiveService = requireModule(Server.Services.ObjectiveService)
 Registry.ObjectiveService.Push = function() end
-Registry.HorrorDirector = { AddDread = function() end, OnMilestone = function() end, Rng = function()
-	return SeededRandom.new(1)
-end }
+Registry.HorrorDirector = {
+	AddDread = function() end,
+	OnMilestone = function() end,
+	Rng = function()
+		return SeededRandom.new(1)
+	end,
+	AllowsAnomaly = function()
+		return true
+	end,
+	GetStoryPhase = function()
+		return "DISTORTION"
+	end,
+}
 
 for _, seed in { 1, 42, 1337, 99991, 123456 } do
 	currentMap = maps[seed]
@@ -503,6 +513,12 @@ for _, seed in { 1, 42, 1337, 99991, 123456 } do
 	for _ = 1, 3 do
 		Registry.InventoryService:Add(solver, "FUSE")
 	end
+	-- before THE OUTAGE the lights work and the box refuses new fuses
+	check(state.power == true and state.outage == false, "seed " .. seed .. ": the building starts powered")
+	handlers.FuseBox(solver, hit)
+	check(state.fuses == 0 and Registry.InventoryService:Count(solver, "FUSE") == 3, "seed " .. seed .. ": no fuses before the outage")
+	Registry.PuzzleService:BurnOut()
+	check(state.power == false and state.outage == true and state.fuses == 0, "seed " .. seed .. ": the outage burns the fuses out")
 	for _ = 1, 3 do
 		handlers.FuseBox(solver, hit)
 	end
@@ -612,9 +628,20 @@ Registry.ProgressionService = {
 Registry.AnalyticsService = setmetatable({}, { __index = function()
 	return function() end
 end })
-Registry.HorrorDirector = { AddDread = function() end, OnAnomalyResolved = function() end, OnMilestone = function() end, Rng = function()
-	return SeededRandom.new(3)
-end }
+Registry.HorrorDirector = {
+	AddDread = function() end,
+	OnAnomalyResolved = function() end,
+	OnMilestone = function() end,
+	Rng = function()
+		return SeededRandom.new(7)
+	end,
+	AllowsAnomaly = function()
+		return true
+	end,
+	GetStoryPhase = function()
+		return "DISTORTION"
+	end,
+}
 Registry.RoundService.FailRound = function() end
 Registry.PlayerService.GetAlive = function()
 	return { solver }
@@ -668,6 +695,137 @@ if inst then
 end
 AnomalyService:EndRound()
 print(string.format("  %d distinct anomalies spawned and reported, %d reports credited", n, reported))
+
+------------------------------------------------------------------------------------
+-- 7. Story phases, the outage, phase-gated anomalies and soft guidance
+------------------------------------------------------------------------------------
+
+section("story & guidance")
+do
+	local GameConfig = requireModule(RS.Shared.Config.GameConfig)
+	local Enums = requireModule(RS.Shared.Enums)
+	currentMap = maps[1337]
+	local state = Registry.ObjectiveService:Plan(currentMap, SeededRandom.new(1337, "objectives"), 1)
+	Registry.ObjectiveService.GetState = function()
+		return state
+	end
+	syncPositions(currentMap.Root)
+	local lighting = {
+		power = true,
+		blackout = 0,
+		Blackout = function(self, level)
+			self.blackout = level
+			return true
+		end,
+		EndBlackout = function(self)
+			self.blackout = 0
+		end,
+		SetPower = function(self, on)
+			self.power = on
+		end,
+		IsPowered = function(self)
+			return self.power
+		end,
+		GetBlackout = function(self)
+			return self.blackout
+		end,
+		BlackoutChanged = Signal.new(),
+	}
+	Registry.LightingService = lighting
+	Registry.ObserverService = { IsActive = function()
+		return false
+	end }
+	Registry.AdminService = nil
+	local difficulty = "NORMAL"
+	Registry.RoundService.GetDifficulty = function()
+		return difficulty
+	end
+	Registry.RoundService.GetDifficultyConfig = function()
+		return GameConfig.Difficulty[difficulty]
+	end
+	Registry.RoundService.IsRunning = function()
+		return true
+	end
+	Registry.RoundService.GetState = function()
+		return "EXPLORING"
+	end
+	local Director = requireModule(Server.Services.HorrorDirector)
+	Registry.HorrorDirector = Director
+	Director:BeginRound(1337)
+	check(Director:GetStoryPhase() == "ARRIVAL", "rounds begin in ARRIVAL")
+	local defs = requireModule(Server.Services.AnomalyService):GetDefinitions()
+	local function allowedCount(pred)
+		local n = 0
+		for _, def in defs do
+			if Director:AllowsAnomaly(def) and pred(def) then
+				n += 1
+			end
+		end
+		return n
+	end
+	check(allowedCount(function()
+		return true
+	end) == 0, "no anomalies while arriving")
+	Director:TriggerOutage()
+	task.wait(5.4)
+	check(Director:GetStoryPhase() == "UNEASE", "the outage starts UNEASE")
+	check(lighting.power == false, "the outage cuts the power")
+	check(state.outage == true and state.power == false and state.fuses == 0, "the outage burns out the fuse box")
+	check(allowedCount(function(def)
+		return def.category == Enums.AnomalyCategory.Dangerous
+	end) == 0, "nothing dangerous during UNEASE")
+	check(allowedCount(function()
+		return true
+	end) > 0, "subtle anomalies during UNEASE")
+	Director:AdvanceStory()
+	check(Director:GetStoryPhase() == "DISTORTION", "advance to DISTORTION")
+	Director:AdvanceStory()
+	check(Director:GetStoryPhase() == "DANGER", "advance to DANGER")
+	check(allowedCount(function(def)
+		return def.category == Enums.AnomalyCategory.Dangerous
+	end) > 0, "dangerous anomalies once it hunts")
+	Director:AdvanceStory()
+	check(Director:GetStoryPhase() == "COLLAPSE", "advance to COLLAPSE")
+	check(Director:Reached("DANGER") and not Director:Reached("ESCAPE"), "phase ordering")
+	Director:EndRound()
+
+	-- soft guidance always has a next step and walks through the objectives
+	Registry.InventoryService:Reset(solver)
+	Registry.AnomalyService = { GetActive = function()
+		return {}
+	end }
+	local Guidance = requireModule(Server.Services.GuidanceService)
+	Registry.GuidanceService = Guidance
+	Guidance:BeginRound()
+	local t = Guidance:NextTarget()
+	check(t ~= nil and t.room ~= nil, "guidance: a target after the outage")
+	if t then
+		check(string.find(t.key, "fuse") ~= nil or t.key == "maintkey", "guidance: power first (" .. t.key .. ")")
+		print("  first nudge: " .. t.key .. " -> " .. t.where)
+	end
+	-- with the power back, it points at the puzzles
+	state.power = true
+	state.locks.POWER = true
+	t = Guidance:NextTarget()
+	check(t ~= nil, "guidance: a puzzle target")
+	if t then
+		print("  next nudge: " .. t.key .. " -> " .. t.where)
+	end
+	for _, kind in state.puzzles do
+		state.locks[kind] = true
+	end
+	state.locks.ANOMALIES = false
+	for _, id in { "BREAKERS", "SYMBOLS", "OFFERING", "LORE_1", "LORE_2", "LORE_3", "LORE_4", "CODE_A", "CODE_B" } do
+		Guidance:DocumentRead(id)
+	end
+	t = Guidance:NextTarget()
+	check(t == nil or string.find(t.key, "anomaly") ~= nil, "guidance: nothing left but anomalies")
+	-- difficulty tables are complete
+	for _, name in Enums.DifficultyOrder do
+		local c = GameConfig.Difficulty[name]
+		check(c ~= nil and c.ArrivalDuration and c.PhaseDurations and c.HintDelay and c.RewardMultiplier, "difficulty config " .. name)
+	end
+end
 
 ------------------------------------------------------------------------------------
 

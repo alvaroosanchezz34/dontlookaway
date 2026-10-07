@@ -78,7 +78,7 @@ end
 
 local function stareLimit(): number
 	local d = Registry.RoundService:GetDifficulty()
-	return if d == "HARD" then 3.4 elseif d == "EASY" then 6 else 4.4
+	return if d == "NIGHTMARE" then 2.8 elseif d == "HARD" then 3.4 else 5
 end
 
 return {

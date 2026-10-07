@@ -642,8 +642,28 @@ function Ctx:finalize()
 	self.room.wallSpots = wallSpots
 	-- item spots: attachments on furniture tops, and floor fallbacks near walls
 	local itemSpots = {}
+	local solids = {}
 	for _, d in self.folder:GetDescendants() do
-		if d:IsA("Attachment") and d:HasTag("ItemSpot") then
+		if d:IsA("BasePart") and d.Transparency < 0.95 then
+			table.insert(solids, d)
+		end
+	end
+	-- a spot is only usable if nothing else already stands on it
+	local function clear(spot: Attachment): boolean
+		local p = spot.WorldCFrame.Position
+		for _, part in solids do
+			if part ~= spot.Parent then
+				local rel = part.CFrame:PointToObjectSpace(p)
+				local half = part.Size / 2
+				if math.abs(rel.X) < half.X + 0.7 and math.abs(rel.Z) < half.Z + 0.7 and rel.Y > -half.Y - 1.5 and rel.Y < half.Y + 0.2 then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	for _, d in self.folder:GetDescendants() do
+		if d:IsA("Attachment") and d:HasTag("ItemSpot") and clear(d) then
 			table.insert(itemSpots, d.WorldCFrame)
 		end
 	end
@@ -690,6 +710,30 @@ local DESK_CLEARANCE = 3.2
 -- potted plants: the leaves reach well past the pot
 local PLANT_DEPTH = 3
 local DESK_FOOTPRINT = Vector2.new(6.6, 2 * (1.5 + 3.3 + 1.2))
+
+-- Wayfinding: what is on each floor, by room number.
+local DIRECTORY = {
+	U = "1F  ARCHIVE 1-01 · CONFERENCE 1-02 · QUIET ROOM 1-03\n     GALLERY 1-05 · INFIRMARY 1-06 · OPEN OFFICE 1-07\n     SERVER ROOM 1-08 · UTILITY 1-09",
+	G = "G   OFFICES G-01 G-02 · MAIL G-03 · STORAGE G-05\n     SECURITY G-07 · BREAK ROOM G-08 · LOADING DOCK",
+	B = "B1  MAINTENANCE B-04 · CLOSETS B-09 · COLD STORAGE B-11\n     BOILER ROOM",
+}
+
+local function directoryText(floorId: string?): string
+	if floorId then
+		return "THIS FLOOR\n" .. DIRECTORY[floorId]
+	end
+	return "THE ASHGROVE BUILDING\n\n" .. DIRECTORY.U .. "\n" .. DIRECTORY.G .. "\n" .. DIRECTORY.B
+end
+
+-- A corridor sign pointing toward a room (arrow chosen from where it hangs).
+local function directionSign(target: Vector3, label: string)
+	return function(folder, cf, rng)
+		local rel = cf:PointToObjectSpace(target)
+		-- the reader faces the wall: the sign's +X is their left
+		local arrow = if rel.X > 0 then "<  " .. label else label .. "  >"
+		return Props.sign(folder, cf, arrow, 3.2, 0.7, nil)
+	end
+end
 
 local KINDS = {}
 
@@ -767,6 +811,13 @@ function KINDS.corridor(ctx)
 		ctx:placeAgainstWall(function(f, cf, r)
 			return Props.plant(f, cf, r, true)
 		end, 1.6, false, 2)
+	end
+	local stairs = ctx.map.Rooms[room.floorId .. "_s"]
+	if stairs then
+		ctx:decor(directionSign(stairs.center, "STAIRS"), math.max(1, length // 16), 8.2, true, Vector2.new(3.2, 0.7))
+	end
+	if room.floorId == "G" and ctx.map.Rooms.G_y then
+		ctx:decor(directionSign(ctx.map.Rooms.G_y.center, "LOADING DOCK"), 1, 8.2, true, Vector2.new(3.2, 0.7))
 	end
 	ctx:decor(painting, math.max(2, length // 8), 6.5, true)
 	ctx:decor(photo, math.max(1, length // 12), 6, true, PHOTO)
@@ -901,6 +952,9 @@ function KINDS.reception(ctx)
 		return Props.plant(f, cf, r, true)
 	end, PLANT_DEPTH, false, 3)
 	ctx:placeAgainstWall(Props.sofa, 2.6, true, 1)
+	ctx:decor(function(f, cf, r)
+		return Props.sign(f, cf, directoryText(nil), 2.8, 3.4, "brass")
+	end, 1, 6.5, true, Vector2.new(2.8, 3.4))
 	ctx:decor(painting, 3, 7)
 	ctx:decor(clock, 1, 9.5, nil, CLOCK)
 	ctx:decor(photo, 1, 6, nil, PHOTO)
@@ -927,6 +981,9 @@ function KINDS.reception(ctx)
 end
 
 function KINDS.vestibule(ctx)
+	ctx:decor(function(f, cf, r)
+		return Props.sign(f, cf, directoryText(nil), 2.8, 3.4, "brass")
+	end, 1, 6.2, true, Vector2.new(2.8, 3.4))
 	Build.detail(ctx.folder, "Mat", Vector3.new(8, 0.06, 4), CFrame.new(ctx.room.center + Vector3.new(0, 0.03, 2)), Color3.fromRGB(40, 36, 32), M.Fabric)
 	ctx:decor(function(f, cf, r)
 		return Props.sign(f, cf, "VISITORS MUST SIGN IN AT RECEPTION", 5, 0.9, "brass")
@@ -1406,6 +1463,9 @@ function KINDS.cold(ctx)
 end
 
 function KINDS.stairs(ctx)
+	ctx:decor(function(f, cf, r)
+		return Props.sign(f, cf, directoryText(ctx.room.floorId), 4.2, 2, "brass")
+	end, 1, 6.2, true, Vector2.new(4.2, 2))
 	ctx:dust(1)
 end
 

@@ -41,7 +41,8 @@ local function render()
 	local lines = {
 		string.format("ROUND %s   difficulty %s   elapsed %ds", s.round, s.difficulty, s.elapsed),
 		string.format("seed %s   map seed %s   %s", tostring(s.seed), tostring(s.mapSeed), if s.dataMock then "(DATASTORE MOCK)" else ""),
-		string.format("director %s   dread %d   observer %s / %s", s.phase, s.dread, s.observer, tostring(s.observerMode)),
+		string.format("story %s   director %s   dread %d   observer %s / %s", tostring(s.story), s.phase, s.dread, s.observer, tostring(s.observerMode)),
+		string.format("guidance level %s   blackout %s   power %s", tostring(s.guidance), tostring(s.blackout), tostring(s.power)),
 	}
 	if s.stats then
 		table.insert(lines, string.format("anomalies spawned %d  found %d  missed %d", s.stats.spawned, s.stats.found, s.stats.missed))
@@ -112,6 +113,7 @@ local function build()
 		{ "Release ANOMALIES", "releaseLock", "ANOMALIES" },
 		{ "Teleport to target", "teleport", true },
 		{ "Kill me (test death)", "killSelf" },
+		{ "Next story phase", "advancePhase" },
 		{ "Geometry check (toggle)", "geometryCheck" },
 		{ "Blackout L1", "blackout", 1 },
 		{ "Blackout L2", "blackout", 2 },

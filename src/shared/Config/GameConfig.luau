@@ -20,61 +20,89 @@ GameConfig.Round = {
 	LobbyCountdown = 20, -- seconds after the first player readies up
 	AllReadyCountdown = 5, -- seconds once everyone in the lobby is ready
 	StartingDuration = 30, -- max time outside before the front doors slam
-	ResultsDuration = 18,
+	ResultsDuration = 22,
 	ReturningDuration = 4,
-	MaxRoundTime = 15 * 60, -- hard limit before the building takes everyone
+	MaxRoundTime = 22 * 60, -- hard limit before the building takes everyone
 	EscapeWindow = 150, -- seconds to reach the exit once it opens
-	CalmOpening = 50, -- guaranteed quiet time at the start of a round
 }
 
+--[[
+	Difficulty
+	  NORMAL     a gentle first night: long arrival, more batteries, slower and
+	             more readable Observer, generous hints
+	  HARD       less light, more anomalies, a smarter Observer, fewer hints
+	  NIGHTMARE  maximum tension: short arrival, scarce batteries, complex
+	             anomalies, the Observer uses the dark and blinks closer; hints
+	             stop at gentle nudges
+	Phase durations are in seconds (ARRIVAL ends with the power failure; the
+	later phases also advance early with progress).
+]]
 GameConfig.Difficulty = {
-	EASY = {
-		AnomalyQuotaBase = 4,
+	NORMAL = {
+		AnomalyQuotaBase = 5,
 		AnomalyQuotaPerExtraPlayer = 1,
 		MaxMissed = 12,
-		AnomalyLifetime = 200,
-		SpawnInterval = { 38, 55 },
-		FirstSightingAt = 200,
-		FirstHuntAt = 330,
-		HuntInterval = { 190, 260 },
+		AnomalyLifetime = 190,
+		SpawnInterval = { 34, 50 },
+		HuntInterval = { 170, 240 },
 		HuntDuration = { 22, 32 },
-		ObserverSpeed = 13,
-		BlinkAfter = 12,
+		ObserverSpeed = 13.5,
+		BlinkAfter = 11,
 		MisreportDread = 3,
 		BatteryDrain = 0.18,
-		DangerousWeight = 0.4,
-	},
-	NORMAL = {
-		AnomalyQuotaBase = 6,
-		AnomalyQuotaPerExtraPlayer = 1,
-		MaxMissed = 9,
-		AnomalyLifetime = 160,
-		SpawnInterval = { 28, 44 },
-		FirstSightingAt = 150,
-		FirstHuntAt = 260,
-		HuntInterval = { 150, 210 },
-		HuntDuration = { 28, 40 },
-		ObserverSpeed = 15,
-		BlinkAfter = 9,
-		MisreportDread = 5,
-		BatteryDrain = 0.24,
-		DangerousWeight = 1,
+		DangerousWeight = 0.5,
+		ArrivalDuration = 200,
+		PhaseDurations = { UNEASE = 150, DISTORTION = 170, DANGER = 210 },
+		ExtraBatteries = 2,
+		HintDelay = 70, -- seconds without progress before the first nudge
+		HintMaxLevel = 5,
+		ObserverCunning = 0, -- 0..2: use of darkness, blink steps, mimic frequency
+		WarningTime = 2.2, -- seconds of audible warning before a catch is possible
+		RewardMultiplier = 1,
 	},
 	HARD = {
-		AnomalyQuotaBase = 8,
+		AnomalyQuotaBase = 7,
 		AnomalyQuotaPerExtraPlayer = 1,
-		MaxMissed = 6,
-		AnomalyLifetime = 125,
-		SpawnInterval = { 22, 34 },
-		FirstSightingAt = 110,
-		FirstHuntAt = 190,
-		HuntInterval = { 110, 160 },
-		HuntDuration = { 34, 48 },
-		ObserverSpeed = 17,
-		BlinkAfter = 7,
-		MisreportDread = 7,
-		BatteryDrain = 0.3,
-		DangerousWeight = 1.6,
+		MaxMissed = 8,
+		AnomalyLifetime = 150,
+		SpawnInterval = { 26, 40 },
+		HuntInterval = { 130, 180 },
+		HuntDuration = { 30, 42 },
+		ObserverSpeed = 15.5,
+		BlinkAfter = 8.5,
+		MisreportDread = 6,
+		BatteryDrain = 0.26,
+		DangerousWeight = 1.2,
+		ArrivalDuration = 150,
+		PhaseDurations = { UNEASE = 120, DISTORTION = 140, DANGER = 170 },
+		ExtraBatteries = 0,
+		HintDelay = 120,
+		HintMaxLevel = 4,
+		ObserverCunning = 1,
+		WarningTime = 1.6,
+		RewardMultiplier = 1.4,
+	},
+	NIGHTMARE = {
+		AnomalyQuotaBase = 9,
+		AnomalyQuotaPerExtraPlayer = 1,
+		MaxMissed = 5,
+		AnomalyLifetime = 115,
+		SpawnInterval = { 20, 32 },
+		HuntInterval = { 95, 140 },
+		HuntDuration = { 36, 50 },
+		ObserverSpeed = 17.5,
+		BlinkAfter = 6.5,
+		MisreportDread = 8,
+		BatteryDrain = 0.32,
+		DangerousWeight = 1.8,
+		ArrivalDuration = 100,
+		PhaseDurations = { UNEASE = 90, DISTORTION = 110, DANGER = 140 },
+		ExtraBatteries = -1,
+		HintDelay = 200,
+		HintMaxLevel = 2,
+		ObserverCunning = 2,
+		WarningTime = 1.1,
+		RewardMultiplier = 2,
 	},
 }
 

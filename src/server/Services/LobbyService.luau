@@ -40,12 +40,22 @@ local function host(): Player?
 	return lobbyPlayers()[1]
 end
 
-local function canUseHard(player: Player?): boolean
+-- HARD unlocks after a first escape, NIGHTMARE after an escape on HARD.
+local function canUse(player: Player?, value: string): boolean
+	if value == Enums.Difficulty.Normal then
+		return true
+	end
 	if not player then
 		return false
 	end
 	local data = Registry.DataService:Get(player)
-	return data ~= nil and data.flags.hardUnlocked == true
+	if not data then
+		return false
+	end
+	if value == Enums.Difficulty.Hard then
+		return data.flags.hardUnlocked == true
+	end
+	return data.flags.nightmareUnlocked == true
 end
 
 function LobbyService:Broadcast()
@@ -67,7 +77,8 @@ function LobbyService:Broadcast()
 	Net.fireAll("LobbyState", {
 		players = list,
 		difficulty = difficulty,
-		hardAvailable = canUseHard(h),
+		hardAvailable = canUse(h, Enums.Difficulty.Hard),
+		nightmareAvailable = canUse(h, Enums.Difficulty.Nightmare),
 		countdown = if countdownEndsAt then math.max(0, countdownEndsAt - os.clock()) else nil,
 		roundRunning = running,
 		roundElapsed = Registry.RoundService:GetElapsed(),
@@ -136,8 +147,8 @@ local function onLobby(player: Player, action: any, value: any)
 		if player ~= host() or type(value) ~= "string" or not GameConfig.Difficulty[value] then
 			return
 		end
-		if value == Enums.Difficulty.Hard and not canUseHard(player) then
-			Net.fire(player, "Notify", { kind = "info", text = "HARD unlocks after your first escape." })
+		if not canUse(player, value) then
+			Net.fire(player, "Notify", { kind = "info", text = if value == Enums.Difficulty.Hard then "HARD unlocks after your first escape." else "NIGHTMARE unlocks after an escape on HARD." })
 			return
 		end
 		difficulty = value
@@ -202,7 +213,7 @@ function LobbyService:Start()
 				end
 				if countdownEndsAt and os.clock() >= countdownEndsAt and #readyList > 0 then
 					countdownEndsAt = nil
-					if not canUseHard(host()) and difficulty == Enums.Difficulty.Hard then
+					if not canUse(host(), difficulty) then
 						difficulty = Enums.Difficulty.Normal
 					end
 					for _, p in readyList do

@@ -108,6 +108,29 @@ function PuzzleService:Setup(map, state, rng)
 			self:RenderDial(i)
 		end
 	end
+	-- the building starts with power: old fuses in the box, breakers set right
+	if state.power then
+		for i = 1, 5 do
+			ctx.breakers[i] = state.breakerPattern[i] == true
+		end
+		if ctx.fuseBox then
+			for i = 1, 3 do
+				local fuse = ctx.fuseBox:FindFirstChild("Fuse" .. i)
+				if fuse then
+					fuse.Transparency = 0
+					fuse.Color = Color3.fromRGB(150, 140, 120)
+				end
+				local lamp = ctx.fuseBox:FindFirstChild("Lamp" .. i)
+				if lamp then
+					lamp.Color = Color3.fromRGB(230, 200, 140)
+				end
+			end
+		end
+		local status = ctx.breaker and ctx.breaker:FindFirstChild("Status")
+		if status then
+			status.Color = Color3.fromRGB(200, 236, 200)
+		end
+	end
 	for i = 1, 5 do
 		self:RenderBreaker(i)
 	end
@@ -142,9 +165,46 @@ function PuzzleService:RenderBreaker(i: number)
 	lever.Color = if up then Color3.fromRGB(190, 186, 170) else Color3.fromRGB(150, 40, 34)
 end
 
+-- THE OUTAGE: the old fuses burn out and the breakers trip.
+function PuzzleService:BurnOut()
+	if not ctx or ctx.state.outage then
+		return
+	end
+	local state = ctx.state
+	state.outage = true
+	state.power = false
+	state.fuses = 0
+	state.subProgress.POWER = nil
+	if ctx.fuseBox then
+		for i = 1, 3 do
+			local fuse = ctx.fuseBox:FindFirstChild("Fuse" .. i)
+			if fuse then
+				fuse.Transparency = 1
+				fuse.Color = Color3.fromRGB(196, 170, 120)
+			end
+			local lamp = ctx.fuseBox:FindFirstChild("Lamp" .. i)
+			if lamp then
+				lamp.Color = Color3.fromRGB(60, 20, 20)
+			end
+		end
+		Net.fireAll("Director", { cue = "sparks", at = ctx.fuseBox:GetPivot().Position })
+	end
+	-- trip the breakers: never left in the right pattern
+	for i = 1, 5 do
+		ctx.breakers[i] = false
+	end
+	local status = ctx.breaker and ctx.breaker:FindFirstChild("Status")
+	if status then
+		status.Color = Color3.fromRGB(60, 20, 20)
+	end
+	for i = 1, 5 do
+		self:RenderBreaker(i)
+	end
+end
+
 local function checkPower()
 	local state = ctx.state
-	if state.power or state.fuses < 3 then
+	if state.power or not state.outage or state.fuses < 3 then
 		return
 	end
 	for i = 1, 5 do
@@ -172,6 +232,10 @@ local function onFuseBox(player: Player, target: Instance): boolean
 		return false
 	end
 	local state = ctx.state
+	if not state.outage then
+		notify(player, "The fuse box hums. Old fuses, but they hold. For now.")
+		return false
+	end
 	if state.fuses >= 3 then
 		notify(player, if state.power then "The fuse box hums." else "All three fuses are in. Now the breakers.")
 		return false
@@ -191,6 +255,9 @@ local function onFuseBox(player: Player, target: Instance): boolean
 		lamp.Color = Color3.fromRGB(230, 200, 140)
 	end
 	Registry.AudioService:PlayAt("FuseInsert", ctx.fuseBox:GetPivot().Position)
+	if Registry.GuidanceService then
+		Registry.GuidanceService:Progress("fuse")
+	end
 	if state.fuses >= 3 then
 		state.subProgress.POWER = "Set the breakers (see the maintenance log)"
 	end

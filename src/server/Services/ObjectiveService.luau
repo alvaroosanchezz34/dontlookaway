@@ -26,10 +26,10 @@ ObjectiveService.LockReleased = Signal.new() -- (lockName)
 ObjectiveService.AllLocksReleased = Signal.new()
 
 ObjectiveService.PuzzleNames = {
-	CODE = "Open the security office and pull the override",
-	SYMBOLS = "Open the archive cabinet",
-	DOORS = "Open the basement closets in the right order",
-	OFFERING = "Return the three belongings to the Quiet Room",
+	CODE = "Find the two halves of the security code (Security G-07)",
+	SYMBOLS = "Open the archive cabinet (1-01): find its four symbols",
+	DOORS = "Find the cassette, then open the closets (B-09) in order",
+	OFFERING = "Return three belongings to the Quiet Room (1-03)",
 }
 
 local state = nil
@@ -43,6 +43,14 @@ local LORE = {
 	{ "NOTE", "The basement corridor was longer this morning.\nI counted the lights. There were more lights." },
 	{ "NOTE", "It only moves when you blink.\nYou can't stop blinking.\nSo don't be alone." },
 	{ "INCIDENT", "Incident 41.\nEmployee reported a colleague waving from the end of the hall.\nThe colleague was at home." },
+	{ "MEMO", "FACILITIES\nThe fuses keep burning out at the same minute every night.\nWe have replaced the wiring twice. Stop asking for a third." },
+	{ "NOTE", "Marta says the painting in reception used to be a landscape.\nI have worked here eleven years.\nIt has always been a portrait.\nHasn't it?" },
+	{ "VOICEMAIL TRANSCRIPT", "\"...it's me. I'm still in the archive. I can hear you in the corridor, why won't you answer? You're standing right outside the door. I can see your shoes under the-\"\n\n(end of message)" },
+	{ "INCIDENT", "Incident 57.\nNight guard found asleep at the desk with his eyes taped open.\nHe said he did it himself. He said it was the only way to keep it still." },
+	{ "NOTE", "If someone you came with looks at you a moment too long, ask them something only they would know.\nIf they smile before answering, run." },
+	{ "MEMO", "TO ALL STAFF\nThe Quiet Room is not a storage room.\nPlease return the child's things.\nShe gets upset." },
+	{ "NOTE", "Room numbers on the first floor skip 1-04.\nThere is a door where 1-04 should be.\nIt's only there when the lights are off." },
+	{ "INCIDENT", "Incident 63.\nSix people entered the building for the evening inspection. Six people left.\nThe signing-out sheet has seven signatures." },
 }
 
 ------------------------------------------------------------------------------------
@@ -171,7 +179,8 @@ function ObjectiveService:Plan(map, rng, playerCount: number)
 		quota = quota,
 		found = 0,
 		fuses = 0,
-		power = false,
+		power = true, -- the lights work until THE OUTAGE
+		outage = false,
 		breakerPattern = {},
 		code = "",
 		symbols = {},
@@ -196,7 +205,8 @@ function ObjectiveService:Plan(map, rng, playerCount: number)
 		end)
 	end
 	-- batteries
-	for _ = 1, 3 + math.min(2, playerCount - 1) do
+	local extra = Registry.RoundService:GetDifficultyConfig().ExtraBatteries or 0
+	for _ = 1, math.max(1, 3 + math.min(2, playerCount - 1) + extra) do
 		placeItem(map, rng, "BATTERY", unlocked)
 	end
 	placeItem(map, rng, "CROWBAR", unlocked)
@@ -270,7 +280,7 @@ function ObjectiveService:Plan(map, rng, playerCount: number)
 	-- lore
 	local lore = table.clone(LORE)
 	rng:Shuffle(lore)
-	for i = 1, 3 do
+	for i = 1, 4 do
 		local entry = lore[i]
 		placeDocument(map, rng, "LORE_" .. i, entry[1], entry[2], unlocked, "lore")
 	end
@@ -355,7 +365,44 @@ function ObjectiveService:SetSubProgress(key: string, text: string?)
 		return
 	end
 	state.subProgress[key] = text
+	if Registry.GuidanceService then
+		Registry.GuidanceService:Progress("puzzle:" .. key)
+	end
 	self:Push()
+end
+
+-- A soft-guidance line naming where to go next (nil clears it).
+function ObjectiveService:SetHintLine(text: string?)
+	if not state or state.hintLine == text then
+		return
+	end
+	state.hintLine = text
+	self:Push()
+end
+
+-- Where the next step of the power objective is, in plain words.
+local function powerText(): string
+	local map = Registry.MapService:GetMap()
+	if state.fuses < 3 then
+		local maint = map and map.Rooms.B_d
+		local lockedDoor = false
+		if maint then
+			for _, door in maint.doors do
+				if door.model and door.model:GetAttribute("Locked") then
+					lockedDoor = true
+				end
+			end
+		end
+		local carried = 0
+		for _, p in Registry.PlayerService:GetAlive() do
+			carried += Registry.InventoryService:Count(p, "FUSE")
+		end
+		if lockedDoor then
+			return string.format("Restore the power: find fuses (%d/3) and the maintenance key", math.min(3, state.fuses + carried))
+		end
+		return string.format("Restore the power: fuses %d/3 into the box in Maintenance B-04", state.fuses)
+	end
+	return state.subProgress.POWER or "Restore the power: set the breakers (maintenance log)"
 end
 
 function ObjectiveService:BuildList()
@@ -368,18 +415,27 @@ function ObjectiveService:BuildList()
 		table.insert(list, { text = "ESCAPE THROUGH THE LOADING DOCK", done = false, primary = true })
 		return list
 	end
-	table.insert(list, {
-		text = string.format("Find the anomalies  %d/%d", math.min(state.found, state.quota), state.quota),
-		done = state.locks.ANOMALIES,
-		primary = true,
-	})
-	local powerText = "Restore the power"
-	if not state.locks.POWER then
-		powerText = state.subProgress.POWER or string.format("Restore the power  (fuses %d/3)", state.fuses)
+	local arriving = Registry.HorrorDirector:GetStoryPhase() == "ARRIVAL" and not state.outage
+	if arriving then
+		table.insert(list, { text = "Find the source of the disturbance", done = false, primary = true })
+		table.insert(list, { text = "Learn the building. Read every note.", done = false })
+	else
+		table.insert(list, {
+			text = string.format("Document the anomalies  %d/%d", math.min(state.found, state.quota), state.quota),
+			done = state.locks.ANOMALIES,
+			primary = true,
+		})
+		if state.locks.POWER then
+			table.insert(list, { text = "Power restored", done = true })
+		else
+			table.insert(list, { text = powerText(), done = false })
+		end
 	end
-	table.insert(list, { text = powerText, done = state.locks.POWER })
 	for _, p in state.puzzles do
 		table.insert(list, { text = state.subProgress[p] or ObjectiveService.PuzzleNames[p], done = state.locks[p] })
+	end
+	if state.hintLine then
+		table.insert(list, 2, { text = state.hintLine, done = false, hint = true })
 	end
 	local released = 0
 	for _, v in state.locks do
@@ -418,6 +474,9 @@ local function onRead(player: Player, target: Instance): boolean
 	end
 	Registry.AudioService:Play2D({ player }, "PaperRustle")
 	Net.fire(player, "Document", { id = id, title = doc.title, body = doc.body, kind = doc.kind })
+	if Registry.GuidanceService then
+		Registry.GuidanceService:DocumentRead(id)
+	end
 	return true
 end
 

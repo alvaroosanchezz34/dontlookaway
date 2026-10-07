@@ -263,6 +263,95 @@ function HUDController:Toast(text: string, kind: string?, sub: string?)
 	end
 end
 
+-- A thought written in the notebook (soft guidance), under the objectives.
+local noteToken = 0
+function HUDController:NoteHint(text: string, duration: number?)
+	noteToken += 1
+	local token = noteToken
+	local holder = gui:FindFirstChild("NoteHint")
+	if holder then
+		holder:Destroy()
+	end
+	local note = Kit.frame({ Name = "NoteHint", Size = UDim2.fromOffset(470, 0), AutomaticSize = Enum.AutomaticSize.Y, Position = UDim2.fromOffset(40, 300), BackgroundColor3 = Color3.fromRGB(214, 206, 184), BackgroundTransparency = 0.12, Parent = gui })
+	Kit.corner(note, 3)
+	Kit.padding(note, 10, 14)
+	local label = Kit.text({ Text = text, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, FontFace = Kit.F.Type, TextSize = 17, TextColor3 = Color3.fromRGB(34, 30, 26), TextWrapped = true, Parent = note })
+	note.BackgroundTransparency = 1
+	label.TextTransparency = 1
+	Kit.tween(note, 0.5, { BackgroundTransparency = 0.12 })
+	Kit.tween(label, 0.5, { TextTransparency = 0 })
+	Kit.sound("PaperRustle")
+	task.delay(duration or 8, function()
+		if token == noteToken and note.Parent then
+			Kit.tween(note, 1, { BackgroundTransparency = 1 })
+			Kit.tween(label, 1, { TextTransparency = 1 })
+			Debris:AddItem(note, 1.1)
+		end
+	end)
+end
+
+-- Short coaching line for new players (bottom centre, above the prompt).
+local coachToken = 0
+function HUDController:Coach(text: string, duration: number?)
+	coachToken += 1
+	local token = coachToken
+	local existing = gui:FindFirstChild("Coach")
+	if existing then
+		existing:Destroy()
+	end
+	local chip = Kit.frame({ Name = "Coach", Size = UDim2.fromOffset(0, 40), AutomaticSize = Enum.AutomaticSize.X, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -200), BackgroundColor3 = C.Black, BackgroundTransparency = 0.35, Parent = gui })
+	Kit.corner(chip, 4)
+	Kit.padding(chip, 0, 18)
+	local label = Kit.text({ Text = text, Size = UDim2.fromOffset(0, 40), AutomaticSize = Enum.AutomaticSize.X, TextXAlignment = Enum.TextXAlignment.Center, FontFace = Kit.F.Body, TextSize = 17, Parent = chip })
+	chip.BackgroundTransparency = 1
+	label.TextTransparency = 1
+	Kit.tween(chip, 0.35, { BackgroundTransparency = 0.35 })
+	Kit.tween(label, 0.35, { TextTransparency = 0 })
+	task.delay(duration or 5, function()
+		if token == coachToken and chip.Parent then
+			Kit.tween(chip, 0.6, { BackgroundTransparency = 1 })
+			Kit.tween(label, 0.6, { TextTransparency = 1 })
+			Debris:AddItem(chip, 0.7)
+		end
+	end)
+end
+
+-- Last-resort guidance: a faint marker toward a place for a few seconds.
+function HUDController:GuideMarker(at: Vector3, text: string?)
+	local marker = Kit.frame({ Size = UDim2.fromOffset(160, 44), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Parent = gui })
+	local diamond = Kit.frame({ Size = UDim2.fromOffset(14, 14), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 10), Rotation = 45, BackgroundTransparency = 1, Parent = marker })
+	Kit.stroke(diamond, C.Text, 2, 0.2)
+	local label = Kit.text({ Text = string.upper(text or ""), Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 24), TextXAlignment = Enum.TextXAlignment.Center, FontFace = Kit.F.Mono, TextSize = 12, TextColor3 = C.TextDim, Parent = marker })
+	local start = os.clock()
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - start
+		if t > 15 or not marker.Parent or State.status ~= "ALIVE" then
+			conn:Disconnect()
+			marker:Destroy()
+			return
+		end
+		local camera = workspace.CurrentCamera
+		local viewport = camera.ViewportSize
+		local screen, onScreen = camera:WorldToViewportPoint(at)
+		local x, y = screen.X, screen.Y
+		if not onScreen or screen.Z < 0 then
+			-- clamp to the screen edge in the right direction
+			local rel = camera.CFrame:PointToObjectSpace(at)
+			local angle = math.atan2(rel.X, -rel.Z)
+			x = viewport.X / 2 + math.sin(angle) * viewport.X * 0.42
+			y = viewport.Y / 2 - math.cos(angle) * viewport.Y * 0.4
+		end
+		marker.Position = UDim2.fromOffset(x, y)
+		local alpha = math.clamp((t - 12) / 3, 0, 1)
+		label.TextTransparency = alpha
+		local stroke = diamond:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			stroke.Transparency = 0.2 + alpha * 0.8
+		end
+	end)
+end
+
 -- Big card for a new journal entry, achievement or level.
 function HUDController:Card(title: string, heading: string, body: string?, color: Color3?)
 	local card = Kit.frame({ Size = UDim2.fromOffset(460, 128), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 40, 0, 240), BackgroundColor3 = C.Panel, BackgroundTransparency = 0.08, Parent = cardLayer })
@@ -290,6 +379,11 @@ local function renderObjectives()
 	local data = State.objectives
 	for i, item in data.list or {} do
 		local row = Kit.frame({ Size = UDim2.fromOffset(460, if item.primary then 28 else 24), BackgroundTransparency = 1, LayoutOrder = i, Parent = objectivesFrame })
+		if item.hint then
+			-- a soft-guidance line: where to go, in the notebook's hand
+			Kit.text({ Text = item.text, Size = UDim2.new(1, -22, 1, 0), Position = UDim2.fromOffset(22, 0), FontFace = Kit.F.Type, TextSize = 15, TextColor3 = Color3.fromRGB(214, 206, 184), TextStrokeTransparency = 0.7, Parent = row })
+			continue
+		end
 		local box = Kit.frame({ Size = UDim2.fromOffset(10, 10), Position = UDim2.new(0, 0, 0.5, -5), BackgroundColor3 = if item.done then C.Text else C.Panel, BackgroundTransparency = if item.done then 0.1 else 0.5, Parent = row })
 		Kit.stroke(box, C.TextDim, 1, 0.2)
 		Kit.text({
@@ -424,7 +518,9 @@ function HUDController:Start()
 		elseif p.kind == "item" then
 			self:Toast("+ " .. (p.text or ""), "info")
 		elseif p.kind == "objective" then
-			Registry.EffectsController:Title(p.text or "", nil, 2.6, Kit.F.Heading)
+			Registry.EffectsController:Title(p.text or "", p.sub, if p.sub then 3.4 else 2.6, Kit.F.Heading)
+		elseif p.kind == "hint" then
+			self:NoteHint(p.text or "")
 		else
 			self:Toast(p.text or "", p.kind)
 		end

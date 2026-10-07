@@ -52,6 +52,10 @@ AnomalyService.Missed = Signal.new() -- (inst)
 
 local RARITY_WEIGHT = { COMMON = 10, UNCOMMON = 6, RARE = 2.4, LEGENDARY = 0.35 }
 
+local safeAnchors: (points: { Vector3 }) -> boolean
+local placementSafe: (inst: any, def: any) -> boolean
+local cleanup: (inst: any, revert: boolean) -> ()
+
 local definitions: { any } = {}
 local defsById: { [string]: any } = {}
 local active: { [string]: any } = {}
@@ -232,7 +236,8 @@ function Ctx:history(player: Player)
 end
 
 function Ctx:isDifficult(): boolean
-	return Registry.RoundService:GetDifficulty() == Enums.Difficulty.Hard
+	local d = Registry.RoundService:GetDifficulty()
+	return d == Enums.Difficulty.Hard or d == Enums.Difficulty.Nightmare
 end
 
 AnomalyService.Ctx = Ctx
@@ -317,13 +322,15 @@ local function eligible(def, alive: { Player }, phase: { [string]: any }): boole
 	if def.minPlayers and #alive < def.minPlayers then
 		return false
 	end
-	if def.category == Enums.AnomalyCategory.Dangerous and phase.elapsed < 150 then
-		return false
-	end
-	if def.rarity == "LEGENDARY" and phase.elapsed < 240 then
+	-- the story phase decides how strange the building may get (no danger while
+	-- players are still learning it, no legendary events early)
+	if Registry.HorrorDirector and not Registry.HorrorDirector:AllowsAnomaly(def) then
 		return false
 	end
 	if def.notInEscape and phase.escape then
+		return false
+	end
+	if phase.darkOnly and def.category ~= Enums.AnomalyCategory.Psychological and def.category ~= Enums.AnomalyCategory.Environment and def.category ~= Enums.AnomalyCategory.Dangerous then
 		return false
 	end
 	return true
@@ -401,6 +408,63 @@ local function register(def, ctx, spec, scope: string, players: { Player })
 	return inst
 end
 
+-- Anchors must not sit on top of a player (nothing appears inside someone).
+safeAnchors = function(points: { Vector3 }): boolean
+	for _, p in Players:GetPlayers() do
+		local root = Util.getRoot(p)
+		if root then
+			for _, pt in points do
+				if (root.Position - pt).Magnitude < 3.5 then
+					return false
+				end
+			end
+		end
+	end
+	return true
+end
+
+-- Solid parts an anomaly created must not overlap players or block a doorway.
+placementSafe = function(inst, def): boolean
+	local map = Registry.MapService:GetMap()
+	local doorAnomaly = string.find(def.id, "DOOR") ~= nil
+	for _, created in inst.created or {} do
+		local parts = {}
+		if typeof(created) == "Instance" then
+			if created:IsA("BasePart") then
+				table.insert(parts, created)
+			end
+			for _, d in created:GetDescendants() do
+				if d:IsA("BasePart") then
+					table.insert(parts, d)
+				end
+			end
+		end
+		for _, part in parts do
+			if part.CanCollide and part.Transparency < 0.95 then
+				local half = part.Size / 2
+				for _, p in Players:GetPlayers() do
+					local root = Util.getRoot(p)
+					if root then
+						local rel = part.CFrame:PointToObjectSpace(root.Position)
+						if math.abs(rel.X) < half.X + 1.2 and math.abs(rel.Y) < half.Y + 2.5 and math.abs(rel.Z) < half.Z + 1.2 then
+							return false
+						end
+					end
+				end
+				if map and not doorAnomaly then
+					for _, door in map.Doors do
+						local rel = part.CFrame:PointToObjectSpace(door.center + Vector3.new(0, 3, 0))
+						if math.abs(rel.X) < half.X + 1 and math.abs(rel.Y) < half.Y + 3 and math.abs(rel.Z) < half.Z + 1 then
+							return false
+						end
+					end
+				end
+			end
+		end
+	end
+	return true
+end
+
 -- Tries to activate one anomaly. Returns the instance or nil.
 function AnomalyService:TrySpawn(forcedId: string?, opts: { [string]: any }?)
 	opts = opts or {}
@@ -412,7 +476,7 @@ function AnomalyService:TrySpawn(forcedId: string?, opts: { [string]: any }?)
 	if #alive == 0 then
 		return nil
 	end
-	local phase = { elapsed = Registry.RoundService:GetElapsed(), escape = Registry.RoundService:IsEscape() }
+	local phase = { elapsed = Registry.RoundService:GetElapsed(), escape = Registry.RoundService:IsEscape(), darkOnly = opts.darkOnly }
 	local pool = {}
 	for _, def in definitions do
 		if forcedId then
@@ -478,8 +542,19 @@ function AnomalyService:TrySpawn(forcedId: string?, opts: { [string]: any }?)
 								table.insert(points, p)
 							end
 						end
-						if opts.ignoreVisibility or isUnseen(points, players) then
-							return register(def, ctx, spec, scope, players)
+						if (opts.ignoreVisibility or isUnseen(points, players)) and safeAnchors(points) then
+							local inst = register(def, ctx, spec, scope, players)
+							-- reality must never trap anyone: solid geometry it created may not
+							-- overlap a player or fill a doorway (door anomalies excepted)
+							if inst and not placementSafe(inst, def) then
+								warn("[AnomalyService] unsafe placement reverted:", def.id)
+								cleanup(inst, true)
+								active[def.id] = nil
+								uses[def.id] = math.max(0, (uses[def.id] or 1) - 1)
+								roundStats.spawned -= 1
+							elseif inst then
+								return inst
+							end
 						end
 					end
 				end
@@ -500,7 +575,7 @@ end
 -- Resolution
 ------------------------------------------------------------------------------------
 
-local function cleanup(inst, revert: boolean)
+cleanup = function(inst, revert: boolean)
 	if active[inst.def.id] == inst then
 		active[inst.def.id] = nil
 	end

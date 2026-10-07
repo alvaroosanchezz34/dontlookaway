@@ -85,6 +85,10 @@ local function snapshot()
 		difficulty = Registry.RoundService:GetDifficulty(),
 		elapsed = math.floor(Registry.RoundService:GetElapsed()),
 		phase = Registry.HorrorDirector:GetPhase(),
+		story = Registry.HorrorDirector:GetStoryPhase(),
+		guidance = Registry.GuidanceService:GetLevel(),
+		blackout = Registry.LightingService:GetBlackout(),
+		power = Registry.LightingService:IsPowered(),
 		dread = math.floor(Registry.HorrorDirector:GetDread()),
 		observer = Registry.ObserverService:GetState(),
 		observerMode = Registry.ObserverService:GetMode(),
@@ -252,6 +256,14 @@ COMMANDS.geometryCheck = function()
 		AdminService:Log(string.format("[%s] %s %s in %s: %s", issue.severity, issue.kind, issue.name, tostring(issue.room), issue.detail))
 	end
 	return GeometryValidator.summary(report)
+end
+
+COMMANDS.advancePhase = function()
+	if not Registry.RoundService:IsRunning() then
+		return "no round running"
+	end
+	Registry.HorrorDirector:AdvanceStory()
+	return "story phase: " .. Registry.HorrorDirector:GetStoryPhase()
 end
 
 COMMANDS.blackout = function(_admin, level)

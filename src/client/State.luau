@@ -47,6 +47,7 @@ local State = {
 	inputType = "Keyboard", -- Keyboard | Gamepad | Touch
 	uiOpen = false, -- a menu panel has focus (mouse unlocked)
 	phase = "CALM",
+	storyPhase = "ARRIVAL",
 
 	ProfileChanged = Signal.new(),
 	SettingsChanged = Signal.new(),

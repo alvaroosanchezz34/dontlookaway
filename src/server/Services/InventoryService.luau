@@ -358,6 +358,18 @@ function InventoryService:SpawnPickup(id: string, cf: CFrame, opts: { [string]: 
 	return model
 end
 
+function InventoryService:GetPickups(): { Model }
+	local list = {}
+	if pickupsFolder then
+		for _, m in pickupsFolder:GetChildren() do
+			if m:IsA("Model") then
+				table.insert(list, m)
+			end
+		end
+	end
+	return list
+end
+
 function InventoryService:ClearPickups()
 	if pickupsFolder then
 		pickupsFolder:ClearAllChildren()

@@ -30,7 +30,7 @@ local spectateButton: TextButton
 local hardNote: TextLabel
 local amReady = false
 
-local DIFF_TEXT = { EASY = "EASY", NORMAL = "NORMAL", HARD = "HARD" }
+local DIFF_TEXT = { NORMAL = "NORMAL", HARD = "HARD", NIGHTMARE = "NIGHTMARE" }
 
 local function render()
 	local s = State.lobby
@@ -59,9 +59,13 @@ local function render()
 		b.TextColor3 = if selected then C.Black else (if isHost then C.Text else C.Muted)
 		b.BackgroundColor3 = if selected then C.Text else C.PanelLight
 		b.BackgroundTransparency = if selected then 0 else 0.4
-		b.Active = isHost and (name ~= "HARD" or s.hardAvailable)
+		local available = name == "NORMAL" or (name == "HARD" and s.hardAvailable == true) or (name == "NIGHTMARE" and s.nightmareAvailable == true)
+		b.Active = isHost and available
+		if not available and not selected then
+			b.TextColor3 = C.Line
+		end
 	end
-	hardNote.Text = if not s.hardAvailable then "HARD unlocks after the host's first escape." elseif not isHost then "The host chooses the difficulty." else ""
+	hardNote.Text = if not s.hardAvailable then "HARD unlocks after the host's first escape." elseif not s.nightmareAvailable then "NIGHTMARE unlocks after the host escapes on HARD." elseif not isHost then "The host chooses the difficulty." else ""
 	readyButton.Text = if amReady then "NOT READY" else "READY"
 	readyButton.Visible = not s.roundRunning
 	spectateButton.Visible = s.roundRunning == true

@@ -53,6 +53,7 @@ local ORDER = {
 	"ReportController",
 	"PingController",
 	"HUDController",
+	"TutorialController",
 	"PuzzleUI",
 	"MobileControls",
 	"MenuController",

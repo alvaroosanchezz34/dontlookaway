@@ -367,6 +367,7 @@ local function returnToLobby()
 	Registry.ObjectiveService:Clear()
 	Registry.InventoryService:ClearPickups()
 	workspace:SetAttribute("Escape", false)
+	Registry.LightingService:EndBlackout(true)
 	Registry.LightingService:SetPower(false, true)
 	task.wait(GameConfig.Round.ReturningDuration)
 	participants = {}
@@ -415,7 +416,9 @@ function RoundService:_startRound(players: { Player }, chosenDifficulty: string)
 		setState(RS.Lobby)
 		return false
 	end
-	Registry.LightingService:SetPower(false, true)
+	-- the building still has power when you arrive; it fails later (HorrorDirector)
+	Registry.LightingService:EndBlackout(true)
+	Registry.LightingService:SetPower(true, true)
 	Registry.LightingService:ApplyPreset("OUTSIDE", 1)
 	Registry.AnomalyService:BeginRound(seed)
 	Registry.ObserverService:BeginRound()
@@ -466,9 +469,10 @@ function RoundService:_startRound(players: { Player }, chosenDifficulty: string)
 	for i, door in map.EntranceDoors do
 		Registry.DoorService:SetOpen(door, false, { slam = true, silent = i > 1 })
 	end
-	Registry.LightingService:ApplyPreset("DARK", 2)
+	Registry.LightingService:ApplyPreset("POWERED", 2)
 	exploringStartedAt = os.clock()
 	Registry.HorrorDirector:BeginRound(seed)
+	Registry.GuidanceService:BeginRound()
 	setState(RS.Exploring)
 	Net.fireAll("Effect", { name = "Intro" })
 	Registry.ObjectiveService:Push()
@@ -481,7 +485,7 @@ function RoundService:_startRound(players: { Player }, chosenDifficulty: string)
 		end
 	end
 	if hasNewcomer then
-		task.delay(8, function()
+		task.delay(25, function()
 			if token == roundToken then
 				Registry.AnomalyService:SpawnTutorial()
 			end

@@ -17,12 +17,25 @@ Enums.RoundState = {
 }
 
 Enums.Difficulty = {
-	Easy = "EASY",
 	Normal = "NORMAL",
 	Hard = "HARD",
+	Nightmare = "NIGHTMARE",
 }
 
-Enums.DifficultyOrder = { "EASY", "NORMAL", "HARD" }
+Enums.DifficultyOrder = { "NORMAL", "HARD", "NIGHTMARE" }
+
+-- The story arc of a round. The tension cycle (CALM/TENSION/FEAR/RELIEF) runs
+-- inside these; each phase unlocks a little more of what the building can do.
+Enums.RoundPhase = {
+	Arrival = "ARRIVAL", -- lights on, the building is (mostly) normal: learn it
+	Unease = "UNEASE", -- the power fails, small wrongnesses
+	Distortion = "DISTORTION", -- anomalies are clear, it starts to show itself
+	Danger = "DANGER", -- it hunts
+	Collapse = "COLLAPSE", -- the building turns hostile
+	Escape = "ESCAPE", -- get out
+}
+
+Enums.RoundPhaseOrder = { "ARRIVAL", "UNEASE", "DISTORTION", "DANGER", "COLLAPSE", "ESCAPE" }
 
 Enums.AnomalyScope = {
 	Global = "GLOBAL",

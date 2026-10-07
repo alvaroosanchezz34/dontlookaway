@@ -203,9 +203,14 @@ handlers.Intro = function()
 		task.wait(1.2)
 		EffectsController:Title("THE BUILDING CHANGES", "WHEN YOU STOP LOOKING.", 3.6)
 		task.wait(5.4)
-		local key = Registry.InputController:Label("Report")
-		EffectsController:Title("FIND THE ANOMALIES", "Look at what changed and hold [" .. key .. "] to report it.", 3.6, Kit.F.Heading)
+		EffectsController:Title("LEARN THE BUILDING", "Look around while the lights still work.", 3.6, Kit.F.Heading)
 	end)
+end
+
+handlers.GuideMarker = function(p)
+	if typeof(p.at) == "Vector3" then
+		Registry.HUDController:GuideMarker(p.at, p.text)
+	end
 end
 
 handlers.TutorialHint = function()
@@ -452,8 +457,25 @@ function EffectsController:Start()
 		end
 	end)
 	Net.event("Director").OnClientEvent:Connect(function(payload)
-		if type(payload) == "table" and payload.cue == "blackout" then
+		if type(payload) ~= "table" then
+			return
+		end
+		if payload.cue == "blackout" then
 			onBlackout(payload)
+		elseif payload.cue == "outageWarning" and State.status == "ALIVE" then
+			Registry.CameraController:Shake(0.08)
+		elseif payload.cue == "story" then
+			State.storyPhase = payload.phase
+			if payload.phase == "UNEASE" and State.status == "ALIVE" then
+				-- after the power fails: what the night is about
+				task.delay(4.5, function()
+					local key = Registry.InputController:Label("Report")
+					EffectsController:Title("FIND WHAT CHANGED", "Look straight at it and hold [" .. key .. "]. Report every anomaly.", 4, Kit.F.Heading)
+				end)
+			elseif payload.phase == "COLLAPSE" and State.status == "ALIVE" then
+				Registry.CameraController:Shake(0.35)
+				Registry.HUDController:Caption("[the whole building groans]", 3, "sound")
+			end
 		end
 	end)
 	RunService.RenderStepped:Connect(update)
