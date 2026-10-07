@@ -1,0 +1,100 @@
+{
+  "name": "DontLookAway",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$properties": {
+        "CameraMode": "LockFirstPerson",
+        "CameraMaxZoomDistance": 0.5,
+        "CameraMinZoomDistance": 0.5,
+        "CharacterWalkSpeed": 10,
+        "CharacterJumpPower": 0,
+        "CharacterJumpHeight": 0,
+        "CharacterUseJumpPower": false,
+        "EnableMouseLockOption": false,
+        "AutoJumpEnabled": false,
+        "LoadCharacterAppearance": true,
+        "HealthDisplayDistance": 0,
+        "NameDisplayDistance": 0
+      },
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": {
+          "$path": "src/client"
+        },
+        "RbxCharacterSounds": {
+          "$path": "src/playerscripts/RbxCharacterSounds.client.luau"
+        }
+      }
+    },
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$properties": {
+        "ResetPlayerGuiOnSpawn": false,
+        "ScreenOrientation": "LandscapeSensor"
+      }
+    },
+    "Players": {
+      "$className": "Players",
+      "$properties": {
+        "CharacterAutoLoads": false,
+        "RespawnTime": 0
+      }
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "StreamingEnabled": false,
+        "Gravity": 196.2,
+        "FallenPartsDestroyHeight": -500
+      }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Technology": "Future",
+        "Brightness": 0.4,
+        "Ambient": [
+          0.02,
+          0.02,
+          0.025
+        ],
+        "OutdoorAmbient": [
+          0.05,
+          0.055,
+          0.065
+        ],
+        "ClockTime": 0.5,
+        "GlobalShadows": true,
+        "EnvironmentDiffuseScale": 0.15,
+        "EnvironmentSpecularScale": 0.35,
+        "ExposureCompensation": 0
+      }
+    },
+    "SoundService": {
+      "$className": "SoundService",
+      "$properties": {
+        "RespectFilteringEnabled": true,
+        "AmbientReverb": "Hallway",
+        "DistanceFactor": 3.33,
+        "RolloffScale": 1
+      }
+    },
+    "TextChatService": {
+      "$className": "TextChatService"
+    }
+  }
+}
