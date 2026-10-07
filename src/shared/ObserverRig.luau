@@ -296,6 +296,17 @@ end
 	(server and client copies) are dressed automatically. Safe to call when no
 	ids are set (does nothing).
 ]]
+-- How many Observer meshes have an id configured (mesh or model).
+function ObserverRig.configuredMeshes(): number
+	local n = 0
+	for meshName in MeshMeta do
+		if AssetIds.url(AssetIds.Observer.meshes[meshName]) or AssetIds.url(AssetIds.Observer.models[meshName]) then
+			n += 1
+		end
+	end
+	return n
+end
+
 function ObserverRig.loadMeshes(): number
 	if not RunService:IsServer() then
 		return 0
