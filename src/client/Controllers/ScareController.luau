@@ -12,9 +12,14 @@
 	  3  you look (or are made to look)
 	  4  it is there, much too close; its head moves the wrong way, its face
 	     opens along the seam
-	  5  the field of view collapses, the view is pushed back, a flash,
-	     distortion, a single loud hit
-	  6  black, a ringing in your ears, a short line, then you watch the others
+	  5  THE IMPACT. It crosses the last metres in a blink, folds down to your
+	     eye level with its face split open and its hands on you. On that exact
+	     frame - never before - a hard, cold light snaps on from your camera
+	     onto its face (and a low one from below), strobing like a dying tube:
+	     you SEE it, even in a level 4 blackout. A punch of zoom, violent shake,
+	     one loud hit and a scream.
+	  6  a hard cut to black, a ringing in your ears, a short line, then you
+	     watch the others
 
 	Variants (chosen by the server from the situation)
 	  behind   you turn around slowly. It was there all along.
@@ -53,6 +58,71 @@ local LINES = {
 }
 
 local active = false
+
+-- impact timing (seconds)
+local LUNGE = 0.17 -- the last metres: a blink
+local HOLD = 0.55 -- its face, lit, in yours
+
+--[[
+	The scare light: off until the exact frame of the impact, then a hard cold
+	spot from the camera onto its face plus a low warm point light under its
+	jaw. Purely local (the rig is local too), so it always reads, whatever the
+	building's lights are doing.
+]]
+type ScareLight = { holder: Part, spot: SpotLight, underPart: Part, under: PointLight, alive: boolean }
+
+local function lightPart(name: string): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = Vector3.new(0.2, 0.2, 0.2)
+	p.Transparency = 1
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Parent = Workspace
+	return p
+end
+
+local function makeScareLight(): ScareLight
+	local holder = lightPart("ScareLight")
+	local spot = Instance.new("SpotLight")
+	spot.Face = Enum.NormalId.Front
+	spot.Angle = 70
+	spot.Range = 18
+	spot.Brightness = 0
+	spot.Color = Color3.fromRGB(226, 234, 255)
+	spot.Shadows = true
+	spot.Parent = holder
+	local underPart = lightPart("ScareUnderLight")
+	local under = Instance.new("PointLight")
+	under.Range = 7
+	under.Brightness = 0
+	under.Color = Color3.fromRGB(255, 206, 180)
+	under.Shadows = false
+	under.Parent = underPart
+	return { holder = holder, spot = spot, underPart = underPart, under = under, alive = true }
+end
+
+-- Aim the light from the camera at the face; `level` 0 = off.
+local function aimScareLight(light: ScareLight, camPos: Vector3, face: Vector3, level: number)
+	if not light.alive then
+		return
+	end
+	local dir = face - camPos
+	local back = if dir.Magnitude > 0.01 then dir.Unit else Vector3.new(0, 0, -1)
+	light.holder.CFrame = CFrame.lookAt(camPos - back * 0.4, face)
+	light.underPart.Position = face - Vector3.new(0, 1.8, 0) - back * 0.6
+	light.spot.Brightness = 9 * level
+	light.under.Brightness = 2.2 * level
+end
+
+local function destroyScareLight(light: ScareLight)
+	light.alive = false
+	light.holder:Destroy()
+	light.underPart:Destroy()
+end
 
 local function reduced(): boolean
 	return State.settings.reducedEffects == true
@@ -111,17 +181,25 @@ local function pose(m: { [string]: Motor6D }, name: string, cf: CFrame)
 end
 
 -- The attack pose: arms rising, the head tipping, the face parting.
-local function attackPose(rig: Model, m: { [string]: Motor6D }, t: number)
+-- `rage` (0..1, after the impact): it folds down to your eye level, its hands
+-- close on you and its head shakes violently.
+local function attackPose(rig: Model, m: { [string]: Motor6D }, t: number, rage: number?)
 	local a = ease(t)
-	pose(m, "LeftShoulder", CFrame.Angles(math.rad(-100 * a), 0, math.rad(-12 * a)))
-	pose(m, "RightShoulder", CFrame.Angles(math.rad(-100 * a), 0, math.rad(12 * a)))
-	pose(m, "LeftElbow", CFrame.Angles(math.rad(-30 * a), 0, 0))
-	pose(m, "RightElbow", CFrame.Angles(math.rad(-30 * a), 0, 0))
-	pose(m, "Waist", CFrame.Angles(math.rad(18 * a), 0, 0))
-	pose(m, "NeckJoint", CFrame.Angles(math.rad(28 * a), 0, 0))
-	-- the head snaps sideways in steps, never smoothly
+	local g = rage or 0
+	local now = os.clock()
+	pose(m, "RootJoint", CFrame.new(0, -2.5 * g, 0))
+	pose(m, "LeftShoulder", CFrame.Angles(math.rad(-100 * a - 28 * g), 0, math.rad(-12 * a + 22 * g)))
+	pose(m, "RightShoulder", CFrame.Angles(math.rad(-100 * a - 28 * g), 0, math.rad(12 * a - 22 * g)))
+	pose(m, "LeftElbow", CFrame.Angles(math.rad(-30 * a - 45 * g), 0, 0))
+	pose(m, "RightElbow", CFrame.Angles(math.rad(-30 * a - 45 * g), 0, 0))
+	pose(m, "Waist", CFrame.Angles(math.rad(18 * a + 26 * g), 0, 0))
+	pose(m, "NeckJoint", CFrame.Angles(math.rad(28 * a + 14 * g), 0, 0))
+	-- the head snaps sideways in steps, never smoothly; after the impact it
+	-- shakes as if something inside is trying to get out
 	local snap = math.floor(t * 6) / 6
-	pose(m, "HeadJoint", CFrame.Angles(math.rad(8), 0, math.rad(68 * snap)) * CFrame.Angles(0, 0, math.rad(math.sin(os.clock() * 55) * 3 * a)))
+	local jitter = math.sin(now * 55) * (3 + 14 * g)
+	local twist = math.noise(now * 30, 7) * 30 * g
+	pose(m, "HeadJoint", CFrame.Angles(math.rad(8 - 10 * g), math.rad(twist), math.rad(68 * snap * (1 - 0.6 * g))) * CFrame.Angles(0, 0, math.rad(jitter * a)))
 	pose(m, "JawL", CFrame.Angles(0, math.rad(-55 * a), 0))
 	pose(m, "JawR", CFrame.Angles(0, math.rad(55 * a), 0))
 	for _, side in { "L", "R" } do
@@ -296,6 +374,9 @@ function ScareController:Death(payload, done: () -> ())
 
 	local mimicSwapped = false
 	local impactDone = false
+	local impactAt: number? = nil
+	local lastCamPos = eye
+	local light = makeScareLight()
 	cam:SetOverride("Death", 50, function()
 		local t = os.clock() - start
 		local tremble = math.clamp((t - 0.35) / 1.2, 0, 1) * (if reduced() then 0.3 else 1)
@@ -314,12 +395,22 @@ function ScareController:Death(payload, done: () -> ())
 		local camPos = eye
 		-- 4/5: the lunge, the field of view collapsing, the push back
 		if t >= lungeAt then
-			local l = math.clamp((t - lungeAt) / 0.32, 0, 1)
+			local l = math.clamp((t - lungeAt) / LUNGE, 0, 1)
 			local headTo = rigHead()
 			target = headTo
-			fov = 70 - 26 * ease(l)
-			camPos = eye - (headTo - eye).Unit * 0.7 * ease(l)
+			fov = 70 - 22 * ease(l)
+			camPos = eye - (headTo - eye).Unit * 0.5 * ease(l)
+			if impactAt then
+				-- a punch of zoom on the hit, then the view keeps lurching
+				local h = os.clock() - impactAt
+				local calm = if reduced() then 0.3 else 1
+				fov = 30 + 12 * (1 - math.exp(-h * 9))
+				local jolt = math.exp(-h * 3) * calm
+				camPos = eye - (headTo - eye).Unit * (0.5 + 0.35 * math.exp(-h * 14))
+				shake = CFrame.Angles(math.noise(h * 60, 1) * 0.06 * jolt, math.noise(h * 60, 2) * 0.08 * jolt, math.noise(h * 45, 3) * 0.12 * jolt)
+			end
 		end
+		lastCamPos = camPos
 		return CFrame.lookAt(camPos, target) * shake, fov
 	end)
 
@@ -348,34 +439,55 @@ function ScareController:Death(payload, done: () -> ())
 		end
 		if t < lungeAt then
 			idlePose(m, if variant == "door" then 70 * ease((t - 0.6) / 0.5) else 22)
+			aimScareLight(light, lastCamPos, rigHead(), 0)
 		else
-			local l = (t - lungeAt) / 0.32
-			attackPose(rig, m, l)
-			-- it closes the distance in a blink
+			local l = (t - lungeAt) / LUNGE
+			local rage = if impactAt then math.clamp((os.clock() - impactAt) / 0.12, 0, 1) else 0
+			attackPose(rig, m, l, rage)
+			-- it closes the distance in a blink, then stays in your face
 			local toward = Util.flat(eye - rigFeet)
 			local dist = toward.Magnitude
-			local closeTo = math.max(0.9, dist - (dist - 1.1) * ease(l))
+			local closeTo = math.max(0.75, dist - (dist - 0.85) * ease(l))
+			if impactAt then
+				closeTo += math.sin((os.clock() - impactAt) * 38) * 0.08
+			end
 			local feet = eye - (if dist > 0.01 then toward.Unit else -flatLook) * closeTo
 			moveRig(rig, Vector3.new(feet.X, floorY, feet.Z), eye)
-			if l >= 0.55 and not impactDone then
+			if l >= 1 and not impactDone then
 				impactDone = true
-				-- 5: flash, distortion, one loud hit
+				impactAt = os.clock()
+				-- 5: THE IMPACT - light, hit, scream and shake on the same frame
 				audio:Play("ObserverImpact", nil, { volume = 1 })
-				audio:Play("ObserverScreech", nil, { volume = 0.8 })
-				fx:Glitch(1, 0.4)
+				audio:Play("ObserverScreech", nil, { volume = 1 })
+				audio:Play("JumpSting", nil, { volume = 1 })
+				cam:Shake(if reduced() then 0.6 else 1.8)
+				fx:Glitch(if reduced() then 0.3 else 0.8, 0.3)
+				fx:Blur(3, 0.08)
 				if not reduced() then
-					fx:Flash(if variant == "dark" then Color3.fromRGB(150, 20, 20) else Color3.fromRGB(235, 235, 255), 0.75, 0.45)
+					-- a red edge for a heartbeat (the face stays visible: no white-out)
+					fx:Flash(Color3.fromRGB(150, 10, 10), 0.22, 0.25)
 				end
-				cam:Shake(1)
-				fx:Blur(14, 0.2)
 			end
+			-- the light: dark until the impact, then a dying tube's strobe
+			local level = 0
+			if impactAt then
+				local h = os.clock() - impactAt
+				if reduced() then
+					level = 0.65
+				else
+					local frame = math.floor(h * 26)
+					level = if h < 0.06 then 1 elseif frame % 4 == 3 then 0.12 elseif frame % 7 == 5 then 0.4 else 0.95
+				end
+			end
+			aimScareLight(light, lastCamPos, rigHead(), level)
 		end
 	end)
 
-	-- 6: black, a ringing, a line
-	task.delay(lungeAt + 0.32, function()
-		fx:Fade(1, 0.08)
+	-- 6: a hard cut to black, a ringing, a line
+	task.delay(lungeAt + LUNGE + HOLD, function()
+		fx:Fade(1, 0.02)
 		audio:Play("TinnitusRing", nil, { volume = 0.8 })
+		destroyScareLight(light)
 		task.delay(0.15, function()
 			rigAlive = false
 			rig:Destroy()
@@ -408,15 +520,18 @@ function ScareController:Flash(kind: string?)
 	look = if look.Magnitude > 0.01 then look.Unit else Vector3.new(0, 0, -1)
 	local feet = from.Position + look * 1.6 - Vector3.new(0, 7.2, 0)
 	local rig, m = spawnRig(feet, from.Position)
-	attackPose(rig, m, 0.8)
-	cam:Shake(0.9)
-	fx:Glitch(1, 0.3)
-	if not reduced() then
-		fx:Flash(Color3.fromRGB(220, 220, 235), 0.4, 0.35)
-	end
-	Registry.CameraController:SetFovEffect(-14)
-	task.delay(if reduced() then 0.15 else 0.28, function()
+	attackPose(rig, m, 0.8, 1)
+	-- lit on the very frame it appears, so it reads even in a blackout
+	local light = makeScareLight()
+	local head = rig:FindFirstChild("Head") :: BasePart?
+	aimScareLight(light, from.Position, if head then head.CFrame.Position else feet + Vector3.new(0, 8, 0), if reduced() then 0.6 else 1)
+	cam:Shake(if reduced() then 0.5 else 1.3)
+	fx:Glitch(if reduced() then 0.3 else 0.8, 0.25)
+	Registry.AudioController:Play("JumpSting", nil, { volume = 1 })
+	Registry.CameraController:SetFovEffect(-18)
+	task.delay(if reduced() then 0.15 else 0.3, function()
 		rig:Destroy()
+		destroyScareLight(light)
 		Registry.CameraController:SetFovEffect(0)
 	end)
 end
