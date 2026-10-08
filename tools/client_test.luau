@@ -811,15 +811,53 @@ do
 	local sawPhoto = false
 	for _ = 1, 200 do
 		renderFns.MarketingStudio(1 / 30)
-		local rt = workspace:FindFirstChild("MarketingRuntime")
-		if rt and rt:FindFirstChild("IrisImage", true) and rt:FindFirstChild("Socket", true) then
-			sawPhoto = true
+		for _, where in { workspace:FindFirstChild("MarketingRuntime"), playerGui:FindFirstChild("MarketingRuntimeGui") } do
+			if where and where:FindFirstChild("IrisImage", true) and where:FindFirstChild("Socket", true) then
+				sawPhoto = true
+			end
 		end
 	end
 	check(sawPhoto, "marketing: the photographic eye is used once its images are set")
 	MC.StopScene()
 	run("Scene02_DidYouSeeIt", "photo-eye")
 	Config.EyeImages = savedEye
+	-- 2c. CAM_04 with a real character to copy (an avatar-like rig)
+	local character = Instance.new("Model")
+	character.Name = "Tester"
+	local root = Instance.new("Part")
+	root.Name = "HumanoidRootPart"
+	root.Size = Vector3.new(2, 2, 1)
+	root.CFrame = CFrame.new(0, 3, 0)
+	root.Parent = character
+	local torso = Instance.new("Part")
+	torso.Name = "UpperTorso"
+	torso.Size = Vector3.new(2, 2, 1)
+	torso.CFrame = CFrame.new(0, 3.5, 0)
+	torso.Parent = character
+	local hip = Instance.new("Motor6D")
+	hip.Name = "LeftHip"
+	hip.Part0 = root
+	hip.Part1 = torso
+	hip.Parent = torso
+	local hum = Instance.new("Humanoid")
+	hum.Parent = character
+	character.PrimaryPart = root
+	character.Parent = workspace
+	localPlayer.Character = character
+	MC.PlayScene("Scene03_CAM04")
+	local sawActor = false
+	for _ = 1, 120 do
+		renderFns.MarketingStudio(1 / 30)
+		local rt = workspace:FindFirstChild("MarketingRuntime")
+		if rt and rt:FindFirstChild("Actor_staff") then
+			sawActor = true
+		end
+	end
+	check(sawActor, "marketing: CAM_04 uses a real character copy")
+	MC.StopScene()
+	check(Runtime.isClean(), "marketing: actor scene cleans up")
+	localPlayer.Character = nil
+	character:Destroy()
 	-- 3. pause / resume / restart / stop mid-scene, slow motion, formats, camera styles
 	MC.SetOption("TimeScale", 0.5)
 	MC.SetFormat("SQUARE")

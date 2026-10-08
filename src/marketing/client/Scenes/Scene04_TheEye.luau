@@ -43,7 +43,7 @@ return {
 			{ at = 3.5, action = "OpenDoor", amount = 1, duration = 3.4, ease = "inOutSine" },
 			{ at = 3.5, action = "PlaySound", sound = "WoodCreak", position = set.origin.Position + Vector3.new(2, 5, -1), volume = 0.8, speed = 0.8 },
 			-- something is in there
-			{ at = 4.2, action = "ShowEye", mode = "surface", position = set.eyeAt, facing = far.Position, scale = 4.6, brightness = 0.85, intensity = 0, open = 0, fade = 2.6, look = Vector2.new(0.35, 0.2), recreate = true },
+			{ at = 4.2, action = "ShowEye", mode = "anchored", position = set.eyeAt, scale = 4.4, brightness = 0.85, intensity = 0, open = 0, fade = 2.6, look = Vector2.new(0.35, 0.2), recreate = true },
 			{ at = 6.3, action = "SetEye", open = 1, duration = 1.5, ease = "inOutCubic" },
 			{ at = 6.6, action = "PlaySound", sound = "ObserverInhale", position = set.eyeAt, volume = 0.5 },
 			{ at = 7.2, action = "EyeLook", target = "camera" },

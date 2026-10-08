@@ -21,6 +21,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Runtime = require(script.Parent.Parent.Runtime)
+local Screen = require(script.Parent.Screen)
+local Format = require(script.Parent.Parent.Utilities.Format)
 local Config = require(ReplicatedStorage:WaitForChild("Marketing"):WaitForChild("MarketingConfig"))
 
 local Eye = {}
@@ -36,6 +38,7 @@ type State = {
 	lidTop: GuiObject?,
 	lidBottom: GuiObject?,
 	photo: boolean,
+	anchor: Vector3?, -- "anchored" mode: a world point the on-screen eye is pinned to
 	brightness: number?,
 	glow: PointLight?,
 	opacity: number,
@@ -222,7 +225,7 @@ function Eye.create(opts: { [string]: any })
 		photo = Eye.photographic(),
 		brightness = opts.brightness,
 	}
-	if mode == "screen" then
+	if mode == "screen" or mode == "anchored" then
 		local holder = Instance.new("Frame")
 		holder.Name = "ScreenEye"
 		holder.BackgroundTransparency = 1
@@ -233,6 +236,13 @@ function Eye.create(opts: { [string]: any })
 		Instance.new("UIAspectRatioConstraint", holder).AspectRatio = 2
 		holder.Parent = opts.parent
 		s.holder = holder
+		if mode == "anchored" then
+			-- drawn on the screen layer (always renders) but pinned to a point in the
+			-- world, sized to `scale` studs across: it moves with the camera like a
+			-- real object, and dark surroundings hide that it is an overlay
+			s.anchor = opts.position
+			holder.ZIndex = 3
+		end
 		if s.photo then
 			s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = drawPhoto(holder)
 		else
@@ -332,6 +342,11 @@ function Eye.render()
 		for _, d in s.group:GetDescendants() do
 			if d:IsA("ImageLabel") then
 				d.ImageTransparency = fade
+				-- screen overlays are not touched by the scene's grade: dim them to sit in it
+				if s.brightness and not s.gui then
+					local b = math.clamp(s.brightness, 0, 1)
+					d.ImageColor3 = Color3.new(b, b, math.min(1, b * 1.03))
+				end
 			elseif d:IsA("Frame") and (d.Name == "LidTop" or d.Name == "LidBottom") then
 				d.BackgroundTransparency = fade
 			end
@@ -376,11 +391,27 @@ function Eye.render()
 	end
 end
 
+local function pin(s: State)
+	local holder = s.holder :: Frame
+	local camera = Workspace.CurrentCamera
+	local anchor = s.anchor :: Vector3
+	local p = camera:WorldToViewportPoint(anchor)
+	local edge = camera:WorldToViewportPoint(anchor + camera.CFrame.RightVector * (s.scale / 2))
+	local width = math.abs(edge.X - p.X) * 2
+	local safePos = Format.safeRect(Screen.getFormat(), camera.ViewportSize)
+	holder.Visible = p.Z > 0
+	holder.Position = UDim2.fromOffset(p.X - safePos.X, p.Y - safePos.Y)
+	holder.Size = UDim2.fromOffset(width, width / 2)
+end
+
 -- Per-frame life: the iris finds its target and never stops moving a little.
 function Eye.update(dt: number, clock: number)
 	local s = state
 	if not s then
 		return
+	end
+	if s.anchor and s.holder then
+		pin(s)
 	end
 	local want = Vector2.zero
 	local target = s.lookTarget

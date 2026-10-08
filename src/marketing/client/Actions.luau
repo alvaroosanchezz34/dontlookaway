@@ -366,6 +366,8 @@ Actions.register("SpawnEffect", function(_tl, e)
 	local name = e.name or e.kind or "effect"
 	if e.kind == "person" then
 		Figures.person(name, e.cframe, e)
+	elseif e.kind == "actor" then
+		Figures.actor(name, e.cframe, e)
 	elseif e.kind == "entity" then
 		Figures.entity(name, e.cframe, e)
 	else
