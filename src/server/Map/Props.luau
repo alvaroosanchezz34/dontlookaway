@@ -645,7 +645,7 @@ function Props.noticeBoard(parent, wallCf: CFrame, rng, lines)
 	local m = model(parent, "NoticeBoard", wallCf)
 	P(m, "Board", Vector3.new(5, 3.2, 0.2), at(wallCf, 0, 0, -0.1), Color3.fromRGB(110, 86, 60), M.Fabric, { CanCollide = false })
 	for i = 1, rng:Int(4, 7) do
-		D(m, "Note", Vector3.new(rng:Number(0.8, 1.3), rng:Number(1, 1.4), 0.03), at(wallCf, rng:Number(-1.8, 1.8), rng:Number(-0.9, 0.9), -0.22 - i * 0.012, 0, 0, rng:Number(-10, 10)), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic)
+		D(m, "Note", Vector3.new(rng:Number(0.8, 1.3), rng:Number(1, 1.4), 0.03), at(wallCf, rng:Number(-1.8, 1.8), rng:Number(-0.9, 0.9), -0.22 - i * 0.034, 0, 0, rng:Number(-10, 10)), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic)
 		if i == 1 and lines then
 			local note = m:FindFirstChild("Note") :: BasePart
 			local gui = Build.surfaceGui(note, Enum.NormalId.Front, 60)

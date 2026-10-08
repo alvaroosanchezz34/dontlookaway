@@ -788,7 +788,7 @@ local function step()
 	if story == Story.Arrival then
 		return
 	end
-	budget = math.min(BUDGET_MAX, budget + (BUDGET_RATE[story] or 0.5) * aggression())
+	budget = math.min(BUDGET_MAX, budget + (BUDGET_RATE[story] or 0.5) * aggression() * (cfg().TensionRate or 1))
 	workspace:SetAttribute("TensionBudget", math.floor(budget))
 	if (phase == Phase.Calm or phase == Phase.Tension) and now >= nextParanoiaAt then
 		nextParanoiaAt = now + rng:Number(24, 52) / aggression()
