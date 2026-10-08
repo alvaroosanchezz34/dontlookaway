@@ -289,6 +289,25 @@ function LightController:FlickerRoom(roomId: string, duration: number)
 	roomFlicker[roomId] = os.clock() + duration
 end
 
+-- Stutter the fixtures within `radius` of a point (presence, paranoia). Returns
+-- the nearest fixture's position, if any.
+function LightController:FlickerNear(position: Vector3, radius: number, duration: number, limit: number?): Vector3?
+	local hits = {}
+	for model, info in fixtures do
+		local d = (model:GetPivot().Position - position).Magnitude
+		if d < radius then
+			table.insert(hits, { info = info, d = d, at = model:GetPivot().Position })
+		end
+	end
+	table.sort(hits, function(a, b)
+		return a.d < b.d
+	end)
+	for i = 1, math.min(#hits, limit or 2) do
+		hits[i].info.flickerUntil = os.clock() + duration
+	end
+	return hits[1] and hits[1].at
+end
+
 function LightController:GetDarkness(): number
 	return darkness
 end

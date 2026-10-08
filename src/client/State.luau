@@ -43,6 +43,7 @@ local State = {
 	sprinting = false,
 	fear = 0, -- 0..1, how scared the local player should feel (drives UI fade, heartbeat)
 	observerDistance = math.huge,
+	prox = "FAR", -- FAR | AWARE | NEAR | VERY_NEAR | HUNT (server-decided, see ObserverService)
 	notes = {}, -- documents read this round
 	inputType = "Keyboard", -- Keyboard | Gamepad | Touch
 	uiOpen = false, -- a menu panel has focus (mouse unlocked)

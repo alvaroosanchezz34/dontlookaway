@@ -22,6 +22,18 @@
 	  FEAR is one event (a hunt, a sighting, a mimic, a blackout, a scare);
 	  RELIEF guarantees breathing room. Never a scare every 20 seconds.
 
+	TENSION BUDGET (0-100): every event costs budget and the budget refills at a
+	rate set by the story phase (none while arriving, fastest in the collapse).
+	Big events (a hunt, a mimic) need the meter to have filled; small paranoia
+	(a sound behind you, a glimpse in a mirror, a moment of silence) is cheap.
+	That is what keeps the curve a curve instead of a constant noise.
+
+	PARANOIA: private, deniable moments for one player that are NOT anomalies
+	(they cannot be reported and are never counted): a light stutters, a step
+	echoes once behind you, something stands in a mirror or a dark window for
+	a few frames, a screen shows a face, the building goes silent and then
+	something heavy falls far away.
+
 	DREAD (0-100) accumulates from mistakes (false reports, missed anomalies,
 	broken rules) and shortens the calm. Dynamic difficulty scales with time,
 	progress and player count. Jumpscares are capped and spaced far apart.
@@ -68,6 +80,13 @@ local roundStart = 0
 
 local MAX_SCARES = 4
 
+local budget = 0
+local BUDGET_MAX = 100
+-- refill per second for each story phase
+local BUDGET_RATE = { ARRIVAL = 0, UNEASE = 0.35, DISTORTION = 0.5, DANGER = 0.65, COLLAPSE = 0.85, ESCAPE = 1 }
+local COST = { hunt = 45, mimic = 40, sighting = 30, blackout = 35, scare = 25, shadow = 12, glimpse = 10, silence = 8, micro = 4 }
+local nextParanoiaAt = 0
+
 function HorrorDirector:Rng()
 	return rng
 end
@@ -91,6 +110,21 @@ end
 
 function HorrorDirector:GetDread(): number
 	return dread
+end
+
+function HorrorDirector:GetBudget(): number
+	return budget
+end
+
+-- Can the budget pay for this kind of event? (`free` for forced/admin events)
+local function afford(kind: string, free: boolean?): boolean
+	return free == true or budget >= (COST[kind] or 0)
+end
+
+local function charge(kind: string, free: boolean?)
+	if not free then
+		budget = math.max(0, budget - (COST[kind] or 0))
+	end
 end
 
 function HorrorDirector:IsRunning(): boolean
@@ -370,7 +404,11 @@ end
 local SCARE_ORDER = { "door_slam", "bulb_pop", "vent_bang", "whisper_ear", "shadow_run", "falling_box", "mirror_flash", "lights_out_brief", "breath_neck", "radio_static", "phone_burst", "name_whisper", "observer_peek" }
 
 local function tryScare(player: Player): boolean
-	if scaresThisRound >= MAX_SCARES or os.clock() - lastScareAt < 90 then
+	if scaresThisRound >= MAX_SCARES or os.clock() - lastScareAt < 90 or not afford("scare") then
+		return false
+	end
+	-- never a cheap scare on top of the real thing
+	if Registry.ObserverService:ProximityLevel(player) >= 3 then
 		return false
 	end
 	local root = Util.getRoot(player)
@@ -390,6 +428,7 @@ local function tryScare(player: Player): boolean
 			usedScares[name] = true
 			scaresThisRound += 1
 			lastScareAt = os.clock()
+			charge("scare")
 			if Registry.AdminService then
 				Registry.AdminService:Log("scare: " .. name .. " -> " .. player.Name)
 			end
@@ -427,8 +466,12 @@ function HorrorDirector:TriggerOutage()
 			Registry.AudioService:PlayAt("Sparks", map.Rooms.B_d.center + Vector3.new(0, 6, 0), { volume = 1.2 })
 		end
 		Net.fireAll("Notify", { kind = "objective", text = "THE POWER IS OUT", sub = "Restore it: the fuse box is in Maintenance (B-04)" })
+		for _, p in Registry.PlayerService:GetAlive() do
+			Registry.AnalyticsService:Milestone(p, "ARRIVAL_COMPLETE", math.floor(elapsed()))
+		end
 		setStory(Story.Unease)
 		setPhase(Phase.Relief, 25)
+		budget = 30
 		Registry.ObjectiveService:Push()
 	end)
 end
@@ -523,6 +566,7 @@ end
 
 function HorrorDirector:EnterFear(forced: Player?)
 	local c = cfg()
+	local free = forced ~= nil
 	local victim = forced or mostIsolated()
 	if not victim then
 		setPhase(Phase.Relief, 20)
@@ -534,7 +578,8 @@ function HorrorDirector:EnterFear(forced: Player?)
 	-- hunts: from DANGER on (sooner after the previous one when it is dark)
 	if self:Reached(Story.Danger) then
 		local interval = rng:Range(c.HuntInterval) / agg * (if dark then 0.6 else 1)
-		if os.clock() - lastHuntAt >= interval and Registry.ObserverService:StartHunt(victim, { reason = "director" }) then
+		if os.clock() - lastHuntAt >= interval and afford("hunt", free) and Registry.ObserverService:StartHunt(victim, { reason = "director" }) then
+			charge("hunt", free)
 			return
 		end
 	end
@@ -542,21 +587,25 @@ function HorrorDirector:EnterFear(forced: Player?)
 	if self:Reached(Story.Distortion) and os.clock() - lastSightingAt > (if dark then 45 else 70) then
 		local viewer, imitated = separatedPair()
 		local mimicChance = 0.45 + c.ObserverCunning * 0.1
-		if viewer and rng:Chance(mimicChance) and Registry.ObserverService:Mimic(viewer, imitated) then
+		if viewer and afford("mimic", free) and rng:Chance(mimicChance) and Registry.ObserverService:Mimic(viewer, imitated) then
 			lastSightingAt = os.clock()
+			charge("mimic", free)
 			return
 		end
-		if #Registry.PlayerService:GetAlive() == 1 and rng:Chance(0.2) and Registry.ObserverService:Mimic(victim, victim) then
+		if #Registry.PlayerService:GetAlive() == 1 and afford("mimic", free) and rng:Chance(0.2) and Registry.ObserverService:Mimic(victim, victim) then
 			lastSightingAt = os.clock()
+			charge("mimic", free)
 			return
 		end
-		if Registry.ObserverService:Sighting(victim) then
+		if afford("sighting", free) and Registry.ObserverService:Sighting(victim) then
 			lastSightingAt = os.clock()
+			charge("sighting", free)
 			return
 		end
 	end
 	-- a blackout can be the event itself
-	if self:Reached(Story.Unease) and rng:Chance(0.35) and maybeBlackout() then
+	if self:Reached(Story.Unease) and afford("blackout", free) and rng:Chance(0.35) and maybeBlackout() then
+		charge("blackout", free)
 		return
 	end
 	if not tryScare(victim) then
@@ -682,6 +731,40 @@ local function targetActive(): number
 	return n
 end
 
+-- One private, deniable moment for one player (see PARANOIA above). Only for
+-- players the Observer is not already near, only in the quiet parts of the curve.
+local function paranoia()
+	local candidates = {}
+	for _, p in Registry.PlayerService:GetAlive() do
+		if Registry.ObserverService:ProximityLevel(p) <= 2 then
+			table.insert(candidates, p)
+		end
+	end
+	if #candidates == 0 then
+		return
+	end
+	local player = candidates[rng:Int(1, #candidates)]
+	local pool
+	if story == Story.Unease then
+		pool = { "micro", "micro", "micro", "silence" }
+	else
+		pool = { "micro", "micro", "glimpse", "glimpse", "shadow", "silence" }
+	end
+	local kind = rng:Pick(pool)
+	if not afford(kind) then
+		kind = "micro"
+		if not afford(kind) then
+			return
+		end
+	end
+	charge(kind)
+	Net.fire(player, "Director", { cue = "paranoia", kind = kind, seed = rng:Int(1, 1e6) })
+end
+
+function HorrorDirector:Paranoia(player: Player, kind: string)
+	Net.fire(player, "Director", { cue = "paranoia", kind = kind, seed = rng:Int(1, 1e6) })
+end
+
 local function step()
 	if not running then
 		return
@@ -704,6 +787,12 @@ local function step()
 	-- the opening is quiet: no tension cycle until the power fails
 	if story == Story.Arrival then
 		return
+	end
+	budget = math.min(BUDGET_MAX, budget + (BUDGET_RATE[story] or 0.5) * aggression())
+	workspace:SetAttribute("TensionBudget", math.floor(budget))
+	if (phase == Phase.Calm or phase == Phase.Tension) and now >= nextParanoiaAt then
+		nextParanoiaAt = now + rng:Number(24, 52) / aggression()
+		paranoia()
 	end
 	-- phase machine
 	if phase == Phase.Fear then
@@ -757,6 +846,8 @@ function HorrorDirector:BeginRound(seed: number)
 	lastScareAt = os.clock() - 30
 	scaresThisRound = 0
 	usedScares = {}
+	budget = 0
+	nextParanoiaAt = os.clock() + 40
 	story = ""
 	setStory(Story.Arrival)
 	setPhase(Phase.Calm, 9999)
@@ -793,7 +884,10 @@ function HorrorDirector:AdvanceStory()
 end
 
 function HorrorDirector:Start()
+	local blackoutLevel = 0
 	Registry.LightingService.BlackoutChanged:Connect(function(level)
+		local previous = blackoutLevel
+		blackoutLevel = level
 		if level == 0 and running then
 			-- whoever is still standing survived it
 			local was = workspace:GetAttribute("LastBlackoutLevel") or 0
@@ -802,6 +896,11 @@ function HorrorDirector:Start()
 			end
 		end
 		if level > 0 then
+			if running and previous == 0 then
+				for _, p in Registry.PlayerService:GetAlive() do
+					Registry.AnalyticsService:Milestone(p, "BLACKOUT", level)
+				end
+			end
 			workspace:SetAttribute("LastBlackoutLevel", level)
 		end
 	end)

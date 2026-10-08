@@ -474,6 +474,25 @@ local hudOk = pcall(function()
 	Registry.PuzzleUI:Close()
 end)
 check(hudOk, "HUD API")
+-- presence: every proximity state and every paranoia moment runs and cleans up
+do
+	local before = #workspace:GetChildren()
+	for _, prox in { "AWARE", "NEAR", "VERY_NEAR", "HUNT", "FAR" } do
+		localPlayer:SetAttribute("ObserverProx", prox)
+		frames(3)
+	end
+	check(State.prox == "FAR", "presence: proximity state follows the server")
+	for _, kind in { "micro", "glimpse", "shadow", "silence", "bogus" } do
+		local ok = pcall(function()
+			fire("Director", { cue = "paranoia", kind = kind, seed = 1 })
+		end)
+		check(ok, "paranoia " .. kind)
+		frames(10)
+	end
+	task.wait(1.2)
+	frames(5)
+	check(#workspace:GetChildren() <= before + 1, "paranoia leaves nothing behind")
+end
 fire("RoundState", { state = "ESCAPE", difficulty = "NORMAL", seed = 7, elapsed = 500, escapeRemaining = 120 })
 frames(5)
 fire("Death", { killer = CFrame.new(5, 0, 5), position = Vector3.new(0, 3, 0) })

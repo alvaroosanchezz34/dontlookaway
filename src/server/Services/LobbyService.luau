@@ -184,6 +184,9 @@ local function onKiosk(player: Player, target: Instance): boolean
 	local station = STATIONS[target:GetAttribute("Kiosk")]
 	if station then
 		Net.fire(player, "Effect", { name = "OpenPanel", panel = station[1], tab = station[2] })
+		if station[1] == "SHOP" then
+			Registry.AnalyticsService:Milestone(player, "SHOP_OPEN")
+		end
 		return true
 	end
 	return false

@@ -696,6 +696,9 @@ print(string.format("  %d/%d definitions exercised; need live players for: %s", 
 ------------------------------------------------------------------------------------
 
 section("puzzles")
+Registry.AnalyticsService = Registry.AnalyticsService or setmetatable({}, { __index = function()
+	return function() end
+end })
 Registry.ProgressionService = { PuzzleSolved = function() end, Award = function() end }
 Registry.LightingService = { SetPower = function() end }
 Registry.DoorService = requireModule(Server.Services.DoorService)
@@ -977,9 +980,14 @@ do
 		BlackoutChanged = Signal.new(),
 	}
 	Registry.LightingService = lighting
-	Registry.ObserverService = { IsActive = function()
-		return false
-	end }
+	Registry.ObserverService = {
+		IsActive = function()
+			return false
+		end,
+		ProximityLevel = function()
+			return 1
+		end,
+	}
 	Registry.AdminService = nil
 	local difficulty = "NORMAL"
 	Registry.RoundService.GetDifficulty = function()
@@ -1016,6 +1024,7 @@ do
 	check(Director:GetStoryPhase() == "UNEASE", "the outage starts UNEASE")
 	check(lighting.power == false, "the outage cuts the power")
 	check(state.outage == true and state.power == false and state.fuses == 0, "the outage burns out the fuse box")
+	check(Director:GetBudget() > 0 and Director:GetBudget() < 45, "tension budget: the outage leaves room for small events, not a hunt")
 	check(allowedCount(function(def)
 		return def.category == Enums.AnomalyCategory.Dangerous
 	end) == 0, "nothing dangerous during UNEASE")

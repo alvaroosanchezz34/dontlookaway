@@ -192,6 +192,15 @@ COMMANDS.mimic = function(admin, userId)
 	return if Registry.ObserverService:Mimic(target, other) then "mimic placed" else "no valid mimic spot"
 end
 
+local PARANOIA = { micro = true, glimpse = true, shadow = true, silence = true }
+COMMANDS.paranoia = function(admin, kind)
+	if type(kind) ~= "string" or not PARANOIA[kind] then
+		return "unknown paranoia kind"
+	end
+	Registry.HorrorDirector:Paranoia(admin, kind)
+	return "paranoia: " .. kind .. " (budget " .. math.floor(Registry.HorrorDirector:GetBudget()) .. ")"
+end
+
 COMMANDS.vanishObserver = function()
 	Registry.ObserverService:Vanish()
 	return "observer gone"

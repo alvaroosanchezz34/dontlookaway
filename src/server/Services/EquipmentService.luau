@@ -257,6 +257,7 @@ local function setLoadout(player: Player, list: any)
 	Registry.DataService:Update(player, function(dd)
 		dd.gear.loadout = clean
 	end)
+	Registry.AnalyticsService:Milestone(player, "LOADOUT_CHANGE", #clean)
 	Registry.AudioService:Play2D({ player }, "UIEquip")
 	refreshClient(player)
 end
@@ -552,6 +553,7 @@ local function onTool(player: Player, action: any, index: any, a: any, b: any)
 		end
 		local fn = USE[tool.id]
 		if fn then
+			Registry.AnalyticsService:Milestone(player, "FIRST_TOOL_USE")
 			local ok, used = pcall(fn, player, tool, a, b)
 			if not ok then
 				warn("[EquipmentService] tool error:", used)

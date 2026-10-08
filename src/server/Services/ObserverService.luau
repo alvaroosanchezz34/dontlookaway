@@ -1134,6 +1134,52 @@ function ObserverService:GetModel(): Model?
 	return model
 end
 
+--[[
+	Proximity states, per player, for the client's presence layers (audio,
+	breathing, light, vignette) and the director (no scares on top of it):
+	  FAR        nothing
+	  AWARE      it is in the building's attention: the air thins out
+	  NEAR       heartbeat, lights near you stutter
+	  VERY_NEAR  breathing, the world goes quiet
+	  HUNT       it is coming for you
+	Decided here (only the server knows targets); a player attribute.
+]]
+local PROX_ORDER = { "FAR", "AWARE", "NEAR", "VERY_NEAR", "HUNT" }
+ObserverService.ProximityOrder = PROX_ORDER
+
+function ObserverService:Proximity(player: Player, observerPos: Vector3?): string
+	local pr = Util.getRoot(player)
+	if not pr or not observerPos or not mode then
+		return "FAR"
+	end
+	local d = (pr.Position - observerPos).Magnitude
+	if (mode == "hunt" or mode == "escape") and (player == target or mode == "escape") and d < 90 then
+		return "HUNT"
+	elseif d < 14 then
+		return "VERY_NEAR"
+	elseif d < 32 then
+		return "NEAR"
+	elseif d < 75 then
+		return "AWARE"
+	end
+	return "FAR"
+end
+
+-- Index of a proximity state (FAR = 1 .. HUNT = 5), handy for comparisons.
+function ObserverService:ProximityLevel(player: Player): number
+	return table.find(PROX_ORDER, player:GetAttribute("ObserverProx") or "FAR") or 1
+end
+
+local function updateProximity()
+	local pos = if mode and model and model.Parent == workspace and root then root.Position else nil
+	for _, p in Players:GetPlayers() do
+		local state = if Registry.PlayerService:IsAlive(p) then ObserverService:Proximity(p, pos) else "FAR"
+		if p:GetAttribute("ObserverProx") ~= state then
+			p:SetAttribute("ObserverProx", state)
+		end
+	end
+end
+
 function ObserverService:Start()
 	ensureModel()
 	-- sculpted meshes (if uploaded) load in the background; the rig built above
@@ -1155,8 +1201,13 @@ function ObserverService:Start()
 			end
 		end
 	end)
-	local acc = 0
+	local acc, proxAcc = 0, 0
 	RunService.Heartbeat:Connect(function(dt)
+		proxAcc += dt
+		if proxAcc >= 0.4 then
+			proxAcc = 0
+			pcall(updateProximity)
+		end
 		acc += dt
 		if acc < 0.12 then
 			return

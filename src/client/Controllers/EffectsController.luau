@@ -395,6 +395,8 @@ end
 
 local lastMicro = 0
 
+local PROX_FLOOR = { FAR = 0, AWARE = 0.1, NEAR = 0.3, VERY_NEAR = 0.6, HUNT = 0.45 }
+
 local function update(dt: number)
 	local camPos = Workspace.CurrentCamera.CFrame.Position
 	local m = observerModel()
@@ -406,6 +408,10 @@ local function update(dt: number)
 	local target = 0
 	if State.status == "ALIVE" and distance < 55 then
 		target = 1 - distance / 55
+	end
+	-- the server's proximity state is a floor: you feel it even through walls
+	if State.status == "ALIVE" then
+		target = math.max(target, PROX_FLOOR[State.prox] or 0)
 	end
 	presence += (target - presence) * Util.damp(2.5, dt)
 	-- fear: presence, the director's phase, darkness and escape

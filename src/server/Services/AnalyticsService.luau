@@ -118,6 +118,7 @@ function Analytics:SessionStart(player: Player)
 	self:Count("sessions")
 	self:Event(player, "SessionStart")
 	self:Onboarding(player, 1, "Joined")
+	self:Milestone(player, "SESSION_START")
 end
 
 function Analytics:RoundStart(players: { Player }, difficulty: string)
@@ -126,6 +127,9 @@ function Analytics:RoundStart(players: { Player }, difficulty: string)
 	for _, p in players do
 		self:Event(p, "RoundStart", #players, { difficulty = difficulty })
 		self:Funnel(p, 1, "RoundStart")
+		if difficulty == "NIGHTMARE" then
+			self:Milestone(p, "NIGHTMARE_START")
+		end
 	end
 end
 
@@ -136,6 +140,7 @@ function Analytics:RoundComplete(players: { Player }, duration: number, ending: 
 		if p.Parent then
 			self:Event(p, "RoundComplete", math.floor(duration), { ending = ending })
 			self:Funnel(p, 4, "RoundComplete")
+			self:Milestone(p, "GAME_OVER", math.floor(duration))
 		end
 	end
 end
@@ -143,6 +148,7 @@ end
 function Analytics:Death(player: Player, roundTime: number)
 	self:Count("deaths")
 	self:Event(player, "Death", math.floor(roundTime))
+	self:Milestone(player, "FIRST_DEATH", math.floor(roundTime))
 end
 
 function Analytics:Escape(player: Player, roundTime: number)
@@ -154,6 +160,7 @@ end
 function Analytics:AnomalyDiscovered(player: Player, anomalyId: string)
 	self:Count("anomaliesDiscovered")
 	self:Event(player, "AnomalyDiscovered", 1, { id = anomalyId })
+	self:Milestone(player, "FIRST_ANOMALY")
 end
 
 function Analytics:AnomalyMissed(_anomalyId: string)
@@ -163,6 +170,7 @@ end
 function Analytics:MonsterEncounter(player: Player)
 	self:Count("monsterEncounters")
 	self:Event(player, "MonsterEncounter")
+	self:Milestone(player, "FIRST_OBSERVER")
 	self:Funnel(player, 2, "MetObserver")
 end
 

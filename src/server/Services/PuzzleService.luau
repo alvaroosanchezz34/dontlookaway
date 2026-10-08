@@ -60,7 +60,12 @@ local function nearPlayers(position: Vector3, radius: number): { Player }
 end
 
 local function solved(kind: string, position: Vector3?)
-	Registry.ProgressionService:PuzzleSolved(kind, if position then nearPlayers(position, 80) else Registry.PlayerService:GetAlive())
+	local players = if position then nearPlayers(position, 80) else Registry.PlayerService:GetAlive()
+	Registry.ProgressionService:PuzzleSolved(kind, players)
+	for _, p in players do
+		Registry.AnalyticsService:Milestone(p, "FIRST_PUZZLE")
+		Registry.AnalyticsService:Milestone(p, "PUZZLE_COMPLETE")
+	end
 end
 
 local function isChosen(kind: string): boolean

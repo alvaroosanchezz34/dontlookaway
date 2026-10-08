@@ -238,6 +238,9 @@ local MIX = {
 -- beds that only exist while the building has power
 local POWERED_BEDS = { AmbientHum = true, Ventilation = true }
 
+-- how much of the ambience survives each proximity state
+local PROX_DUCK = { FAR = 1, AWARE = 0.85, NEAR = 0.6, VERY_NEAR = 0.3, HUNT = 0.7 }
+
 local function updateBeds(dt: number)
 	local z = zone()
 	local inMenu = State.status == "MENU"
@@ -266,6 +269,9 @@ local function updateBeds(dt: number)
 		if key ~= "EmergencyAlarm" and observer < 40 and State.status == "ALIVE" then
 			target *= 0.25 + 0.75 * (observer / 40)
 		end
+		if key ~= "EmergencyAlarm" and State.status == "ALIVE" then
+			target *= PROX_DUCK[State.prox] or 1
+		end
 		if workspace:GetAttribute("Escape") and z ~= "outside" then
 			-- during the escape the building's hum drains away
 			target *= if key == "AmbientDrone" then 1.2 else 0.3
@@ -288,7 +294,7 @@ local function distantLife()
 	if z ~= "building" and z ~= "basement" then
 		return
 	end
-	if State.observerDistance < 50 then
+	if State.observerDistance < 50 or State.prox ~= "FAR" then
 		return
 	end
 	local camera = Workspace.CurrentCamera
@@ -311,6 +317,13 @@ local function updateBody()
 		intensity = 1 - d / 60
 	end
 	intensity = math.max(intensity, State.fear * 0.8)
+	if State.prox == "HUNT" then
+		intensity = math.max(intensity, 0.6)
+	elseif State.prox == "VERY_NEAR" then
+		intensity = math.max(intensity, 0.55)
+	elseif State.prox == "NEAR" then
+		intensity = math.max(intensity, 0.3)
+	end
 	if State.status == "ALIVE" and intensity > 0.15 then
 		local interval = 1.3 - intensity * 0.75
 		if now - lastHeartbeat > interval then
