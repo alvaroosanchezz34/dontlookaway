@@ -6,6 +6,7 @@
 
 return {
 	Name = "Scene07_FinalWarning",
+	Category = "0 · ORIGINALS",
 	Description = "Countdown card",
 	Duration = 9.6,
 	Light = false, -- a black card: no fill light

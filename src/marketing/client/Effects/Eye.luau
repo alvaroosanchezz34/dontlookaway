@@ -487,7 +487,15 @@ function Eye.update(dt: number, clock: number)
 	end
 	local want = Vector2.zero
 	local target = s.lookTarget
-	if typeof(target) == "Vector2" then
+	if target == "follow" and s.anchor then
+		-- it watches the camera move: where the camera is, seen from the eye
+		local cam = Workspace.CurrentCamera.CFrame
+		local basis = (s :: any).basis or cam
+		;(s :: any).basis = basis
+		local rel = basis:VectorToObjectSpace(cam.Position - (s.anchor :: Vector3))
+		local dist = math.max(rel.Magnitude, 1)
+		want = Vector2.new(math.clamp(rel.X / dist * 2.6, -1, 1), math.clamp(-rel.Y / dist * 2.6, -1, 1))
+	elseif typeof(target) == "Vector2" then
 		want = target
 	elseif s.mode == "world" and s.part and typeof(target) == "Vector3" then
 		local cam = Workspace.CurrentCamera.CFrame
@@ -500,7 +508,9 @@ function Eye.update(dt: number, clock: number)
 	if s.drift then
 		want += Vector2.new(math.noise(clock * 0.7, 1.7) * 0.18, math.noise(clock * 0.6, 4.2) * 0.12)
 	end
-	s.look = s.look:Lerp(Vector2.new(math.clamp(want.X, -1, 1), math.clamp(want.Y, -1, 1)), math.min(1, dt * 7))
+	-- it follows slowly (and so keeps moving a moment after the camera stops)
+	local rate = if target == "follow" then 2.2 else 7
+	s.look = s.look:Lerp(Vector2.new(math.clamp(want.X, -1, 1), math.clamp(want.Y, -1, 1)), math.min(1, dt * rate))
 	Eye.render()
 end
 

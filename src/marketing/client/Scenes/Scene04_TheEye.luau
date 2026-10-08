@@ -14,6 +14,7 @@ local Sets = require(script.Parent.Parent.Effects.Sets)
 
 return {
 	Name = "Scene04_TheEye",
+	Category = "0 · ORIGINALS",
 	Description = "Key art: a door opens on the eye in the dark, scratched title",
 	Duration = 13,
 	Light = false, -- the hanging lamp is the only light

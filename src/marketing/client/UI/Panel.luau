@@ -35,6 +35,7 @@ local window: Frame? = nil
 local status: TextLabel? = nil
 local selected: string? = nil
 local sceneButtons: { [string]: TextButton } = {}
+local description: TextLabel? = nil
 local toggles: { [string]: TextButton } = {}
 local formatButton: TextButton? = nil
 local cameraButton: TextButton? = nil
@@ -102,6 +103,10 @@ local function refresh()
 	for name, b in sceneButtons do
 		b.BackgroundColor3 = if name == selected then C.active else C.button
 	end
+	if description and selected then
+		local info = controller.SceneInfo(selected)
+		description.Text = if info then string.format("%s  —  %s", info.Category, info.Description) else ""
+	end
 	if formatButton then
 		local preset = Format.Presets[state.format]
 		formatButton.Text = "Format: " .. (if preset then preset.label else state.format)
@@ -159,7 +164,7 @@ function Panel.mount(ctrl: any, config: any)
 	w.BorderSizePixel = 0
 	w.AnchorPoint = Vector2.new(0.5, 0.5)
 	w.Position = UDim2.fromScale(0.5, 0.5)
-	w.Size = UDim2.fromOffset(560, 420)
+	w.Size = UDim2.fromOffset(600, 720)
 	w.Visible = false
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = C.line
@@ -182,19 +187,94 @@ function Panel.mount(ctrl: any, config: any)
 	local hint = label(w, "Developer only · " .. config.ToggleKey.Name .. " or the 🎬 button to show/hide · hides itself while recording", 12, C.dim)
 	hint.LayoutOrder = 2
 
-	local scenes = row(w, 3, 120)
+	-- search + a scrolling list of every scene, grouped by category
+	local search = Instance.new("TextBox")
+	search.Name = "Search"
+	search.LayoutOrder = 3
+	search.Size = UDim2.new(1, 0, 0, 30)
+	search.BackgroundColor3 = C.button
+	search.BorderSizePixel = 0
+	search.ClearTextOnFocus = false
+	search.PlaceholderText = "Search scenes (name, category, words in the description)"
+	search.PlaceholderColor3 = C.dim
+	search.Text = ""
+	search.TextColor3 = C.text
+	search.Font = Enum.Font.Gotham
+	search.TextSize = 14
+	search.TextXAlignment = Enum.TextXAlignment.Left
+	local searchPad = Instance.new("UIPadding")
+	searchPad.PaddingLeft = UDim.new(0, 8)
+	searchPad.Parent = search
+	search.Parent = w
+
+	local sceneList = Instance.new("ScrollingFrame")
+	sceneList.Name = "Scenes"
+	sceneList.LayoutOrder = 4
+	sceneList.Size = UDim2.new(1, 0, 0, 300)
+	sceneList.BackgroundTransparency = 1
+	sceneList.BorderSizePixel = 0
+	sceneList.ScrollBarThickness = 6
+	sceneList.CanvasSize = UDim2.new()
+	sceneList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.Padding = UDim.new(0, 3)
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	listLayout.Parent = sceneList
+	sceneList.Parent = w
+
+	local headers: { [string]: TextLabel } = {}
+	local entries: { { name: string, button: TextButton, info: any } } = {}
+	local lastCategory = nil
 	for i, name in controller.ListScenes() do
-		local b = button(scenes, name, 170, function()
+		local info = controller.SceneInfo(name) or { Name = name, Category = "", Description = "", Duration = 0 }
+		if info.Category ~= lastCategory then
+			lastCategory = info.Category
+			local h = label(sceneList, string.upper(info.Category), 13, C.line)
+			h.LayoutOrder = i * 2 - 1
+			headers[info.Category] = h
+		end
+		local shortName = string.gsub(name, "^Scene_?", "")
+		local b = button(sceneList, string.format("%s   ·  %.0fs", shortName, info.Duration), 520, function()
 			selected = name
 			refresh()
 		end)
-		b.LayoutOrder = i
+		b.LayoutOrder = i * 2
 		b.TextSize = 13
+		b.TextXAlignment = Enum.TextXAlignment.Left
+		b.Size = UDim2.new(1, -10, 0, 26)
+		local bp = Instance.new("UIPadding")
+		bp.PaddingLeft = UDim.new(0, 8)
+		bp.Parent = b
 		sceneButtons[name] = b
+		table.insert(entries, { name = name, button = b, info = info })
 		selected = selected or name
 	end
+	local function applySearch()
+		local q = string.lower(search.Text)
+		local visibleCategories: { [string]: boolean } = {}
+		for _, e in entries do
+			local hay = string.lower(e.name .. " " .. e.info.Category .. " " .. e.info.Description)
+			local show = q == "" or string.find(hay, q, 1, true) ~= nil
+			e.button.Visible = show
+			if show then
+				visibleCategories[e.info.Category] = true
+			end
+		end
+		for category, h in headers do
+			h.Visible = visibleCategories[category] == true
+		end
+	end
+	search:GetPropertyChangedSignal("Text"):Connect(applySearch)
 
-	local transport = row(w, 4)
+	-- what the selected scene is
+	local desc = label(w, "", 13, C.text)
+	desc.LayoutOrder = 5
+	desc.TextWrapped = true
+	desc.Size = UDim2.new(1, 0, 0, 34)
+	desc.Font = Enum.Font.Gotham
+	description = desc
+
+	local transport = row(w, 6)
 	button(transport, "▶ PLAY", 120, function()
 		if not selected then
 			return
@@ -227,7 +307,7 @@ function Panel.mount(ctrl: any, config: any)
 		refresh()
 	end)
 
-	local lens = row(w, 5)
+	local lens = row(w, 7)
 	formatButton = button(lens, "Format", 130, function()
 		controller.SetFormat(nextOf(Format.Order, controller.GetFormat()))
 		refresh()
@@ -253,7 +333,7 @@ function Panel.mount(ctrl: any, config: any)
 		refresh()
 	end)
 
-	local opts = row(w, 6, 76)
+	local opts = row(w, 8, 76)
 	for i, spec in { { "HideHUD", "Hide HUD" }, { "HideCharacter", "Hide me" }, { "FreezeCharacter", "Freeze me" }, { "MuteGameAudio", "Mute game" }, { "Loop", "Loop" }, { "TimeScale", "Slow-mo" } } do
 		local key = spec[1]
 		local b = button(opts, spec[2], 120, function()
@@ -268,7 +348,7 @@ function Panel.mount(ctrl: any, config: any)
 		toggles[key] = b
 	end
 
-	local cinematic = row(w, 7)
+	local cinematic = row(w, 9)
 	button(cinematic, "Cinematic mode (all on)", 250, function()
 		for _, key in { "HideHUD", "HideCharacter", "FreezeCharacter", "MuteGameAudio", "HidePanelWhilePlaying" } do
 			controller.SetOption(key, true)
@@ -277,7 +357,7 @@ function Panel.mount(ctrl: any, config: any)
 	end)
 
 	status = label(w, "", 14, C.dim)
-	;(status :: TextLabel).LayoutOrder = 8
+	;(status :: TextLabel).LayoutOrder = 10
 
 	g.Parent = playerGui
 

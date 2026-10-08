@@ -681,7 +681,14 @@ do
 	local Panel = requireModule(mRoot.UI.Panel)
 	local Config = requireModule(RS.Marketing.MarketingConfig)
 	local scenes = MC.ListScenes()
-	check(#scenes == 8, "eight scenes (" .. #scenes .. ")")
+	check(#scenes >= 54, "all scenes registered (" .. #scenes .. ")")
+	local seenNames = {}
+	for _, n in scenes do
+		check(not seenNames[n], "unique scene name " .. n)
+		seenNames[n] = true
+		local info = MC.SceneInfo(n)
+		check(info ~= nil and info.Category ~= "" and #info.Description > 10 and info.Duration >= 4 and info.Duration <= 20, "scene info " .. n)
+	end
 	-- every action used by a scene exists
 	for _, name in scenes do
 		local def = MC.GetScene(name)
@@ -883,6 +890,25 @@ do
 	end
 	MC.StopScene()
 	check(not MC.IsPlaying() and Runtime.isClean(), "stop mid-scene cleans everything")
+	-- switching scenes mid-way: the first is cleaned before the second starts
+	MC.PlayScene("Scene_CCTV_TimeLoop")
+	for _ = 1, 60 do
+		renderFns.MarketingStudio(1 / 30)
+	end
+	MC.PlayScene("Scene_TheRoomIsWatching")
+	check(MC.GetState().scene == "Scene_TheRoomIsWatching" and MC.GetState().clock == 0, "switching scene starts the new one")
+	local sets = 0
+	for _, c in (workspace:FindFirstChild("MarketingRuntime") or Instance.new("Folder")):GetChildren() do
+		if string.sub(c.Name, 1, 4) == "Set_" then
+			sets += 1
+		end
+	end
+	check(sets == 1, "only the new scene's set exists after switching (" .. sets .. ")")
+	for _ = 1, 45 do
+		renderFns.MarketingStudio(1 / 30)
+	end
+	MC.StopScene()
+	check(Runtime.isClean(), "stop after a switch cleans everything")
 	MC.CleanupMarketingScene()
 	MC.CleanupMarketingScene()
 	check(Runtime.isClean(), "cleanup is idempotent")

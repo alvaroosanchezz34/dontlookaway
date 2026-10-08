@@ -6,6 +6,7 @@
 
 return {
 	Name = "Scene06_TheHallway",
+	Category = "0 · ORIGINALS",
 	Description = "Something at the end of the corridor",
 	Duration = 12,
 	Build = function(L)

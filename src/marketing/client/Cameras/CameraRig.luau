@@ -127,7 +127,7 @@ local function targetPosition(): Vector3?
 		return t
 	elseif typeof(t) == "Instance" then
 		if t:IsA("BasePart") then
-			return t.Position
+			return t.CFrame.Position
 		elseif t:IsA("Model") then
 			return t:GetPivot().Position
 		elseif t:IsA("Attachment") then

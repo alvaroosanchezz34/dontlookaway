@@ -8,6 +8,7 @@
 
 return {
 	Name = "Scene08_Launch",
+	Category = "0 · ORIGINALS",
 	Description = "Launch trailer cut: building, door, eye, CCTV, title",
 	Duration = 18.5,
 	Build = function(L, Config)

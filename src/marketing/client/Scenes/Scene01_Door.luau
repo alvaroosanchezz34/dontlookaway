@@ -6,6 +6,7 @@
 
 return {
 	Name = "Scene01_Door",
+	Category = "0 · ORIGINALS",
 	Description = "A door that is not quite shut",
 	Duration = 9.6,
 	Build = function(L)

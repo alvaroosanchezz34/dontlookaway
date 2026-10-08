@@ -6,6 +6,7 @@
 
 return {
 	Name = "Scene02_DidYouSeeIt",
+	Category = "0 · ORIGINALS",
 	Description = "A few frames of the eye in an ordinary room",
 	Duration = 9.8,
 	Build = function(L)

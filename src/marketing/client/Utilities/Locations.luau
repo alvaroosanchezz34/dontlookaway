@@ -179,6 +179,21 @@ function Locations.cctvShot(floorId: string?): (CFrame, Vector3, Vector3)
 	return CFrame.lookAt(corner, look), (ref * CFrame.new(3, 0, -26)).Position, (ref * CFrame.new(-3, 0, -8)).Position
 end
 
+-- A point on a corridor's side wall (fraction 0..1 along it; side 1 / -1),
+-- facing into the corridor, at floor level.
+function Locations.corridorWall(floorId: string?, fraction: number, side: number?): CFrame
+	local b = Locations.room((floorId or "G") .. "_c")
+	if b then
+		local x = b.min.X + (b.max.X - b.min.X) * fraction
+		local z = b.center.Z + (side or 1) * (b.size.Z / 2 - 0.05)
+		local p = Vector3.new(x, b.floorY, z)
+		return CFrame.lookAt(p, Vector3.new(x, b.floorY, b.center.Z))
+	end
+	local ref = Locations.reference()
+	local p = (ref * CFrame.new((side or 1) * 4, 0, -30 * fraction)).Position
+	return CFrame.lookAt(p, (ref * CFrame.new(0, 0, -30 * fraction)).Position)
+end
+
 -- The nearest mirror's glass (a reflective surface for messages), or nil.
 function Locations.mirror(): BasePart?
 	local best, bestD = nil, math.huge

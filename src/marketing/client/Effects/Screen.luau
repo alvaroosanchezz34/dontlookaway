@@ -23,6 +23,7 @@ local nodes: { [string]: any } = {}
 local grade: ColorCorrectionEffect? = nil
 local blur: BlurEffect? = nil
 local random = Random.new()
+local staticAlpha = 0
 
 Screen.Grades = {
 	neutral = { Brightness = 0, Contrast = 0.05, Saturation = -0.1, TintColor = Color3.new(1, 1, 1) },
@@ -63,6 +64,7 @@ end
 function Screen.begin()
 	local gui = Runtime.gui()
 	table.clear(nodes)
+	staticAlpha = 0
 	nodes.root = gui
 	nodes.safe = frame(gui, "Safe", { ZIndex = 1, ClipsDescendants = true })
 	nodes.vignette = frame(nodes.safe, "Vignette", { ZIndex = 2 })
@@ -296,6 +298,48 @@ function Screen.updateCCTV(clock: number, stamp: string?)
 		for _, d in grain:GetChildren() do
 			(d :: Frame).Position = UDim2.fromScale(random:NextNumber(), random:NextNumber())
 		end
+	end
+end
+
+------------------------------------------------------------------------------------
+-- Static: a lost signal (grey snow over the frame), 0 = none, 1 = full
+------------------------------------------------------------------------------------
+
+function Screen.setStatic(alpha: number)
+	local fx = nodes.fx
+	if not fx then
+		return
+	end
+	staticAlpha = math.clamp(alpha, 0, 1)
+	local layer = fx:FindFirstChild("Static")
+	if staticAlpha <= 0 then
+		if layer then
+			layer:Destroy()
+		end
+		return
+	end
+	if not layer then
+		layer = frame(fx, "Static", { ZIndex = 9, BackgroundColor3 = Color3.fromRGB(70, 70, 72) })
+		for i = 1, 90 do
+			frame(layer, "Snow" .. i, { ZIndex = 9, BackgroundColor3 = Color3.new(1, 1, 1) })
+		end
+	end
+	layer.BackgroundTransparency = 1 - staticAlpha * 0.85
+end
+
+function Screen.updateStatic()
+	local fx = nodes.fx
+	local layer = fx and fx:FindFirstChild("Static")
+	if not layer then
+		return
+	end
+	for _, d in layer:GetChildren() do
+		local f = d :: Frame
+		local tone = random:NextNumber()
+		f.BackgroundColor3 = Color3.new(tone, tone, tone)
+		f.BackgroundTransparency = 1 - staticAlpha * random:NextNumber(0.3, 0.9)
+		f.Position = UDim2.fromScale(random:NextNumber(-0.1, 1), random:NextNumber())
+		f.Size = UDim2.fromScale(random:NextNumber(0.05, 0.4), random:NextNumber(0.004, 0.02))
 	end
 end
 

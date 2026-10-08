@@ -173,4 +173,157 @@ function Sets.doorway(origin: CFrame?)
 	}
 end
 
+--[[
+	Sets.room(): a lived-in room for the figure / reflection / sound scenes.
+	Plaster walls, wooden floor, one ceiling lamp, and:
+	  back wall  (z-): a window onto a faint blue night (something can stand there)
+	  left wall  (x-): a mirror
+	  right wall (x+): a door onto black
+	  furniture: chair, table, cabinet, a picture
+	Returns refs and camera helpers. Origin = floor centre, +Z towards the
+	camera's usual side.
+]]
+function Sets.room(origin: CFrame?)
+	local o = origin or (Sets.Origin * CFrame.new(120, 0, 0))
+	local m = Instance.new("Model")
+	m.Name = "Set_Room"
+	local plaster = Color3.fromRGB(150, 144, 132)
+	local trim = Color3.fromRGB(70, 60, 50)
+	local black = Color3.new(0, 0, 0)
+	local H = 13
+	part(m, "Floor", Vector3.new(26, 1, 26), o * CFrame.new(0, -0.5, 0), Color3.fromRGB(78, 62, 48), Enum.Material.WoodPlanks)
+	part(m, "Ceiling", Vector3.new(26, 1, 26), o * CFrame.new(0, H + 0.5, 0), Color3.fromRGB(120, 116, 108), Enum.Material.Plaster)
+	-- back wall with a window opening (x -2.5..2.5, y 4..10)
+	part(m, "BackL", Vector3.new(10.5, H, 1), o * CFrame.new(-7.75, H / 2, -12.5), plaster, Enum.Material.Plaster)
+	part(m, "BackR", Vector3.new(10.5, H, 1), o * CFrame.new(7.75, H / 2, -12.5), plaster, Enum.Material.Plaster)
+	part(m, "BackLow", Vector3.new(5, 4, 1), o * CFrame.new(0, 2, -12.5), plaster, Enum.Material.Plaster)
+	part(m, "BackHigh", Vector3.new(5, H - 10, 1), o * CFrame.new(0, 10 + (H - 10) / 2, -12.5), plaster, Enum.Material.Plaster)
+	part(m, "Sill", Vector3.new(5.6, 0.25, 1.4), o * CFrame.new(0, 3.95, -12.1), trim, Enum.Material.Wood)
+	local glass = part(m, "WindowGlass", Vector3.new(5, 6, 0.1), o * CFrame.new(0, 7, -12.6), Color3.fromRGB(40, 48, 58), Enum.Material.Glass, { Transparency = 0.55, Reflectance = 0.15 })
+	part(m, "Mullion", Vector3.new(0.16, 6, 0.16), o * CFrame.new(0, 7, -12.5), trim, Enum.Material.Wood)
+	-- outside: a faint blue night so a silhouette reads against it
+	local night = part(m, "Night", Vector3.new(26, 20, 1), o * CFrame.new(0, 6, -22), Color3.fromRGB(36, 44, 62), Enum.Material.SmoothPlastic)
+	local sky = Instance.new("SurfaceLight")
+	sky.Face = Enum.NormalId.Front
+	sky.Color = Color3.fromRGB(120, 140, 190)
+	sky.Brightness = 0.6
+	sky.Range = 12
+	sky.Parent = night
+	night.CFrame = CFrame.lookAt(night.CFrame.Position, (o * CFrame.new(0, 6, 0)).Position)
+	part(m, "OutsideGround", Vector3.new(26, 1, 10), o * CFrame.new(0, -0.5, -17.5), Color3.fromRGB(16, 18, 20), Enum.Material.Concrete)
+	part(m, "OutsideL", Vector3.new(1, 20, 10), o * CFrame.new(-13, 6, -17.5), black, Enum.Material.SmoothPlastic)
+	part(m, "OutsideR", Vector3.new(1, 20, 10), o * CFrame.new(13, 6, -17.5), black, Enum.Material.SmoothPlastic)
+	part(m, "OutsideTop", Vector3.new(26, 1, 10), o * CFrame.new(0, 16, -17.5), black, Enum.Material.SmoothPlastic)
+	-- left wall with a mirror
+	part(m, "Left", Vector3.new(1, H, 26), o * CFrame.new(-12.5, H / 2, 0), plaster, Enum.Material.Plaster)
+	local mirrorCf = o * CFrame.new(-11.9, 6.6, 2) * CFrame.Angles(0, math.rad(-90), 0) -- faces +X
+	part(m, "MirrorFrame", Vector3.new(3.6, 4.6, 0.12), mirrorCf * CFrame.new(0, 0, 0.06), Color3.fromRGB(58, 56, 54), Enum.Material.Metal)
+	local mirror = part(m, "MirrorGlass", Vector3.new(3.2, 4.2, 0.06), mirrorCf * CFrame.new(0, 0, -0.04), Color3.fromRGB(70, 78, 84), Enum.Material.Glass, { Reflectance = 0.55 })
+	-- right wall with a door onto black
+	part(m, "RightA", Vector3.new(1, H, 11.3), o * CFrame.new(12.5, H / 2, -6.35), plaster, Enum.Material.Plaster)
+	part(m, "RightB", Vector3.new(1, H, 9.3), o * CFrame.new(12.5, H / 2, 8.35), plaster, Enum.Material.Plaster)
+	part(m, "RightTop", Vector3.new(1, H - 9.4, 4.4), o * CFrame.new(12.5, 9.4 + (H - 9.4) / 2, 1.5), plaster, Enum.Material.Plaster)
+	part(m, "DoorVoid", Vector3.new(1, 10, 6), o * CFrame.new(16, 5, 1.5), black, Enum.Material.SmoothPlastic)
+	local door = Instance.new("Model")
+	door.Name = "Door"
+	local hinge = o * CFrame.new(12.55, 4.7, -0.7) -- hinge at the back edge of the opening
+	local leafCf = hinge * CFrame.new(0, 0, 2.2) * CFrame.Angles(0, math.rad(90), 0)
+	local leaf = part(door, "Leaf", Vector3.new(4.32, 9.3, 0.2), leafCf, Color3.fromRGB(62, 52, 44), Enum.Material.WoodPlanks)
+	local knob = part(door, "Knob", Vector3.new(0.3, 0.3, 0.3), leafCf * CFrame.new(1.7, -0.4, 0.2), Color3.fromRGB(150, 130, 90), Enum.Material.Metal)
+	knob:SetAttribute("Offset", leafCf:ToObjectSpace(knob.CFrame))
+	door.PrimaryPart = leaf
+	door:SetAttribute("ClosedCFrame", leafCf)
+	door:SetAttribute("OpenCFrame", hinge * CFrame.Angles(0, math.rad(80), 0) * CFrame.new(0, 0, 2.2) * CFrame.Angles(0, math.rad(90), 0))
+	door.Parent = m
+	-- front wall (behind the usual camera)
+	part(m, "Front", Vector3.new(26, H, 1), o * CFrame.new(0, H / 2, 12.5), plaster, Enum.Material.Plaster)
+	-- skirting
+	for i, spec in { { 0, -11.95, 24, 0.2 }, { 0, 11.95, 24, 0.2 } } do
+		part(m, "Skirt" .. i, Vector3.new(spec[3], 0.5, spec[4]), o * CFrame.new(spec[1], 0.25, spec[2]), trim, Enum.Material.Wood)
+	end
+	-- furniture
+	local chair = Instance.new("Model")
+	chair.Name = "Chair"
+	local chairCf = o * CFrame.new(-4, 0, -5) * CFrame.Angles(0, math.rad(20), 0)
+	local seat = part(chair, "Seat", Vector3.new(2, 0.25, 2), chairCf * CFrame.new(0, 2, 0), trim, Enum.Material.Wood)
+	for _, l in { { -0.85, -0.85 }, { 0.85, -0.85 }, { -0.85, 0.85 }, { 0.85, 0.85 } } do
+		part(chair, "Leg", Vector3.new(0.2, 2, 0.2), chairCf * CFrame.new(l[1], 1, l[2]), trim, Enum.Material.Wood)
+	end
+	part(chair, "Back", Vector3.new(2, 2.4, 0.2), chairCf * CFrame.new(0, 3.3, 0.9), trim, Enum.Material.Wood)
+	chair.PrimaryPart = seat
+	chair.Parent = m
+	part(m, "TableTop", Vector3.new(5, 0.3, 3), o * CFrame.new(4, 3, -6), Color3.fromRGB(86, 70, 54), Enum.Material.Wood)
+	for _, l in { { 1.7, -6 - 1.2 }, { 6.3, -6 - 1.2 }, { 1.7, -6 + 1.2 }, { 6.3, -6 + 1.2 } } do
+		part(m, "TableLeg", Vector3.new(0.3, 3, 0.3), o * CFrame.new(l[1], 1.5, l[2]), trim, Enum.Material.Wood)
+	end
+	part(m, "Cabinet", Vector3.new(3, 6, 2), o * CFrame.new(9.5, 3, -10.4), Color3.fromRGB(70, 66, 60), Enum.Material.Wood)
+	part(m, "Picture", Vector3.new(3, 2.2, 0.12), o * CFrame.new(-6, 7.5, -11.95), Color3.fromRGB(40, 36, 32), Enum.Material.Wood)
+	part(m, "PictureCanvas", Vector3.new(2.6, 1.8, 0.05), o * CFrame.new(-6, 7.5, -11.87), Color3.fromRGB(96, 104, 92), Enum.Material.Fabric)
+	-- the lamp
+	local bulb = part(m, "Bulb", Vector3.new(0.9, 0.9, 0.9), o * CFrame.new(0, H - 1.6, -1), Color3.fromRGB(255, 240, 214), Enum.Material.Neon, { Shape = Enum.PartType.Ball, CastShadow = false })
+	part(m, "Cord", Vector3.new(0.06, 1.2, 0.06), o * CFrame.new(0, H - 0.6, -1), Color3.fromRGB(10, 10, 10), Enum.Material.SmoothPlastic)
+	local light = Instance.new("PointLight")
+	light.Range = 30
+	light.Brightness = 1.6
+	light.Color = Color3.fromRGB(255, 232, 205)
+	light.Shadows = true
+	light.Parent = bulb
+
+	m.Parent = Runtime.folder()
+	local function at(x: number, y: number, z: number): Vector3
+		return (o * CFrame.new(x, y, z)).Position
+	end
+	return {
+		model = m,
+		origin = o,
+		door = door,
+		chair = chair,
+		mirror = mirror,
+		mirrorCf = mirrorCf,
+		window = glass,
+		outsideFeet = CFrame.lookAt(at(0, 0, -15.5), at(0, 0, 0)),
+		lamp = { bulb = bulb, light = light },
+		at = at,
+		-- named camera positions (all look at sensible points)
+		shot = function(name: string): CFrame
+			if name == "window" then
+				return CFrame.lookAt(at(1.5, 5.6, 6), at(0, 6.4, -12.5))
+			elseif name == "mirror" then
+				return CFrame.lookAt(at(4, 5.8, 8), at(-12, 6.4, 2))
+			elseif name == "door" then
+				return CFrame.lookAt(at(-3, 5.6, 6), at(12.5, 5, 1.5))
+			elseif name == "corner" then
+				return CFrame.lookAt(at(10.5, 11, 10.5), at(-2, 2, -4))
+			elseif name == "left" then
+				return CFrame.lookAt(at(-8, 5.6, 9), at(-8, 5, -12))
+			elseif name == "right" then
+				return CFrame.lookAt(at(8, 5.6, 9), at(8, 5, -12))
+			end
+			return CFrame.lookAt(at(0, 5.6, 10), at(0, 5, -12))
+		end,
+	}
+end
+
+--[[
+	Sets.cctvCamera(cf): a wall-mounted security camera (housing, lens, red
+	LED) as a model whose pivot is the mount; rotate it with MoveObject.
+]]
+function Sets.cctvCamera(cf: CFrame): Model
+	local m = Instance.new("Model")
+	m.Name = "SecurityCamera"
+	local mount = part(m, "Mount", Vector3.new(0.5, 0.5, 0.5), cf, Color3.fromRGB(60, 60, 62), Enum.Material.Metal)
+	part(m, "Arm", Vector3.new(0.18, 0.18, 0.8), cf * CFrame.new(0, 0, -0.5), Color3.fromRGB(60, 60, 62), Enum.Material.Metal)
+	part(m, "Housing", Vector3.new(0.9, 0.8, 1.8), cf * CFrame.new(0, -0.1, -1.6), Color3.fromRGB(200, 200, 196), Enum.Material.SmoothPlastic)
+	part(m, "Lens", Vector3.new(0.4, 0.55, 0.55), cf * CFrame.new(0, -0.1, -2.55) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(10, 10, 12), Enum.Material.Glass, { Shape = Enum.PartType.Cylinder, Reflectance = 0.4 })
+	local led = part(m, "LED", Vector3.new(0.12, 0.12, 0.12), cf * CFrame.new(0.32, 0.22, -2.45), Color3.fromRGB(255, 30, 30), Enum.Material.Neon, { Shape = Enum.PartType.Ball })
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(255, 40, 40)
+	glow.Range = 3
+	glow.Brightness = 1
+	glow.Parent = led
+	m.PrimaryPart = mount
+	m.Parent = Runtime.folder()
+	return m
+end
+
 return Sets

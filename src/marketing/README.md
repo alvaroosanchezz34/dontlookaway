@@ -264,3 +264,70 @@ Para regenerarlas:
 python3 tools/gen_eye.py
 python3 tools/gen_title.py
 ```
+
+## 12. Catálogo de escenas (54)
+
+En el panel (F7, F6 o 🎬) las escenas salen **agrupadas por categoría**, con su duración. Al elegir una se muestra su descripción, y el buscador filtra por nombre, categoría o palabras de la descripción.
+
+| Categoría | Archivo | Escenas | Dónde ocurre |
+|---|---|---|---|
+| 0 · ORIGINALS | `Scenes/Scene01…08` | Door, DidYouSeeIt, CAM04, TheEye, TheMessage, TheHallway, FinalWarning, Launch | mapa o decorados |
+| A · THE EYE | `Scenes/A_TheEye.luau` | EyeInTheDark, EyeBehindDoor, EyeTracksCamera, TheWrongBlink, EyeInTheReflection, EyeAppearsForOneFrame | decorado puerta / habitación |
+| B · CCTV | `Scenes/B_CCTV.luau` | CAM04_Anomaly, CAM07_ImpossibleMovement, CCTV_LookBehindYou, CCTV_TheExtraPerson, CCTV_TheCameraTurns, CCTV_TimeLoop | pasillo del mapa / habitación |
+| C · DOORS & HALLWAYS | `Scenes/C_DoorsHallways.luau` | DoorOpensByItself, SomethingAtTheEnd, TheDoorWasOpen, TheHallwayChanges, TheDoorBehindYou, TheEndlessHallway | decorado puerta / pasillos del mapa |
+| D · FIGURES | `Scenes/D_Figures.luau` | TheFigureAtTheWindow, TheFigureDoesNotMove, TheEmptyRoom, TheObserverIsWatching, TheFigureBehindTheCamera, TheWrongShadow, TheRoomIsWatching | habitación / pasillo |
+| E · MESSAGES | `Scenes/E_Messages.luau` | DontLookAway, TheMessageChanges, ThisVideoIsWrong, TheCameraNoticesYou, YouMissedSomething, TheFinalWarning | negro / habitación / pasillo |
+| F · SOUND | `Scenes/F_Sound.luau` | TheBreathingRoom, FootstepsApproaching, TheSilence, WhisperFromTheWall, TheSoundFollows | habitación / pasillo |
+| G · MICRO (4–6 s) | `Scenes/G_Micro.luau` | MicroEyeReveal, MicroDoorMovement, MicroCAM04, MicroShadow, MicroFigureBehindCamera, MicroOneFrameAnomaly, MicroFinalWarning, MicroDidYouSeeIt, MicroTheWrongReflection, MicroTheDoorWasOpen | todas |
+
+**Dónde graban:**
+
+- **Decorados** (`Effects/Sets.luau`): no necesitan ronda y siempre se ven igual.
+  - `doorway`: la puerta del póster con la lámpara colgante.
+  - `room`: una habitación con ventana a la noche, espejo, puerta a negro, silla, mesa y lámpara.
+- **Pasillos del mapa:** con una ronda en marcha usan el pasillo real de Ashgrove (F8 → Start round, mejor en ARRIVAL). Sin ronda, un decorado virtual.
+
+**Qué reutiliza cada categoría:**
+
+| Categoría | Recursos |
+|---|---|
+| A | El ojo (capas `EyeImages`, o el ojo dibujado si no cargan), la lámpara del decorado, sonidos `ObserverInhale` / `ObserverSting` |
+| B | Overlay CCTV (12 fps, REC, reloj), el Observer (`ObserverRig`, copia local), la copia de tu avatar, la cámara de seguridad física (`Sets.cctvCamera`), estática de señal perdida |
+| C | Puertas reales del mapa (se mueven solo en tu pantalla y vuelven a su sitio), `LightController` para el parpadeo real, `Doors.prop` para la puerta que aparece |
+| D | Observer, sombras de pared (`Figures.shadow`), brillos de ojos (`Figures.shine`), maniquíes |
+| E | Títulos, texto en pared, título rayado (`TitleImage`), ojo |
+| F | Audio 3D de la librería del juego: `Breath`, `StepConcrete`, `Whisper`, `KnockDoor`, `FootstepsBehind`… |
+| G | Todo lo anterior, en versión corta |
+
+**Acciones nuevas:**
+
+| Acción | Qué hace |
+|---|---|
+| `PlaceObject` | Mueve una figura u objeto al instante |
+| `AdoptObject` | Hace movible una pieza del decorado |
+| `Static` | Nieve de señal perdida |
+| `FreezeFrame` | Congela la imagen |
+| `EyeLook` `target = "follow"` | El ojo sigue a la cámara, con retardo |
+| `SpawnEffect` | Nuevos `kind`: `shadow`, `shine` y `actor` |
+
+**Añadir más escenas:** crea un módulo en `Scenes/` (una escena, o un paquete `{ Category = "...", Scenes = { ... } }`) y aparece solo en el panel. Los atajos comunes están en `Utilities/Shots.luau`: `open`, `room`, `doorway`, `cctv`, `black`, `cut`, `steps`, `knocks`, `behind` y `turn`.
+
+**Pruebas realizadas** (`tools/client_test.luau`, Lune, sin Roblox):
+
+- las 54 escenas se registran con nombre único, categoría, descripción y duración;
+- cada una se ejecuta entera sin mapa y otra vez con un edificio de prueba, sin eventos fallidos;
+- después de cada escena se comprueba que iluminación, cámara, GUI, sonido y `MarketingRuntime` vuelven a su estado;
+- se prueba pausa, reanudar, cámara lenta, reiniciar, parar a mitad, cambiar de escena a mitad y la limpieza repetida.
+
+**Hay que comprobar a mano en Roblox Studio** (los tests no ven píxeles ni oyen):
+
+- encuadre y luz de cada escena;
+- que el ojo de imágenes cargue: mira la línea `[Marketing] images: X/8 loaded` del Output;
+- volumen y dirección de los sonidos;
+- que la copia de tu avatar camine bien con tu tipo de rig.
+
+**Limitaciones conocidas:**
+
+- Roblox no refleja la escena en espejos ni ventanas. Los "reflejos" se simulan con el ojo anclado y con siluetas sobre el cristal.
+- Las sombras de pared son siluetas dibujadas, no sombras proyectadas.
+- No se han inventado assets. Lo que no existía (cámara de seguridad, sombras, brillos, decorados) se construye con piezas.

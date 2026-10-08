@@ -67,28 +67,75 @@ local function scenesFolder(): Instance
 	return script.Parent:WaitForChild("Scenes")
 end
 
-function MarketingController.ListScenes(): { string }
-	local list = {}
-	for _, m in scenesFolder():GetChildren() do
+--[[
+	Scene registry. A ModuleScript in Scenes/ is either one scene
+	  { Name, Category?, Description, Duration, Build }
+	or a pack of them
+	  { Category = "A · THE EYE", Scenes = { scene, scene, ... } }
+	(a pack's Category applies to the scenes that do not set their own).
+]]
+local registry: { [string]: any }? = nil
+local order: { string } = {}
+
+local function loadRegistry()
+	if registry then
+		return registry
+	end
+	local reg = {}
+	table.clear(order)
+	local modules = scenesFolder():GetChildren()
+	table.sort(modules, function(a, b)
+		return a.Name < b.Name
+	end)
+	for _, m in modules do
 		if m:IsA("ModuleScript") then
-			table.insert(list, m.Name)
+			local ok, def = pcall(require, m)
+			if not ok or type(def) ~= "table" then
+				warn("[Marketing] scene module " .. m.Name .. " failed to load: " .. tostring(def))
+			else
+				local list = if type(def.Scenes) == "table" then def.Scenes else { def }
+				for _, scene in list do
+					scene.Name = scene.Name or m.Name
+					scene.Category = scene.Category or def.Category or "ORIGINALS"
+					if reg[scene.Name] then
+						warn("[Marketing] duplicate scene name " .. scene.Name .. " (in " .. m.Name .. ")")
+					else
+						reg[scene.Name] = scene
+						table.insert(order, scene.Name)
+					end
+				end
+			end
 		end
 	end
-	table.sort(list)
+	registry = reg
+	return reg
+end
+
+-- Scene names, grouped by category (in category order) then by name.
+function MarketingController.ListScenes(): { string }
+	local reg = loadRegistry()
+	local list = table.clone(order)
+	table.sort(list, function(a, b)
+		local ca, cb = reg[a].Category, reg[b].Category
+		if ca ~= cb then
+			return ca < cb
+		end
+		return a < b
+	end)
 	return list
 end
 
 function MarketingController.GetScene(name: string): any
-	local m = scenesFolder():FindFirstChild(name)
-	if not m or not m:IsA("ModuleScript") then
+	return loadRegistry()[name]
+end
+
+-- { Name, Category, Description, Duration } for the panel.
+function MarketingController.SceneInfo(name: string): any
+	local def = loadRegistry()[name]
+	if not def then
 		return nil
 	end
-	local ok, def = pcall(require, m)
-	if not ok then
-		warn("[Marketing] scene " .. name .. " failed to load: " .. tostring(def))
-		return nil
-	end
-	return def
+	return { Name = def.Name, Category = def.Category, Description = def.Description or "", Duration = def.Duration or 10 }
 end
 
 ------------------------------------------------------------------------------------
@@ -202,6 +249,9 @@ local FRAME_JOBS = {
 	{ "grain", function()
 		Screen.updateGrain()
 	end },
+	{ "static", function()
+		Screen.updateStatic()
+	end },
 	{ "cctv", function(tl)
 		if tl.data.cctvClock then
 			local secs = tl.data.cctvStart + (tl.clock - tl.data.cctvClock)
@@ -221,6 +271,9 @@ local function step(dt: number)
 		local scaled = dt * tl.speed
 		-- each per-frame layer is isolated: one failing never stops the others
 		for _, job in FRAME_JOBS do
+			if tl.data.frozen and job[1] ~= "titles" and job[1] ~= "static" then
+				continue
+			end
 			local ok, err = pcall(job[2], tl, scaled)
 			if not ok and not tl.data["warned_" .. job[1]] then
 				tl.data["warned_" .. job[1]] = true
@@ -338,7 +391,7 @@ function MarketingController.PlayScene(name: string): (boolean, string?)
 	end
 	-- fill light (scenes on a black card set Light = false)
 	if def.Light ~= false then
-		LightFX.fill(options.Light or 3)
+		LightFX.fill(if type(def.Light) == "number" then def.Light else (options.Light or 3))
 	end
 	if options.FreezeCharacter then
 		freezeCharacter()

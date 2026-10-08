@@ -9,6 +9,7 @@
 
 return {
 	Name = "Scene03_CAM04",
+	Category = "0 · ORIGINALS",
 	Description = "Security footage: someone who is no longer there",
 	Duration = 12,
 	Build = function(L)

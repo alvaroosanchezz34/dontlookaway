@@ -236,6 +236,86 @@ function Figures.entity(name: string, feet: CFrame, opts: { [string]: any }?): F
 	return f
 end
 
+--[[
+	A shadow on a wall with nothing to cast it: a soft human silhouette drawn
+	on a sheet against the surface. `wallCf` faces out of the wall (front =
+	LookVector); feet at the bottom edge. Moves with MoveObject like a figure.
+]]
+function Figures.shadow(name: string, wallCf: CFrame, opts: { [string]: any }?): Figure
+	opts = opts or {}
+	Figures.remove(name)
+	local height = opts.height or 8
+	local m = Instance.new("Model")
+	m.Name = "Shadow_" .. name
+	local sheet = part(m, "Sheet", Vector3.new(height * 0.45, height, 0.05), Color3.new(0, 0, 0), Enum.Material.SmoothPlastic)
+	sheet.Transparency = 1
+	sheet.CastShadow = false
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.LightInfluence = 0
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.Parent = sheet
+	local function blob(x: number, y: number, w: number, h: number, round: number)
+		local f = Instance.new("Frame")
+		f.BorderSizePixel = 0
+		f.BackgroundColor3 = Color3.new(0, 0, 0)
+		f.BackgroundTransparency = opts.transparency or 0.45
+		f.AnchorPoint = Vector2.new(0.5, 0)
+		f.Position = UDim2.fromScale(x, y)
+		f.Size = UDim2.fromScale(w, h)
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(round, 0)
+		c.Parent = f
+		f.Parent = gui
+	end
+	blob(0.5, 0.0, 0.34, 0.13, 0.5) -- head
+	blob(0.5, 0.12, 0.2, 0.05, 0.3) -- neck
+	blob(0.5, 0.15, 0.78, 0.4, 0.25) -- shoulders and body
+	blob(0.31, 0.2, 0.16, 0.42, 0.5) -- arms (long)
+	blob(0.69, 0.2, 0.16, 0.42, 0.5)
+	blob(0.4, 0.52, 0.2, 0.48, 0.4) -- legs
+	blob(0.6, 0.52, 0.2, 0.48, 0.4)
+	m.PrimaryPart = sheet
+	local f: Figure = { model = m, kind = "shadow", feet = wallCf, phase = 0, parts = {}, offset = CFrame.new(0, height / 2, -0.03) }
+	m:PivotTo(wallCf * (f.offset :: CFrame))
+	m.Parent = Runtime.folder()
+	figures[name] = f
+	return f
+end
+
+-- A pair of eyeshine dots in the dark (two tiny glowing points).
+function Figures.shine(name: string, at: CFrame, opts: { [string]: any }?): Figure
+	opts = opts or {}
+	Figures.remove(name)
+	local m = Instance.new("Model")
+	m.Name = "Shine_" .. name
+	local color = opts.color or Color3.fromRGB(255, 236, 200)
+	local size = opts.size or 0.14
+	local gap = opts.gap or 0.42
+	local left = part(m, "EyeL", Vector3.new(size, size, size), color, Enum.Material.Neon)
+	local right = part(m, "EyeR", Vector3.new(size, size, size), color, Enum.Material.Neon)
+	left.Shape = Enum.PartType.Ball
+	right.Shape = Enum.PartType.Ball
+	left.CastShadow, right.CastShadow = false, false
+	left.CFrame = at * CFrame.new(-gap / 2, 0, 0)
+	right.CFrame = at * CFrame.new(gap / 2, 0, 0)
+	m.PrimaryPart = left
+	local f: Figure = { model = m, kind = "prop", feet = at, phase = 0, parts = {}, offset = at:ToObjectSpace(m:GetPivot()) }
+	m.Parent = Runtime.folder()
+	figures[name] = f
+	return f
+end
+
+-- Any model the scene built (a set's chair, a security camera): move it with
+-- MoveObject / PlaceObject by its pivot.
+function Figures.adopt(name: string, model: Model): Figure
+	local f: Figure = { model = model, kind = "prop", feet = model:GetPivot(), phase = 0, parts = {}, offset = CFrame.new() }
+	;(f :: any).owned = false
+	figures[name] = f
+	return f
+end
+
 -- Move a figure's feet (walk phase advances with distance for people).
 function Figures.place(name: string, feet: CFrame)
 	local f = Figures.get(name)
@@ -275,7 +355,15 @@ function Figures.setTransparency(name: string, t: number)
 		return
 	end
 	for _, d in f.model:GetDescendants() do
-		if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" and not string.match(d.Name, "^Eye") then
+		if d:IsA("Frame") then
+			local base = d:GetAttribute("MarketingBaseT")
+			if base == nil then
+				base = d.BackgroundTransparency
+				d:SetAttribute("MarketingBaseT", base)
+			end
+			d.BackgroundTransparency = base + (1 - base) * t
+		end
+		if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" and d.Name ~= "Sheet" and not string.match(d.Name, "^Eye") then
 			local base = d:GetAttribute("MarketingBaseT")
 			if base == nil then
 				base = d.Transparency
@@ -289,7 +377,10 @@ end
 function Figures.remove(name: string)
 	local f = figures[name]
 	if f then
-		f.model:Destroy()
+		-- an adopted set piece belongs to its set; only forget it
+		if (f :: any).owned ~= false then
+			f.model:Destroy()
+		end
 		figures[name] = nil
 	end
 end

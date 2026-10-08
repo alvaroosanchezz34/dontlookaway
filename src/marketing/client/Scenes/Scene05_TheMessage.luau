@@ -10,6 +10,7 @@ local Sets = require(script.Parent.Parent.Effects.Sets)
 
 return {
 	Name = "Scene05_TheMessage",
+	Category = "0 · ORIGINALS",
 	Description = "Words scratched into the door, the lamp dies before AWAY",
 	Duration = 8.8,
 	Light = false,

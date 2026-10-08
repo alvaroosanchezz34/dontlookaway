@@ -366,12 +366,29 @@ Actions.register("SpawnEffect", function(_tl, e)
 	local name = e.name or e.kind or "effect"
 	if e.kind == "person" then
 		Figures.person(name, e.cframe, e)
+	elseif e.kind == "shadow" then
+		Figures.shadow(name, e.cframe, e)
+	elseif e.kind == "shine" then
+		Figures.shine(name, e.cframe, e)
 	elseif e.kind == "actor" then
 		Figures.actor(name, e.cframe, e)
 	elseif e.kind == "entity" then
 		Figures.entity(name, e.cframe, e)
 	else
 		warn("[Marketing] SpawnEffect: unknown kind " .. tostring(e.kind))
+	end
+end)
+
+-- Put a figure somewhere instantly (a cut, a loop restart).
+Actions.register("PlaceObject", function(_tl, e)
+	Figures.place(e.name, e.to or e.cframe)
+	Figures.settle(e.name)
+end)
+
+-- Make a model the scene built (chair, security camera) movable by name.
+Actions.register("AdoptObject", function(_tl, e)
+	if e.model then
+		Figures.adopt(e.name, e.model)
 	end
 end)
 
@@ -537,6 +554,31 @@ Actions.register("ShowImage", function(tl, e)
 		Titles.image(tl, e.id or "image", { image = url, position = e.position, width = e.width, aspect = e.aspect, fadeIn = e.fadeIn, duration = e.duration, fadeOut = e.fadeOut, flicker = e.flicker })
 	elseif e.fallbackText then
 		Titles.show(tl, e.id or "image", e.fallbackText, { style = e.fallbackStyle or "title", position = e.position, size = e.size, fadeIn = e.fadeIn, duration = e.duration, fadeOut = e.fadeOut, tracking = e.tracking, color = e.color })
+	end
+end)
+
+-- Lost signal: grey snow (alpha 0..1), faded over `duration`.
+Actions.register("Static", function(tl, e)
+	local from = tl.data.static or 0
+	local to = e.alpha or (if e.on == false then 0 else 1)
+	tl.data.static = to
+	tl:span(e.duration or 0, "linear", function(a)
+		Screen.setStatic(from + (to - from) * a)
+	end, e.at, "screen.static")
+	if to > 0 and e.sound ~= false then
+		Audio.play(tl, e.sound or "RadioStatic", { volume = e.volume or 0.5, duration = e.soundDuration or 1.2, fadeOut = 0.3 })
+	end
+end)
+
+-- Freeze the picture (camera, grain, the CCTV clock) for `duration` seconds or until FreezeFrame{ on = false }.
+Actions.register("FreezeFrame", function(tl, e)
+	tl.data.frozen = e.on ~= false
+	if e.duration and e.on ~= false then
+		tl:span(e.duration, "linear", function(a)
+			if a >= 1 then
+				tl.data.frozen = false
+			end
+		end, e.at, "screen.freeze")
 	end
 end)
 
