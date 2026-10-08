@@ -22,6 +22,9 @@ con los materiales de Roblox y el Observer de piezas.
 | `textures/metal_worn` | metal pintado con óxido | metal en general |
 | `observer/*.obj` | 12 mallas del Observer | el Observer y sus cinemáticas |
 | `observer/observer_skin_*` | piel PBR (color, relieve, rugosidad) | el Observer |
+| `audio/dla_ambience.ogg` | 23 ambientes en bucle (zumbidos, lluvia, viento, ventilación, alarma, respiración del Observer, música de tensión) | todo el edificio |
+| `audio/dla_horror.ogg` | 45 sonidos de terror (Observer, sustos, crujidos, golpes, susurros, caja de música, apagones) | el Observer, anomalías, el director |
+| `audio/dla_world.ogg` | 31 sonidos del mundo (pasos por material, puertas, interruptores, teclado, cintas, persiana) | interacción |
 
 Cada textura tiene `_color`, `_normal` y `_roughness` (y `metal_worn` además `_metalness`).
 
@@ -35,6 +38,14 @@ Cada textura tiene `_color`, `_normal` y `_roughness` (y `metal_worn` además `_
    En el diálogo de importación deja las opciones por defecto.
 5. En el Asset Manager, en **Images** y **Meshes**, haz clic derecho en cada
    recurso → **Copy Asset ID**.
+
+### Audio (solo 3 archivos)
+Los 99 sonidos van empaquetados en **3 archivos** para no gastar el cupo mensual
+de subidas de audio de Roblox; el juego reproduce cada uno recortando su trozo
+(`PlaybackRegion`, ver `src/shared/Config/AudioSheets.luau`).
+**Gestor de recursos → Importar** → los 3 `.ogg` de `assets/audio/`. Aparecen en
+**Audio**; copia sus IDs a `AssetIds.Audio` (o pásamelos).
+Puedes escucharlos antes de subirlos: se abren con cualquier reproductor.
 
 ## Cómo conectarlo
 
@@ -67,6 +78,7 @@ Si solo subes una parte, se usa esa parte y el resto sigue como antes.
 ```bash
 python3 tools/gen_textures.py 1024   # texturas (numpy + Pillow)
 python3 tools/gen_observer.py        # mallas, piel y src/shared/Config/ObserverMeshMeta.luau
+python3 tools/gen_audio.py           # audio (numpy + ffmpeg) y src/shared/Config/AudioSheets.luau
 ```
 
 Vista previa del Observer sin Studio:

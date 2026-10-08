@@ -2,12 +2,18 @@
 	SoundFactory
 	Builds Sound instances from AudioLibrary entries (effects, groups, rolloff).
 	Used by the server for world-anchored sounds and by clients for local audio.
+
+	When the original audio sheets are uploaded (Config/AssetIds.Audio), a sound
+	that has an original version plays its region of the sheet instead of the
+	shaped built-in sample.
 ]]
 
 local ContentProvider = game:GetService("ContentProvider")
 local SoundService = game:GetService("SoundService")
 
 local AudioLibrary = require(script.Parent.Config.AudioLibrary)
+local AudioSheets = require(script.Parent.Config.AudioSheets)
+local AssetIds = require(script.Parent.Config.AssetIds)
 
 local SoundFactory = {}
 
@@ -22,6 +28,26 @@ function SoundFactory.resolve(id: string): string
 	return if failed[id] then FALLBACK_ID else id
 end
 
+--[[
+	The original sound for `key`, if its sheet has been uploaded: returns the
+	sheet's id and the region (seconds) the sound occupies inside it.
+]]
+function SoundFactory.custom(key: string): (string?, any)
+	local region = AudioSheets[key]
+	if not region then
+		return nil, nil
+	end
+	local url = AssetIds.url(AssetIds.Audio[region.sheet])
+	if not url or failed[url] then
+		return nil, nil
+	end
+	return url, region
+end
+
+-- Only the spatial effects suit the original recordings (the pitch, distortion
+-- and EQ chains exist to turn neutral built-in samples into horror sounds).
+local SPATIAL = { ReverbSoundEffect = true, EchoSoundEffect = true }
+
 -- Preloads every id in the library; failures are remapped and any existing
 -- sounds using them are swapped in place. Safe to call on server and client.
 function SoundFactory.validate()
@@ -32,6 +58,15 @@ function SoundFactory.validate()
 			seen[def.id] = true
 			local probe = Instance.new("Sound")
 			probe.SoundId = def.id
+			table.insert(ids, probe)
+		end
+	end
+	for _, id in AssetIds.Audio do
+		local url = AssetIds.url(id)
+		if url and not seen[url] then
+			seen[url] = true
+			local probe = Instance.new("Sound")
+			probe.SoundId = url
 			table.insert(ids, probe)
 		end
 	end
@@ -100,16 +135,33 @@ function SoundFactory.create(key: string, parent: Instance?, opts: { [string]: a
 	opts = opts or {}
 	local sound = Instance.new("Sound")
 	sound.Name = key
-	sound.SoundId = SoundFactory.resolve(def.id)
+	local customUrl, region = SoundFactory.custom(key)
 	sound.Volume = (def.volume or 0.5) * (opts.volume or 1)
-	sound.PlaybackSpeed = SoundFactory.speedOf(def) * (opts.speed or 1)
 	sound.Looped = if opts.looped ~= nil then opts.looped else (def.looped == true)
+	if customUrl then
+		-- one region of a sheet: play just that stretch (and loop inside it)
+		sound.SoundId = customUrl
+		sound.PlaybackRegionsEnabled = true
+		sound.PlaybackRegion = NumberRange.new(region.start, region.stop)
+		sound.LoopRegion = NumberRange.new(region.start, region.stop)
+		local variation = if type(def.speed) == "table" then random:NextNumber(0.94, 1.06) else 1
+		sound.PlaybackSpeed = variation * (opts.speed or 1)
+	else
+		sound.SoundId = SoundFactory.resolve(def.id)
+		sound.PlaybackSpeed = SoundFactory.speedOf(def) * (opts.speed or 1)
+	end
 	sound.RollOffMode = Enum.RollOffMode.InverseTapered
 	sound.RollOffMinDistance = def.min or 6
 	sound.RollOffMaxDistance = def.max or 80
-	sound.SoundGroup = SoundFactory.getGroup(def.group or "Interaction")
+	local group = SoundFactory.getGroup(def.group or "Interaction")
+	if group then
+		sound.SoundGroup = group
+	end
 	if def.effects then
 		for i, effect in def.effects do
+			if customUrl and not SPATIAL[effect[1]] then
+				continue
+			end
 			local ok, instance = pcall(Instance.new, effect[1])
 			if ok and instance then
 				for prop, value in effect[2] do

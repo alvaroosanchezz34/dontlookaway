@@ -60,6 +60,14 @@ AssetIds.Observer = {
 	skin = { color = 73026626049237, normal = 83633682521540, roughness = 128909048447810 },
 }
 
+-- Original synthesised audio (assets/audio/dla_<sheet>.ogg): three files, each
+-- holding many sounds (see Config/AudioSheets). Upload them as audio.
+AssetIds.Audio = {
+	ambience = 0,
+	horror = 0,
+	world = 0,
+}
+
 function AssetIds.url(id: number?): string?
 	if type(id) == "number" and id > 0 then
 		return "rbxassetid://" .. string.format("%d", id)

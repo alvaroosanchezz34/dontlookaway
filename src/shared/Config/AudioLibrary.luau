@@ -7,7 +7,11 @@
 	playback speed, pitch shifting, reverb, echo, distortion and equalisation turn a
 	small palette of neutral source samples into drones, impacts, breaths and stingers.
 
-	To upgrade a sound with licensed Creator Store audio, replace its `id` only.
+	Original audio: tools/gen_audio.py synthesises 99 of these sounds and packs
+	them into three sheets (assets/audio). Once the sheets are uploaded
+	(Config/AssetIds.Audio) every sound listed in Config/AudioSheets plays its
+	original version automatically (SoundFactory); the entries below remain the
+	fallback and keep their volume, group and spatial effects.
 
 	Fields:
 		id        asset id

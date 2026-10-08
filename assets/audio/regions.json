@@ -1,0 +1,596 @@
+{
+ "AmbientDrone": {
+  "sheet": "ambience",
+  "start": 0.1,
+  "stop": 30.1,
+  "loop": true
+ },
+ "AmbientAir": {
+  "sheet": "ambience",
+  "start": 30.45,
+  "stop": 50.45,
+  "loop": true
+ },
+ "AmbientHum": {
+  "sheet": "ambience",
+  "start": 50.8,
+  "stop": 60.8,
+  "loop": true
+ },
+ "AmbientRain": {
+  "sheet": "ambience",
+  "start": 61.15,
+  "stop": 81.15,
+  "loop": true
+ },
+ "Wind": {
+  "sheet": "ambience",
+  "start": 81.5,
+  "stop": 101.5,
+  "loop": true
+ },
+ "Ventilation": {
+  "sheet": "ambience",
+  "start": 101.85,
+  "stop": 116.85,
+  "loop": true
+ },
+ "ElectricBuzz": {
+  "sheet": "ambience",
+  "start": 117.2,
+  "stop": 125.2,
+  "loop": true
+ },
+ "BoilerRumble": {
+  "sheet": "ambience",
+  "start": 125.55,
+  "stop": 137.55,
+  "loop": true
+ },
+ "ServerFans": {
+  "sheet": "ambience",
+  "start": 137.9,
+  "stop": 147.9,
+  "loop": true
+ },
+ "Static": {
+  "sheet": "ambience",
+  "start": 148.25,
+  "stop": 154.25,
+  "loop": true
+ },
+ "RadioStatic": {
+  "sheet": "ambience",
+  "start": 154.6,
+  "stop": 160.6,
+  "loop": true
+ },
+ "EmergencyAlarm": {
+  "sheet": "ambience",
+  "start": 160.95,
+  "stop": 165.75,
+  "loop": true
+ },
+ "ObserverBreath": {
+  "sheet": "ambience",
+  "start": 166.1,
+  "stop": 172.1,
+  "loop": true
+ },
+ "BreathingCloset": {
+  "sheet": "ambience",
+  "start": 172.45,
+  "stop": 176.45,
+  "loop": true
+ },
+ "TapeHiss": {
+  "sheet": "ambience",
+  "start": 176.8,
+  "stop": 182.8,
+  "loop": true
+ },
+ "WaterRush": {
+  "sheet": "ambience",
+  "start": 183.15,
+  "stop": 193.15,
+  "loop": true
+ },
+ "PowerHum": {
+  "sheet": "ambience",
+  "start": 193.5,
+  "stop": 199.5,
+  "loop": true
+ },
+ "Fridge": {
+  "sheet": "ambience",
+  "start": 199.85,
+  "stop": 207.85,
+  "loop": true
+ },
+ "ThermalHum": {
+  "sheet": "ambience",
+  "start": 208.2,
+  "stop": 212.2,
+  "loop": true
+ },
+ "SteamHiss": {
+  "sheet": "ambience",
+  "start": 212.55,
+  "stop": 218.55,
+  "loop": true
+ },
+ "PhoneRing": {
+  "sheet": "ambience",
+  "start": 218.9,
+  "stop": 224.9,
+  "loop": true
+ },
+ "MusicPad": {
+  "sheet": "ambience",
+  "start": 225.25,
+  "stop": 249.25,
+  "loop": true
+ },
+ "MusicChasePad": {
+  "sheet": "ambience",
+  "start": 249.6,
+  "stop": 263.314,
+  "loop": true
+ },
+ "ObserverStep": {
+  "sheet": "horror",
+  "start": 0.1,
+  "stop": 2.1043,
+  "loop": false
+ },
+ "ObserverInhale": {
+  "sheet": "horror",
+  "start": 2.4543,
+  "stop": 4.824,
+  "loop": false
+ },
+ "ObserverScreech": {
+  "sheet": "horror",
+  "start": 5.174,
+  "stop": 8.5277,
+  "loop": false
+ },
+ "ObserverImpact": {
+  "sheet": "horror",
+  "start": 8.8777,
+  "stop": 12.2819,
+  "loop": false
+ },
+ "ObserverCrack": {
+  "sheet": "horror",
+  "start": 12.6319,
+  "stop": 13.2357,
+  "loop": false
+ },
+ "ObserverTwitch": {
+  "sheet": "horror",
+  "start": 13.5857,
+  "stop": 13.8923,
+  "loop": false
+ },
+ "ObserverAppear": {
+  "sheet": "horror",
+  "start": 14.2423,
+  "stop": 18.9726,
+  "loop": false
+ },
+ "ObserverVanish": {
+  "sheet": "horror",
+  "start": 19.3226,
+  "stop": 21.9692,
+  "loop": false
+ },
+ "ObserverSting": {
+  "sheet": "horror",
+  "start": 22.3192,
+  "stop": 26.5009,
+  "loop": false
+ },
+ "ObserverHunt": {
+  "sheet": "horror",
+  "start": 26.8509,
+  "stop": 33.7527,
+  "loop": false
+ },
+ "ObserverRush": {
+  "sheet": "horror",
+  "start": 34.1027,
+  "stop": 35.8147,
+  "loop": false
+ },
+ "ObserverWhisperName": {
+  "sheet": "horror",
+  "start": 36.1647,
+  "stop": 40.216,
+  "loop": false
+ },
+ "JumpSting": {
+  "sheet": "horror",
+  "start": 40.566,
+  "stop": 43.8969,
+  "loop": false
+ },
+ "DeathHit": {
+  "sheet": "horror",
+  "start": 44.2469,
+  "stop": 51.2589,
+  "loop": false
+ },
+ "TinnitusRing": {
+  "sheet": "horror",
+  "start": 51.6089,
+  "stop": 55.1089,
+  "loop": false
+ },
+ "Whisper": {
+  "sheet": "horror",
+  "start": 55.4589,
+  "stop": 59.7441,
+  "loop": false
+ },
+ "KnockDoor": {
+  "sheet": "horror",
+  "start": 60.0941,
+  "stop": 61.2936,
+  "loop": false
+ },
+ "Thud": {
+  "sheet": "horror",
+  "start": 61.6436,
+  "stop": 63.0365,
+  "loop": false
+ },
+ "DoorSlam": {
+  "sheet": "horror",
+  "start": 63.3865,
+  "stop": 65.4474,
+  "loop": false
+ },
+ "DistantKnock": {
+  "sheet": "horror",
+  "start": 65.7974,
+  "stop": 69.2652,
+  "loop": false
+ },
+ "DistantPipe": {
+  "sheet": "horror",
+  "start": 69.6152,
+  "stop": 76.1272,
+  "loop": false
+ },
+ "DistantMetal": {
+  "sheet": "horror",
+  "start": 76.4772,
+  "stop": 84.3776,
+  "loop": false
+ },
+ "DistantGroan": {
+  "sheet": "horror",
+  "start": 84.7276,
+  "stop": 88.1476,
+  "loop": false
+ },
+ "WoodCreak": {
+  "sheet": "horror",
+  "start": 88.4976,
+  "stop": 89.8847,
+  "loop": false
+ },
+ "ElevatorGroan": {
+  "sheet": "horror",
+  "start": 90.2347,
+  "stop": 97.441,
+  "loop": false
+ },
+ "BuildingSettle": {
+  "sheet": "horror",
+  "start": 97.791,
+  "stop": 100.2588,
+  "loop": false
+ },
+ "StretchGroan": {
+  "sheet": "horror",
+  "start": 100.6088,
+  "stop": 104.3964,
+  "loop": false
+ },
+ "Falsetto": {
+  "sheet": "horror",
+  "start": 104.7464,
+  "stop": 110.1882,
+  "loop": false
+ },
+ "MusicBox": {
+  "sheet": "horror",
+  "start": 110.5382,
+  "stop": 115.8517,
+  "loop": false
+ },
+ "RealityShift": {
+  "sheet": "horror",
+  "start": 116.2017,
+  "stop": 120.2529,
+  "loop": false
+ },
+ "RealitySnap": {
+  "sheet": "horror",
+  "start": 120.6029,
+  "stop": 122.6654,
+  "loop": false
+ },
+ "Heartbeat": {
+  "sheet": "horror",
+  "start": 123.0154,
+  "stop": 123.9154,
+  "loop": false
+ },
+ "HeartbeatFast": {
+  "sheet": "horror",
+  "start": 124.2654,
+  "stop": 124.8154,
+  "loop": false
+ },
+ "Breath": {
+  "sheet": "horror",
+  "start": 125.1654,
+  "stop": 126.7654,
+  "loop": false
+ },
+ "BreathHeavy": {
+  "sheet": "horror",
+  "start": 127.1154,
+  "stop": 128.2634,
+  "loop": false
+ },
+ "PowerDown": {
+  "sheet": "horror",
+  "start": 128.6134,
+  "stop": 133.3015,
+  "loop": false
+ },
+ "PowerOn": {
+  "sheet": "horror",
+  "start": 133.6515,
+  "stop": 138.0947,
+  "loop": false
+ },
+ "ElectricSurge": {
+  "sheet": "horror",
+  "start": 138.4447,
+  "stop": 139.4447,
+  "loop": false
+ },
+ "Sparks": {
+  "sheet": "horror",
+  "start": 139.7947,
+  "stop": 140.4947,
+  "loop": false
+ },
+ "BulbPop": {
+  "sheet": "horror",
+  "start": 140.8447,
+  "stop": 141.4975,
+  "loop": false
+ },
+ "LightFlicker": {
+  "sheet": "horror",
+  "start": 141.8475,
+  "stop": 142.1175,
+  "loop": false
+ },
+ "Drip": {
+  "sheet": "horror",
+  "start": 142.4675,
+  "stop": 143.5705,
+  "loop": false
+ },
+ "ExitUnlocked": {
+  "sheet": "horror",
+  "start": 143.9205,
+  "stop": 149.9983,
+  "loop": false
+ },
+ "TitleHit": {
+  "sheet": "horror",
+  "start": 150.3483,
+  "stop": 157.0376,
+  "loop": false
+ },
+ "FootstepsBehind": {
+  "sheet": "horror",
+  "start": 157.3876,
+  "stop": 158.774,
+  "loop": false
+ },
+ "StepConcrete": {
+  "sheet": "world",
+  "start": 0.1,
+  "stop": 0.6627,
+  "loop": false
+ },
+ "StepTile": {
+  "sheet": "world",
+  "start": 1.0127,
+  "stop": 1.638,
+  "loop": false
+ },
+ "StepWood": {
+  "sheet": "world",
+  "start": 1.988,
+  "stop": 2.3734,
+  "loop": false
+ },
+ "StepMetal": {
+  "sheet": "world",
+  "start": 2.7234,
+  "stop": 3.1493,
+  "loop": false
+ },
+ "StepCarpet": {
+  "sheet": "world",
+  "start": 3.4993,
+  "stop": 3.894,
+  "loop": false
+ },
+ "DoorOpen": {
+  "sheet": "world",
+  "start": 4.244,
+  "stop": 5.4499,
+  "loop": false
+ },
+ "DoorClose": {
+  "sheet": "world",
+  "start": 5.7999,
+  "stop": 6.7905,
+  "loop": false
+ },
+ "DoorLocked": {
+  "sheet": "world",
+  "start": 7.1405,
+  "stop": 7.5905,
+  "loop": false
+ },
+ "DoorUnlock": {
+  "sheet": "world",
+  "start": 7.9405,
+  "stop": 8.2205,
+  "loop": false
+ },
+ "FuseInsert": {
+  "sheet": "world",
+  "start": 8.5705,
+  "stop": 9.3592,
+  "loop": false
+ },
+ "BreakerFlip": {
+  "sheet": "world",
+  "start": 9.7092,
+  "stop": 10.7693,
+  "loop": false
+ },
+ "KeypadBeep": {
+  "sheet": "world",
+  "start": 11.1193,
+  "stop": 11.2293,
+  "loop": false
+ },
+ "KeypadError": {
+  "sheet": "world",
+  "start": 11.5793,
+  "stop": 12.0293,
+  "loop": false
+ },
+ "KeypadOk": {
+  "sheet": "world",
+  "start": 12.3793,
+  "stop": 12.7293,
+  "loop": false
+ },
+ "DialTurn": {
+  "sheet": "world",
+  "start": 13.0793,
+  "stop": 13.4393,
+  "loop": false
+ },
+ "TapeInsert": {
+  "sheet": "world",
+  "start": 13.7893,
+  "stop": 14.1193,
+  "loop": false
+ },
+ "BoardsBreak": {
+  "sheet": "world",
+  "start": 14.4693,
+  "stop": 15.8137,
+  "loop": false
+ },
+ "ShutterOpen": {
+  "sheet": "world",
+  "start": 16.1637,
+  "stop": 20.9258,
+  "loop": false
+ },
+ "PaperRustle": {
+  "sheet": "world",
+  "start": 21.2758,
+  "stop": 21.8758,
+  "loop": false
+ },
+ "Pickup": {
+  "sheet": "world",
+  "start": 22.2258,
+  "stop": 22.3858,
+  "loop": false
+ },
+ "Drop": {
+  "sheet": "world",
+  "start": 22.7358,
+  "stop": 23.3609,
+  "loop": false
+ },
+ "Place": {
+  "sheet": "world",
+  "start": 23.7109,
+  "stop": 23.8909,
+  "loop": false
+ },
+ "FlashlightOn": {
+  "sheet": "world",
+  "start": 24.2409,
+  "stop": 24.3609,
+  "loop": false
+ },
+ "FlashlightOff": {
+  "sheet": "world",
+  "start": 24.7109,
+  "stop": 24.8309,
+  "loop": false
+ },
+ "FlashlightDead": {
+  "sheet": "world",
+  "start": 25.1809,
+  "stop": 25.5463,
+  "loop": false
+ },
+ "Equip": {
+  "sheet": "world",
+  "start": 25.8963,
+  "stop": 26.1062,
+  "loop": false
+ },
+ "ClockTick": {
+  "sheet": "world",
+  "start": 26.4562,
+  "stop": 26.5162,
+  "loop": false
+ },
+ "LockRelease": {
+  "sheet": "world",
+  "start": 26.8662,
+  "stop": 28.8422,
+  "loop": false
+ },
+ "WardBreak": {
+  "sheet": "world",
+  "start": 29.1922,
+  "stop": 32.2608,
+  "loop": false
+ },
+ "EscapeDoor": {
+  "sheet": "world",
+  "start": 32.6108,
+  "stop": 37.4126,
+  "loop": false
+ },
+ "DeathFall": {
+  "sheet": "world",
+  "start": 37.7626,
+  "stop": 38.8854,
+  "loop": false
+ }
+}

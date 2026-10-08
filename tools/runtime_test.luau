@@ -257,6 +257,49 @@ do
 	folder:Destroy()
 end
 
+section("original audio sheets")
+do
+	local RS = game:GetService("ReplicatedStorage")
+	local AssetIds = requireModule(RS.Shared.Config.AssetIds)
+	local AudioSheets = requireModule(RS.Shared.Config.AudioSheets)
+	local AudioLibrary = requireModule(RS.Shared.Config.AudioLibrary)
+	local SoundFactory = requireModule(RS.Shared.SoundFactory)
+	local count = 0
+	for key, region in AudioSheets do
+		count += 1
+		check(AudioLibrary.Sounds[key] ~= nil, "sheet sound is in the library: " .. key)
+		check(region.stop > region.start and AssetIds.Audio[region.sheet] ~= nil, "valid region: " .. key)
+	end
+	check(count >= 90, "audio sheets cover the soundscape (" .. count .. ")")
+	local saved = table.clone(AssetIds.Audio)
+	-- nothing uploaded: the shaped built-in sample is used
+	for sheet in AssetIds.Audio do
+		AssetIds.Audio[sheet] = 0
+	end
+	local plain = SoundFactory.create("ObserverScreech", nil)
+	check(plain ~= nil and plain.SoundId == AudioLibrary.Sounds.ObserverScreech.id, "built-in sample without an upload")
+	-- uploaded: the region of the sheet, spatial effects only
+	AssetIds.Audio.ambience, AssetIds.Audio.horror, AssetIds.Audio.world = 111, 222, 333
+	local s1 = SoundFactory.create("ObserverScreech", nil) :: any
+	local r = AudioSheets.ObserverScreech
+	check(s1.SoundId == "rbxassetid://222" and s1.PlaybackRegionsEnabled == true, "screech plays from the horror sheet")
+	check(math.abs(s1.PlaybackRegion.Min - r.start) < 1e-3 and math.abs(s1.PlaybackRegion.Max - r.stop) < 1e-3, "screech region")
+	local onlySpatial = true
+	for _, e in s1:GetChildren() do
+		if not (e:IsA("ReverbSoundEffect") or e:IsA("EchoSoundEffect")) then
+			onlySpatial = false
+		end
+	end
+	check(onlySpatial, "original sounds keep only spatial effects")
+	local loop = SoundFactory.create("AmbientDrone", nil, { looped = true }) :: any
+	check(loop.SoundId == "rbxassetid://111" and loop.Looped and math.abs(loop.LoopRegion.Min - AudioSheets.AmbientDrone.start) < 1e-3, "drone loops inside its region")
+	local ui = SoundFactory.create("UIClick", nil)
+	check(ui ~= nil and ui.SoundId == AudioLibrary.Sounds.UIClick.id, "sounds without an original keep the built-in sample")
+	for sheet, id in saved do
+		AssetIds.Audio[sheet] = id
+	end
+end
+
 section("lobby (field office)")
 do
 	local Lobby = requireModule(Server.Map.Lobby)
