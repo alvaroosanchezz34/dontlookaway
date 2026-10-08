@@ -204,6 +204,37 @@ function LightFX.adopt(name: string, part: BasePart, light: Light)
 	keys[name] = { part = part, light = light, base = light.Brightness }
 end
 
+-- Dim a key light to `ratio` (0..1 of its base); a glowing bulb part and its
+-- light shaft dim with it.
+function LightFX.setKeyRatio(name: string, ratio: number)
+	local k = keys[name]
+	if not k or not k.part.Parent then
+		return
+	end
+	k.light.Brightness = k.base * ratio
+	local p = k.part
+	if p.Material == Enum.Material.Neon then
+		local base = p:GetAttribute("MarketingBaseColor")
+		if typeof(base) ~= "Color3" then
+			base = p.Color
+			p:SetAttribute("MarketingBaseColor", base)
+		end
+		p.Color = Color3.fromRGB(20, 20, 20):Lerp(base :: Color3, math.clamp(ratio, 0, 1))
+	end
+	for _, d in p:GetChildren() do
+		if d:IsA("Beam") then
+			d.Enabled = ratio > 0.05
+		elseif d:IsA("PointLight") and d ~= k.light then
+			local b = d:GetAttribute("MarketingBase")
+			if typeof(b) ~= "number" then
+				b = d.Brightness
+				d:SetAttribute("MarketingBase", b)
+			end
+			d.Brightness = (b :: number) * ratio
+		end
+	end
+end
+
 function LightFX.getKey(name: string)
 	local k = keys[name]
 	if k and k.part.Parent then

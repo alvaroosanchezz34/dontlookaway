@@ -30,6 +30,7 @@ local Eye = require(script.Parent.Effects.Eye)
 local Figures = require(script.Parent.Effects.Figures)
 local Audio = require(script.Parent.Audio.MarketingAudio)
 local Titles = require(script.Parent.Text.Titles)
+local Scratch = require(script.Parent.Text.Scratch)
 local Runtime = require(script.Parent.Runtime)
 
 local Actions = {}
@@ -404,7 +405,7 @@ end)
 
 Actions.register("ShowEye", function(tl, e)
 	if not Eye.exists() or e.recreate then
-		Eye.create({ mode = e.mode, position = e.position, scale = e.scale, intensity = e.intensity, brightness = e.brightness, parent = Screen.fxLayer() })
+		Eye.create({ mode = e.mode, position = e.position, scale = e.scale, intensity = e.intensity, brightness = e.brightness, facing = e.facing, lightInfluence = e.lightInfluence, parent = Screen.fxLayer() })
 	end
 	if e.look then
 		Eye.lookAt(e.look, e.drift)
@@ -546,6 +547,44 @@ Actions.register("AdoptLight", function(_tl, e)
 	if e.part and e.light then
 		LightFX.adopt(e.name or "key", e.part, e.light)
 	end
+end)
+
+-- Dim (or kill, ratio 0) a key light, its bulb and light shaft.
+Actions.register("DimKey", function(tl, e)
+	local name = e.name or "key"
+	local k = LightFX.getKey(name)
+	if not k then
+		return
+	end
+	local from = k.light.Brightness / math.max(k.base, 1e-3)
+	tl:span(e.duration or 0, e.ease or "inOutSine", function(a)
+		LightFX.setKeyRatio(name, from + ((e.ratio or 0) - from) * a)
+	end, e.at, "light.key." .. name)
+end)
+
+-- Words scratched into a surface, stroke by stroke (Text/Scratch.luau).
+Actions.register("ScratchSurface", function(_tl, e)
+	Scratch.surface(e.id or "wall", e.cframe, e.size or Vector2.new(4, 4), e)
+end)
+
+Actions.register("ScratchWrite", function(tl, e)
+	local sound = e.sound
+	if sound == nil then
+		sound = "PaperRustle"
+	end
+	Scratch.write(tl, e.id or "wall", e.text or "", {
+		line = e.line,
+		height = e.height,
+		x = e.x,
+		top = e.top,
+		center = e.center,
+		strokeTime = e.strokeTime,
+		onStroke = if sound
+			then function()
+				Audio.play(tl, sound, { at = e.position, volume = e.volume or 0.7, speed = (e.speed or 0.55) * random:NextNumber(0.9, 1.15) })
+			end
+			else nil,
+	})
 end)
 
 Actions.register("SurfaceText", function(_tl, e)

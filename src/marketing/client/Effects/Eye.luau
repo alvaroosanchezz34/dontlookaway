@@ -29,8 +29,8 @@ type State = {
 	mode: string,
 	holder: Instance?,
 	part: BasePart?,
-	gui: BillboardGui?,
-	group: CanvasGroup?,
+	gui: any,
+	group: GuiObject?,
 	iris: Frame?,
 	pupil: Frame?,
 	lidTop: GuiObject?,
@@ -152,12 +152,14 @@ local function image(parent: Instance, name: string, key: string, z: number): Im
 	return img
 end
 
+-- Plain frames and per-image transparency (no CanvasGroup: it does not render
+-- reliably inside 3D guis, which is where the eye usually lives).
 local function drawPhoto(parent: Instance)
-	local group = Instance.new("CanvasGroup")
+	local group = Instance.new("Frame")
 	group.Name = "Eye"
 	group.BackgroundTransparency = 1
 	group.Size = UDim2.fromScale(1, 1)
-	group.GroupTransparency = 1
+	group.ClipsDescendants = true
 	group.Parent = parent
 	image(group, "Sclera", "sclera", 1)
 	local iris = Instance.new("Frame")
@@ -236,6 +238,37 @@ function Eye.create(opts: { [string]: any })
 		else
 			s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = draw(holder)
 		end
+	elseif mode == "surface" then
+		-- a flat eye in the scene, facing the camera where it is created
+		-- (in a doorway, behind glass): depth-sorted like any other surface
+		local part = Instance.new("Part")
+		part.Name = "TheEye"
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		part.CastShadow = false
+		part.Transparency = 1
+		part.Size = Vector3.new(s.scale, s.scale * 0.5, 0.05)
+		local at = opts.position or Workspace.CurrentCamera.CFrame.Position + Workspace.CurrentCamera.CFrame.LookVector * 20
+		local face = opts.facing or Workspace.CurrentCamera.CFrame.Position
+		part.CFrame = CFrame.lookAt(at, Vector3.new(face.X, at.Y, face.Z))
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = "EyeGui"
+		gui.Face = Enum.NormalId.Front
+		gui.LightInfluence = opts.lightInfluence or 0
+		gui.Brightness = 1
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 160
+		gui.ResetOnSpawn = false
+		gui.Parent = part
+		part.Parent = Runtime.folder()
+		s.part, s.gui, s.holder = part, gui, gui
+		if s.photo then
+			s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = drawPhoto(gui)
+		else
+			s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = draw(gui)
+		end
 	else
 		local part = Instance.new("Part")
 		part.Name = "TheEye"
@@ -292,7 +325,18 @@ function Eye.render()
 	if not s or not s.group then
 		return
 	end
-	s.group.GroupTransparency = 1 - math.clamp(s.opacity, 0, 1)
+	local fade = 1 - math.clamp(s.opacity, 0, 1)
+	if s.group:IsA("CanvasGroup") then
+		s.group.GroupTransparency = fade
+	else
+		for _, d in s.group:GetDescendants() do
+			if d:IsA("ImageLabel") then
+				d.ImageTransparency = fade
+			elseif d:IsA("Frame") and (d.Name == "LidTop" or d.Name == "LidBottom") then
+				d.BackgroundTransparency = fade
+			end
+		end
+	end
 	-- lids: open = 1 parts them, 0 meets in the middle
 	local gap = math.clamp(s.open, 0, 1)
 	if s.photo then
@@ -324,7 +368,11 @@ function Eye.render()
 	end
 	if s.gui then
 		s.gui.Brightness = s.brightness or (0.6 + s.intensity * 0.6)
-		s.gui.Size = UDim2.fromScale(s.scale, s.scale * 0.5)
+		if s.gui:IsA("BillboardGui") then
+			s.gui.Size = UDim2.fromScale(s.scale, s.scale * 0.5)
+		elseif s.part then
+			s.part.Size = Vector3.new(s.scale, s.scale * 0.5, 0.05)
+		end
 	end
 end
 
