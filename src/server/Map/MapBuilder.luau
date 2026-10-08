@@ -1119,6 +1119,7 @@ local function collectRooms(map)
 							zone = def.zone,
 							number = def.number,
 							lockKey = def.lockKey,
+							keypad = def.keypad,
 							closet = def.closet,
 							secret = def.secret,
 							noSpawns = def.noSpawns,

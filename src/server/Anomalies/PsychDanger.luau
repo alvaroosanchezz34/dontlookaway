@@ -502,7 +502,7 @@ return {
 		candidates = function(ctx)
 			local list = {}
 			for _, room in ctx.map.Rooms do
-				if not room.lockKey and not room.secret and room.kind ~= "stairs" then
+				if not room.lockKey and not room.keypad and not room.secret and room.kind ~= "stairs" then
 					for _, cf in room.itemSpots or {} do
 						local d = ctx:nearest(cf.Position)
 						if d > 20 and d < 90 then

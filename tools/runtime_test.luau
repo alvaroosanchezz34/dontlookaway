@@ -521,6 +521,48 @@ for _, seed in { 1, 42, 1337, 99991, 123456 } do
 					end
 				end
 			end
+			-- softlock check: walk the room graph from the vestibule through plain
+			-- doors and the stairwell, then every lock must sit next to the
+			-- reachable part and every item must lie in it.
+			local reach = { G_e = true }
+			local changed = true
+			while changed do
+				changed = false
+				for _, d in currentMap.Doors do
+					if (d.char == "D" or d.char == "O" or d.char == "E") and d.roomA and d.roomB then
+						if reach[d.roomA] ~= reach[d.roomB] then
+							local other = if reach[d.roomA] then d.roomB else d.roomA
+							local room = currentMap.Rooms[other]
+							if room and not room.lockKey then
+								reach[d.roomA], reach[d.roomB] = true, true
+								changed = true
+							end
+						end
+					end
+				end
+				for _, pair in { { "B_s", "G_s" }, { "G_s", "U_s" } } do
+					if reach[pair[1]] ~= reach[pair[2]] then
+						reach[pair[1]], reach[pair[2]] = true, true
+						changed = true
+					end
+				end
+			end
+			for id, room in currentMap.Rooms do
+				if not room.lockKey and not room.secret and room.kind ~= "closet" and not room.keypad then
+					check(reach[id] == true, string.format("seed %d: %s reachable without keys", seed, id))
+				end
+			end
+			for _, d in currentMap.Doors do
+				if d.char == "L" or d.char == "K" or d.char == "P" or d.char == "H" then
+					check((d.roomA and reach[d.roomA]) or (d.roomB and reach[d.roomB]), string.format("seed %d: locked door %s faces the reachable building", seed, d.id))
+				end
+			end
+			for _, sp in spawned do
+				local room = sp.model and sp.id ~= "PHOTOGRAPH" and currentMap:roomAt(sp.model:GetPivot().Position + Vector3.new(0, 1.5, 0))
+				if room then
+					check(reach[room.id] == true, string.format("seed %d: %s reachable (%s)", seed, sp.id, room.id))
+				end
+			end
 			check(counts.FUSE == 3, "three fuses")
 			check(counts.MAINT_KEY == 1 and counts.OFFICE_KEY == 1, "both keys")
 			check((counts.BATTERY or 0) >= 3, "batteries")

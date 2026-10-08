@@ -115,7 +115,7 @@ end
 local function placeMarking(map, rng, symbol, order, usedRooms)
 	local rooms = {}
 	for _, room in map.Rooms do
-		if (room.zone == "UPPER" or room.zone == "GROUND") and not room.secret and room.kind ~= "stairs" and not usedRooms[room.id] and room.wallSpots and #room.wallSpots > 0 and not room.lockKey then
+		if (room.zone == "UPPER" or room.zone == "GROUND") and not room.secret and room.kind ~= "stairs" and not usedRooms[room.id] and room.wallSpots and #room.wallSpots > 0 and not room.lockKey and not room.keypad then
 			table.insert(rooms, room)
 		end
 	end
@@ -177,7 +177,8 @@ function ObjectiveService:Plan(map, rng, playerCount: number)
 	}
 
 	local function unlocked(room)
-		return room.lockKey == nil and room.kind ~= "secret"
+		-- never behind a lock: the keypad door stays shut on nights without the CODE puzzle
+		return room.lockKey == nil and not room.keypad and room.kind ~= "secret"
 	end
 	-- keys
 	placeItem(map, rng, "MAINT_KEY", function(room)
