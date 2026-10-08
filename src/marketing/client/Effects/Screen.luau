@@ -26,13 +26,14 @@ local random = Random.new()
 
 Screen.Grades = {
 	neutral = { Brightness = 0, Contrast = 0.05, Saturation = -0.1, TintColor = Color3.new(1, 1, 1) },
-	cold = { Brightness = -0.04, Contrast = 0.18, Saturation = -0.4, TintColor = Color3.fromRGB(205, 218, 255) },
-	warm = { Brightness = -0.02, Contrast = 0.12, Saturation = -0.25, TintColor = Color3.fromRGB(255, 232, 205) },
-	dread = { Brightness = -0.1, Contrast = 0.3, Saturation = -0.6, TintColor = Color3.fromRGB(215, 222, 235) },
-	cctv = { Brightness = 0.02, Contrast = 0.35, Saturation = -1, TintColor = Color3.fromRGB(196, 232, 206) },
-	dark = { Brightness = -0.3, Contrast = 0.4, Saturation = -0.7, TintColor = Color3.fromRGB(200, 205, 225) },
+	cold = { Brightness = 0.03, Contrast = 0.16, Saturation = -0.4, TintColor = Color3.fromRGB(205, 218, 255) },
+	warm = { Brightness = 0.04, Contrast = 0.1, Saturation = -0.25, TintColor = Color3.fromRGB(255, 232, 205) },
+	dread = { Brightness = 0.02, Contrast = 0.22, Saturation = -0.55, TintColor = Color3.fromRGB(215, 222, 235) },
+	cctv = { Brightness = 0.08, Contrast = 0.3, Saturation = -1, TintColor = Color3.fromRGB(196, 232, 206) },
+	dark = { Brightness = -0.12, Contrast = 0.32, Saturation = -0.7, TintColor = Color3.fromRGB(200, 205, 225) },
 	blackout = { Brightness = -0.85, Contrast = 0.5, Saturation = -1, TintColor = Color3.fromRGB(150, 155, 170) },
-	red = { Brightness = -0.08, Contrast = 0.35, Saturation = -0.3, TintColor = Color3.fromRGB(255, 170, 165) },
+	keyart = { Brightness = 0.0, Contrast = 0.38, Saturation = -0.72, TintColor = Color3.fromRGB(228, 226, 232) },
+	red = { Brightness = 0.02, Contrast = 0.3, Saturation = -0.3, TintColor = Color3.fromRGB(255, 170, 165) },
 }
 
 local function frame(parent: Instance, name: string, props: { [string]: any }?): Frame
@@ -294,6 +295,52 @@ function Screen.updateCCTV(clock: number, stamp: string?)
 	if grain then
 		for _, d in grain:GetChildren() do
 			(d :: Frame).Position = UDim2.fromScale(random:NextNumber(), random:NextNumber())
+		end
+	end
+end
+
+------------------------------------------------------------------------------------
+-- Film grain: fine dust and a few vertical scratches (cheap: ~60 frames)
+------------------------------------------------------------------------------------
+
+function Screen.setGrain(on: boolean, amount: number?)
+	local fx = nodes.fx
+	if not fx then
+		return
+	end
+	local layer = fx:FindFirstChild("Grain")
+	if not on then
+		if layer then
+			layer:Destroy()
+		end
+		return
+	end
+	if layer then
+		return
+	end
+	layer = frame(fx, "Grain", { ZIndex = 8 })
+	local a = amount or 1
+	for i = 1, math.floor(56 * a) do
+		frame(layer, "Dust" .. i, { Size = UDim2.fromOffset(random:NextInteger(1, 3), random:NextInteger(1, 3)), BackgroundColor3 = if i % 3 == 0 then Color3.new(0, 0, 0) else Color3.fromRGB(230, 230, 230), BackgroundTransparency = 0.55, ZIndex = 8 })
+	end
+	for i = 1, 3 do
+		frame(layer, "Scratch" .. i, { Size = UDim2.new(0, 1, random:NextNumber(0.3, 1), 0), BackgroundColor3 = Color3.fromRGB(220, 220, 220), BackgroundTransparency = 0.7, ZIndex = 8 })
+	end
+end
+
+function Screen.updateGrain()
+	local fx = nodes.fx
+	local layer = fx and fx:FindFirstChild("Grain")
+	if not layer then
+		return
+	end
+	for _, d in layer:GetChildren() do
+		local f = d :: Frame
+		if string.sub(f.Name, 1, 7) == "Scratch" then
+			f.Visible = random:NextNumber() < 0.35
+			f.Position = UDim2.fromScale(random:NextNumber(), random:NextNumber(-0.2, 0.3))
+		else
+			f.Position = UDim2.fromScale(random:NextNumber(), random:NextNumber())
 		end
 	end
 end

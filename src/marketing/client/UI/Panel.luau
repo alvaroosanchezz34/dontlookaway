@@ -41,6 +41,7 @@ local cameraButton: TextButton? = nil
 local controller: any = nil
 local mounted = false
 local openerButton: TextButton? = nil
+local lightButton: TextButton? = nil
 
 local function label(parent: Instance, text: string, size: number, color: Color3?): TextLabel
 	local l = Instance.new("TextLabel")
@@ -107,6 +108,9 @@ local function refresh()
 	end
 	if cameraButton then
 		cameraButton.Text = "Camera: " .. state.camera
+	end
+	if lightButton then
+		lightButton.Text = "Light: " .. tostring(state.options.Light or 0)
 	end
 	for key, b in toggles do
 		local on = if key == "TimeScale" then state.options.TimeScale < 1 else state.options[key] == true
@@ -224,7 +228,7 @@ function Panel.mount(ctrl: any, config: any)
 	end)
 
 	local lens = row(w, 5)
-	formatButton = button(lens, "Format", 200, function()
+	formatButton = button(lens, "Format", 130, function()
 		controller.SetFormat(nextOf(Format.Order, controller.GetFormat()))
 		refresh()
 	end)
@@ -240,7 +244,11 @@ function Panel.mount(ctrl: any, config: any)
 		end
 		return a < b
 	end)
-	cameraButton = button(lens, "Camera", 260, function()
+	lightButton = button(lens, "Light", 90, function()
+		controller.SetOption("Light", ((controller.GetOption("Light") or 3) + 1) % 5)
+		refresh()
+	end)
+	cameraButton = button(lens, "Camera", 170, function()
 		controller.SetCameraStyle(nextOf(cams, controller.GetCameraStyle()))
 		refresh()
 	end)

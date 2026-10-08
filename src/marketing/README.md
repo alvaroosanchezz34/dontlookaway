@@ -237,3 +237,30 @@ Se puede llamar las veces que haga falta. Si el personaje se reinicia a mitad de
 - nunca en servidores públicos;
 - solo usuarios autorizados;
 - los servidores privados solo si se activan.
+
+## 11. Imágenes de la campaña (ojo realista y título rayado)
+
+Están en `assets/marketing/`. Son originales: las generan `tools/gen_eye.py` y `tools/gen_title.py`, sin imágenes externas.
+
+| Archivo | Campo en `MarketingConfig` |
+|---|---|
+| `eye/eye_sclera.png` | `EyeImages.sclera` |
+| `eye/eye_iris.png` | `EyeImages.iris` |
+| `eye/eye_pupil.png` | `EyeImages.pupil` |
+| `eye/eye_glint.png` | `EyeImages.glint` |
+| `eye/eye_lid_top.png` | `EyeImages.lidTop` |
+| `eye/eye_lid_bot.png` | `EyeImages.lidBottom` |
+| `eye/eye_socket.png` | `EyeImages.socket` |
+| `title_dla.png` | `TitleImage` |
+
+Súbelas como **imágenes** (Gestor de recursos → Importar, o Creator Hub) y pega los IDs en `shared/MarketingConfig.luau` (o pásamelos).
+
+- Mientras falten, se usan el ojo dibujado y el título de texto.
+- `eye_preview.png` y `title_preview.png` son solo vistas previas: no hace falta subirlas.
+
+Para regenerarlas:
+
+```bash
+python3 tools/gen_eye.py
+python3 tools/gen_title.py
+```

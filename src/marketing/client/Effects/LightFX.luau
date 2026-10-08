@@ -19,6 +19,7 @@ local Runtime = require(script.Parent.Parent.Runtime)
 local LightFX = {}
 
 local keys: { [string]: { part: BasePart, light: Light, base: number } } = {}
+local fill: { part: BasePart, light: PointLight }? = nil
 
 -- The game's LightController, if the game's client is running (adapter).
 local function gameLights(): any
@@ -34,6 +35,7 @@ end
 
 function LightFX.reset()
 	table.clear(keys)
+	fill = nil
 end
 
 -- Flicker the real fixtures around a point.
@@ -108,6 +110,52 @@ function LightFX.fogValues(density: number, color: Color3?): (Instance, { [strin
 end
 
 ------------------------------------------------------------------------------------
+-- Fill: so the picture is never just black. Lifts exposure and ambient, and
+-- carries a soft shadowless light with the camera (like a film crew's fill).
+-- level 0 = off .. 4 = bright.
+------------------------------------------------------------------------------------
+
+function LightFX.fill(level: number)
+	if level <= 0 then
+		return
+	end
+	local lift = math.clamp(level, 0, 4)
+	local exposure = Lighting.ExposureCompensation
+	Runtime.setProp(Lighting, "ExposureCompensation", exposure + 0.35 * lift)
+	local floor = 14 + 14 * lift
+	local function lifted(c: Color3): Color3
+		return Color3.fromRGB(math.max(c.R * 255, floor), math.max(c.G * 255, floor), math.max(c.B * 255, floor + 6))
+	end
+	Runtime.setProp(Lighting, "Ambient", lifted(Lighting.Ambient))
+	Runtime.setProp(Lighting, "OutdoorAmbient", lifted(Lighting.OutdoorAmbient))
+	local part = Instance.new("Part")
+	part.Name = "FillLight"
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Transparency = 1
+	part.Size = Vector3.new(0.2, 0.2, 0.2)
+	local light = Instance.new("PointLight")
+	light.Range = 34 + 6 * lift
+	light.Brightness = 0.35 * lift
+	light.Color = Color3.fromRGB(214, 220, 236)
+	light.Shadows = false
+	light.Parent = part
+	part.Parent = Runtime.folder()
+	fill = { part = part, light = light }
+end
+
+-- Follow the camera (called every frame while a scene plays).
+function LightFX.updateFill(cameraCf: CFrame)
+	local f = fill
+	if f and f.part.Parent then
+		f.part.CFrame = cameraCf * CFrame.new(0, 1.5, 2.5)
+	end
+end
+
+------------------------------------------------------------------------------------
 -- Key lights
 ------------------------------------------------------------------------------------
 
@@ -148,6 +196,12 @@ function LightFX.key(name: string, cf: CFrame, opts: { [string]: any }?): Light
 	part.Parent = Runtime.folder()
 	keys[name] = { part = part, light = light, base = light.Brightness }
 	return light
+end
+
+-- Treat a light the scene built (a set's lamp) as a key light, so
+-- FlickerLights / KeyLightOff can drive it by name.
+function LightFX.adopt(name: string, part: BasePart, light: Light)
+	keys[name] = { part = part, light = light, base = light.Brightness }
 end
 
 function LightFX.getKey(name: string)

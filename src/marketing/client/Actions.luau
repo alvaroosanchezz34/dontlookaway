@@ -404,7 +404,7 @@ end)
 
 Actions.register("ShowEye", function(tl, e)
 	if not Eye.exists() or e.recreate then
-		Eye.create({ mode = e.mode, position = e.position, scale = e.scale, intensity = e.intensity, parent = Screen.fxLayer() })
+		Eye.create({ mode = e.mode, position = e.position, scale = e.scale, intensity = e.intensity, brightness = e.brightness, parent = Screen.fxLayer() })
 	end
 	if e.look then
 		Eye.lookAt(e.look, e.drift)
@@ -516,6 +516,35 @@ Actions.register("HideText", function(tl, e)
 		Titles.hide(tl, e.id, e.fadeOut or 0.3)
 	else
 		Titles.removeAll()
+	end
+end)
+
+-- An image title: e.image (url) or e.imageKey = "title" (MarketingConfig.TitleImage);
+-- falls back to text (e.fallbackText) when no image is configured.
+Actions.register("ShowImage", function(tl, e)
+	local url = e.image
+	if not url and e.imageKey == "title" then
+		local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Marketing"):WaitForChild("MarketingConfig"))
+		local id = Config.TitleImage
+		if type(id) == "number" and id > 0 then
+			url = "rbxassetid://" .. string.format("%d", id)
+		end
+	end
+	if url then
+		Titles.image(tl, e.id or "image", { image = url, position = e.position, width = e.width, aspect = e.aspect, fadeIn = e.fadeIn, duration = e.duration, fadeOut = e.fadeOut, flicker = e.flicker })
+	elseif e.fallbackText then
+		Titles.show(tl, e.id or "image", e.fallbackText, { style = e.fallbackStyle or "title", position = e.position, size = e.size, fadeIn = e.fadeIn, duration = e.duration, fadeOut = e.fadeOut, tracking = e.tracking, color = e.color })
+	end
+end)
+
+Actions.register("FilmGrain", function(_tl, e)
+	Screen.setGrain(e.on ~= false, e.amount)
+end)
+
+-- Use a light the scene built as a named key (e.g. a set's lamp).
+Actions.register("AdoptLight", function(_tl, e)
+	if e.part and e.light then
+		LightFX.adopt(e.name or "key", e.part, e.light)
 	end
 end)
 

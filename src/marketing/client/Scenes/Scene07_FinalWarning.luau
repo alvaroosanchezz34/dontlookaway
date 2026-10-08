@@ -8,6 +8,7 @@ return {
 	Name = "Scene07_FinalWarning",
 	Description = "Countdown card",
 	Duration = 9.6,
+	Light = false, -- a black card: no fill light
 	Build = function(_L, Config)
 		return {
 			{ at = 0, action = "Backdrop", on = true },

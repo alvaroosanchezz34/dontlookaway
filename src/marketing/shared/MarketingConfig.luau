@@ -41,8 +41,26 @@ MarketingConfig.Defaults = {
 	HidePanelWhilePlaying = true,
 	Loop = false,
 	TimeScale = 1, -- 0.5 = slow motion
-	HoldAtEnd = 0.6, -- seconds held on the last frame before cleaning up
+	HoldAtEnd = 0.6,
+	Light = 3, -- fill light / exposure lift: 0 = off .. 4 = bright (not used on black-card scenes) -- seconds held on the last frame before cleaning up
 }
+
+-- THE EYE, photographic version: the 7 images in assets/marketing/eye
+-- (made by tools/gen_eye.py, original). Upload them as images and paste the ids.
+-- While sclera/iris/pupil/socket are 0, the simple drawn eye is used instead.
+MarketingConfig.EyeImages = {
+	sclera = 0, -- eye_sclera.png
+	iris = 0, -- eye_iris.png
+	pupil = 0, -- eye_pupil.png
+	glint = 0, -- eye_glint.png
+	lidTop = 0, -- eye_lid_top.png
+	lidBottom = 0, -- eye_lid_bot.png
+	socket = 0, -- eye_socket.png
+}
+
+-- The scratched title image (assets/marketing/title_dla.png, made by
+-- tools/gen_title.py). 0 = use the text title instead.
+MarketingConfig.TitleImage = 0
 
 -- Text used by the teaser scenes (edit for the campaign).
 MarketingConfig.Text = {

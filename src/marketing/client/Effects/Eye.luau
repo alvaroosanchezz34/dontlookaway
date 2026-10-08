@@ -17,9 +17,11 @@
 	Animated values are driven by the scene timeline (Eye.update).
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Runtime = require(script.Parent.Parent.Runtime)
+local Config = require(ReplicatedStorage:WaitForChild("Marketing"):WaitForChild("MarketingConfig"))
 
 local Eye = {}
 
@@ -31,8 +33,10 @@ type State = {
 	group: CanvasGroup?,
 	iris: Frame?,
 	pupil: Frame?,
-	lidTop: Frame?,
-	lidBottom: Frame?,
+	lidTop: GuiObject?,
+	lidBottom: GuiObject?,
+	photo: boolean,
+	brightness: number?,
 	glow: PointLight?,
 	opacity: number,
 	open: number, -- 1 = open, 0 = shut
@@ -108,6 +112,82 @@ local function draw(parent: Instance)
 	return group, iris, pupil, lidTop, lidBottom
 end
 
+------------------------------------------------------------------------------------
+-- The photographic eye: layered images from tools/gen_eye.py (assets/marketing/eye),
+-- used as soon as their ids are in MarketingConfig.EyeImages.
+------------------------------------------------------------------------------------
+
+-- geometry of the generated layers (1024x512 canvas): iris diameter and centre
+local IRIS_W, IRIS_H = 336 / 1024, 336 / 512
+local IRIS_Y = 256 / 512
+
+local function imageUrl(key: string): string?
+	local ids = Config.EyeImages or {}
+	local id = ids[key]
+	if type(id) == "number" and id > 0 then
+		return "rbxassetid://" .. string.format("%d", id)
+	end
+	return nil
+end
+
+function Eye.photographic(): boolean
+	for _, key in { "sclera", "iris", "pupil", "socket" } do
+		if not imageUrl(key) then
+			return false
+		end
+	end
+	return true
+end
+
+local function image(parent: Instance, name: string, key: string, z: number): ImageLabel
+	local img = Instance.new("ImageLabel")
+	img.Name = name
+	img.BackgroundTransparency = 1
+	img.BorderSizePixel = 0
+	img.Size = UDim2.fromScale(1, 1)
+	img.Image = imageUrl(key) or ""
+	img.ScaleType = Enum.ScaleType.Stretch
+	img.ZIndex = z
+	img.Parent = parent
+	return img
+end
+
+local function drawPhoto(parent: Instance)
+	local group = Instance.new("CanvasGroup")
+	group.Name = "Eye"
+	group.BackgroundTransparency = 1
+	group.Size = UDim2.fromScale(1, 1)
+	group.GroupTransparency = 1
+	group.Parent = parent
+	image(group, "Sclera", "sclera", 1)
+	local iris = Instance.new("Frame")
+	iris.Name = "Iris"
+	iris.BackgroundTransparency = 1
+	iris.AnchorPoint = Vector2.new(0.5, 0.5)
+	iris.Position = UDim2.fromScale(0.5, IRIS_Y)
+	iris.Size = UDim2.fromScale(IRIS_W, IRIS_H)
+	iris.ZIndex = 2
+	iris.Parent = group
+	image(iris, "IrisImage", "iris", 2)
+	local pupil = image(iris, "Pupil", "pupil", 3)
+	pupil.AnchorPoint = Vector2.new(0.5, 0.5)
+	pupil.Position = UDim2.fromScale(0.5, 0.5)
+	if imageUrl("glint") then
+		image(iris, "Glint", "glint", 4)
+	end
+	local lidTop, lidBottom = nil, nil
+	if imageUrl("lidTop") and imageUrl("lidBottom") then
+		lidTop = image(group, "LidTop", "lidTop", 5)
+		lidBottom = image(group, "LidBottom", "lidBottom", 5)
+	else
+		-- no lid images: shut with the dark of the socket
+		lidTop = frame(group, "LidTop", { BackgroundColor3 = Color3.fromRGB(8, 6, 6), Size = UDim2.fromScale(1, 0.5), ZIndex = 5 })
+		lidBottom = frame(group, "LidBottom", { BackgroundColor3 = Color3.fromRGB(8, 6, 6), Size = UDim2.fromScale(1, 0.5), ZIndex = 5 })
+	end
+	image(group, "Socket", "socket", 6)
+	return group, iris, pupil, lidTop, lidBottom
+end
+
 function Eye.reset()
 	state = nil
 end
@@ -137,6 +217,8 @@ function Eye.create(opts: { [string]: any })
 		drift = true,
 		scale = opts.scale or (if mode == "screen" then 0.8 else 2.4),
 		intensity = opts.intensity or 1,
+		photo = Eye.photographic(),
+		brightness = opts.brightness,
 	}
 	if mode == "screen" then
 		local holder = Instance.new("Frame")
@@ -149,7 +231,11 @@ function Eye.create(opts: { [string]: any })
 		Instance.new("UIAspectRatioConstraint", holder).AspectRatio = 2
 		holder.Parent = opts.parent
 		s.holder = holder
-		s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = draw(holder)
+		if s.photo then
+			s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = drawPhoto(holder)
+		else
+			s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = draw(holder)
+		end
 	else
 		local part = Instance.new("Part")
 		part.Name = "TheEye"
@@ -178,7 +264,11 @@ function Eye.create(opts: { [string]: any })
 		glow.Parent = part
 		part.Parent = Runtime.folder()
 		s.part, s.gui, s.glow, s.holder = part, gui, glow, gui
-		s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = draw(gui)
+		if s.photo then
+			s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = drawPhoto(gui)
+		else
+			s.group, s.iris, s.pupil, s.lidTop, s.lidBottom = draw(gui)
+		end
 	end
 	state = s
 	Eye.render()
@@ -205,21 +295,35 @@ function Eye.render()
 	s.group.GroupTransparency = 1 - math.clamp(s.opacity, 0, 1)
 	-- lids: open = 1 parts them, 0 meets in the middle
 	local gap = math.clamp(s.open, 0, 1)
-	if s.lidTop and s.lidBottom then
-		s.lidTop.Position = UDim2.fromScale(0.5, 0.52 - 0.52 * gap)
-		s.lidBottom.Position = UDim2.fromScale(0.5, 0.48 + 0.52 * gap)
-	end
-	if s.pupil then
-		s.pupil.Size = UDim2.fromScale(s.pupilSize, s.pupilSize)
-	end
-	if s.iris then
-		s.iris.Position = UDim2.fromScale(0.5 + s.look.X * 0.22, 0.5 + s.look.Y * 0.18)
+	if s.photo then
+		-- the upper lid does the blinking; the lower one only rises a little
+		if s.lidTop and s.lidBottom then
+			s.lidTop.Position = UDim2.fromScale(0, -0.5 * gap)
+			s.lidBottom.Position = UDim2.fromScale(0, 0.3 - 0.075 * (1 - gap))
+		end
+		if s.pupil then
+			s.pupil.Size = UDim2.fromScale(s.pupilSize, s.pupilSize)
+		end
+		if s.iris then
+			s.iris.Position = UDim2.fromScale(0.5 + s.look.X * 0.186, IRIS_Y + s.look.Y * 0.117)
+		end
+	else
+		if s.lidTop and s.lidBottom then
+			s.lidTop.Position = UDim2.fromScale(0.5, 0.52 - 0.52 * gap)
+			s.lidBottom.Position = UDim2.fromScale(0.5, 0.48 + 0.52 * gap)
+		end
+		if s.pupil then
+			s.pupil.Size = UDim2.fromScale(s.pupilSize, s.pupilSize)
+		end
+		if s.iris then
+			s.iris.Position = UDim2.fromScale(0.5 + s.look.X * 0.22, 0.5 + s.look.Y * 0.18)
+		end
 	end
 	if s.glow then
-		s.glow.Brightness = s.intensity * 0.6 * s.opacity * gap
+		s.glow.Brightness = math.max(0, s.intensity) * 0.6 * s.opacity * gap
 	end
 	if s.gui then
-		s.gui.Brightness = 0.6 + s.intensity * 0.6
+		s.gui.Brightness = s.brightness or (0.6 + s.intensity * 0.6)
 		s.gui.Size = UDim2.fromScale(s.scale, s.scale * 0.5)
 	end
 end

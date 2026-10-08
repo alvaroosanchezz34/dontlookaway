@@ -804,6 +804,22 @@ do
 	end
 	check(leaf.CFrame == door:GetAttribute("ClosedCFrame"), "the real door is back where the game left it")
 	local _ = doorBefore
+	-- 2b. the photographic eye (images configured)
+	local savedEye = Config.EyeImages
+	Config.EyeImages = { sclera = 1, iris = 2, pupil = 3, glint = 4, lidTop = 5, lidBottom = 6, socket = 7 }
+	MC.PlayScene("Scene04_TheEye")
+	local sawPhoto = false
+	for _ = 1, 200 do
+		renderFns.MarketingStudio(1 / 30)
+		local rt = workspace:FindFirstChild("MarketingRuntime")
+		if rt and rt:FindFirstChild("IrisImage", true) and rt:FindFirstChild("Socket", true) then
+			sawPhoto = true
+		end
+	end
+	check(sawPhoto, "marketing: the photographic eye is used once its images are set")
+	MC.StopScene()
+	run("Scene02_DidYouSeeIt", "photo-eye")
+	Config.EyeImages = savedEye
 	-- 3. pause / resume / restart / stop mid-scene, slow motion, formats, camera styles
 	MC.SetOption("TimeScale", 0.5)
 	MC.SetFormat("SQUARE")

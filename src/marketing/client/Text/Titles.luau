@@ -41,11 +41,13 @@ local GLYPHS = { "#", "%", "/", "\\", "?", "▓", "░", "0", "1", "_" }
 type Title = { holder: Frame, letters: { TextLabel }, chars: { string }, opacity: number, opts: { [string]: any }, born: number, list: UIListLayout, shown: number }
 
 local titles: { [string]: Title } = {}
+local images: { [string]: { label: ImageLabel, opts: { [string]: any }, born: number, opacity: number } } = {}
 local surfaces: { [string]: { part: BasePart, label: TextLabel } } = {}
 local random = Random.new()
 
 function Titles.reset()
 	table.clear(titles)
+	table.clear(images)
 	table.clear(surfaces)
 end
 
@@ -130,6 +132,82 @@ function Titles.show(tl: any, id: string, text: string, opts: { [string]: any }?
 				Titles.hide(tl, id, fadeOut)
 			end
 		end, nil, "title.life." .. id)
+	end
+end
+
+--[[
+	An image title (the scratched DON'T LOOK AWAY lettering): opts.image (url),
+	opts.aspect (w/h), opts.width (fraction of the frame width), position,
+	fadeIn, duration, fadeOut, flicker (0..1: it stutters in like a bad bulb).
+]]
+local function renderImage(t)
+	local flick = 1
+	if t.opts.flicker and t.opts.flicker > 0 and random:NextNumber() < t.opts.flicker then
+		flick = random:NextNumber(0.1, 0.6)
+	end
+	t.label.ImageTransparency = 1 - math.clamp(t.opacity * flick, 0, 1)
+end
+
+function Titles.image(tl: any, id: string, opts: { [string]: any })
+	Titles.removeImage(id)
+	local layer = Screen.textLayer()
+	if not layer then
+		return
+	end
+	local img = Instance.new("ImageLabel")
+	img.Name = "ImageTitle_" .. id
+	img.BackgroundTransparency = 1
+	img.Image = opts.image or ""
+	img.AnchorPoint = Vector2.new(0.5, 0.5)
+	img.Position = if typeof(opts.position) == "UDim2" then opts.position else (POSITIONS[opts.position or "center"] or POSITIONS.center)
+	img.Size = UDim2.fromScale(opts.width or 0.95, 1)
+	img.ScaleType = Enum.ScaleType.Fit
+	img.ZIndex = 12
+	local ratio = Instance.new("UIAspectRatioConstraint")
+	ratio.AspectRatio = opts.aspect or 1.6
+	ratio.Parent = img
+	img.Parent = layer
+	local t = { label = img, opts = opts, born = if tl then tl.clock else 0, opacity = 0 }
+	images[id] = t
+	renderImage(t)
+	if tl then
+		tl:span(opts.fadeIn or 0.5, "outQuad", function(a)
+			t.opacity = a
+			renderImage(t)
+		end, nil, "image.fade." .. id)
+		if opts.duration then
+			tl:span(opts.duration, "linear", function(a)
+				if a >= 1 then
+					local from = t.opacity
+					tl:span(opts.fadeOut or 0.4, "inQuad", function(b)
+						t.opacity = from * (1 - b)
+						renderImage(t)
+						if b >= 1 then
+							Titles.removeImage(id)
+						end
+					end, nil, "image.fade." .. id)
+				end
+			end, nil, "image.life." .. id)
+		end
+	else
+		t.opacity = 1
+		renderImage(t)
+	end
+end
+
+function Titles.removeImage(id: string)
+	local t = images[id]
+	if t then
+		t.label:Destroy()
+		images[id] = nil
+	end
+end
+
+function Titles.updateImages()
+	for _, t in images do
+		if t.opts.flicker then
+			renderImage(t)
+		end
 	end
 end
 

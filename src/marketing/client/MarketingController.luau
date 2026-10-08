@@ -199,6 +199,8 @@ local function step(dt: number)
 		CameraRig.update(scaled)
 		Eye.update(scaled, tl.clock)
 		Titles.update(scaled, tl.clock)
+		Titles.updateImages()
+		Screen.updateGrain()
 		if tl.data.cctvClock then
 			local secs = tl.data.cctvStart + (tl.clock - tl.data.cctvClock)
 			local stamp = string.format("%s  %02d:%02d:%02d", tl.data.cctvDate, math.floor(secs / 3600) % 24, math.floor(secs / 60) % 60, math.floor(secs) % 60)
@@ -207,6 +209,7 @@ local function step(dt: number)
 	end
 	Screen.layout()
 	CameraRig.apply()
+	LightFX.updateFill(game:GetService("Workspace").CurrentCamera.CFrame)
 	-- Roblox resets local transparency each frame for first-person characters
 	if options.HideCharacter then
 		for _, p in characterParts() do
@@ -291,6 +294,28 @@ function MarketingController.PlayScene(name: string): (boolean, string?)
 	CameraRig.force(if cameraStyle == "AUTO" then nil else cameraStyle)
 	if options.HideHUD then
 		hideHUD()
+	end
+	-- sets built far from the map: the player's flashlight and the game's eye
+	-- adaptation light follow the camera, keep them out of the shot
+	if def.Isolated then
+		local Workspace = game:GetService("Workspace")
+		for _, child in Workspace:GetChildren() do
+			if child:IsA("BasePart") and (child.Name == "LocalFlashlight" or child.Name == "DarkAdaptation" or string.sub(child.Name, 1, 11) == "Flashlight_") then
+				Runtime.setProp(child, "Parent", nil)
+				local holder = child
+				Runtime.onCleanup(function()
+					if holder.Parent == nil then
+						pcall(function()
+							holder.Parent = Workspace
+						end)
+					end
+				end)
+			end
+		end
+	end
+	-- fill light (scenes on a black card set Light = false)
+	if def.Light ~= false then
+		LightFX.fill(options.Light or 3)
 	end
 	if options.FreezeCharacter then
 		freezeCharacter()
