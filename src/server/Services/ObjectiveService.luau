@@ -19,6 +19,7 @@ local Signal = require(ReplicatedStorage.Shared.Util.Signal)
 local Registry = require(script.Parent.Parent.Registry)
 local Build = require(script.Parent.Parent.Map.Build)
 local Art = require(script.Parent.Parent.Map.Art)
+local Lore = require(ReplicatedStorage.Shared.Catalog.Lore)
 
 local ObjectiveService = {}
 
@@ -37,22 +38,7 @@ local readBy: { [Player]: { [string]: boolean } } = {}
 local docs: { [string]: { title: string, body: string, kind: string? } } = {}
 local docFolder: Folder? = nil
 
-local LORE = {
-	{ "NOTE", "Day 3.\nThe staff photo in the corridor has one more face than we have staff.\nNobody will say whose." },
-	{ "NOTE", "If you stop looking at a thing, it stops having to be what it was.\nKeep your eyes on the doors." },
-	{ "MEMO", "TO ALL STAFF\nDo not report the tall man in the stairwell.\nHe does not like being written down." },
-	{ "NOTE", "The basement corridor was longer this morning.\nI counted the lights. There were more lights." },
-	{ "NOTE", "It only moves when you blink.\nYou can't stop blinking.\nSo don't be alone." },
-	{ "INCIDENT", "Incident 41.\nEmployee reported a colleague waving from the end of the hall.\nThe colleague was at home." },
-	{ "MEMO", "FACILITIES\nThe fuses keep burning out at the same minute every night.\nWe have replaced the wiring twice. Stop asking for a third." },
-	{ "NOTE", "Marta says the painting in reception used to be a landscape.\nI have worked here eleven years.\nIt has always been a portrait.\nHasn't it?" },
-	{ "VOICEMAIL TRANSCRIPT", "\"...it's me. I'm still in the archive. I can hear you in the corridor, why won't you answer? You're standing right outside the door. I can see your shoes under the-\"\n\n(end of message)" },
-	{ "INCIDENT", "Incident 57.\nNight guard found asleep at the desk with his eyes taped open.\nHe said he did it himself. He said it was the only way to keep it still." },
-	{ "NOTE", "If someone you came with looks at you a moment too long, ask them something only they would know.\nIf they smile before answering, run." },
-	{ "MEMO", "TO ALL STAFF\nThe Quiet Room is not a storage room.\nPlease return the child's things.\nShe gets upset." },
-	{ "NOTE", "Room numbers on the first floor skip 1-04.\nThere is a door where 1-04 should be.\nIt's only there when the lights are off." },
-	{ "INCIDENT", "Incident 63.\nSix people entered the building for the evening inspection. Six people left.\nThe signing-out sheet has seven signatures." },
-}
+-- the story pieces themselves live in Catalog/Lore (chapters, archive categories)
 
 ------------------------------------------------------------------------------------
 -- Planning
@@ -106,7 +92,7 @@ local function placeItem(map, rng, itemId, filter)
 	return model, spot.room
 end
 
-local function placeDocument(map, rng, docId, title, body, filter, kind)
+local function placeDocument(map, rng, docId, title, body, filter, kind, loreId: string?)
 	local spot = takeSpot(map, rng, filter)
 	if not spot then
 		spot = takeSpot(map, rng, nil)
@@ -114,7 +100,7 @@ local function placeDocument(map, rng, docId, title, body, filter, kind)
 	if not spot then
 		return nil
 	end
-	docs[docId] = { title = title, body = body, kind = kind }
+	docs[docId] = { title = title, body = body, kind = kind, loreId = loreId }
 	local paper = Build.part(docFolder, "Document", Vector3.new(0.9, 0.04, 1.2), CFrame.new(spot.cf.Position + Vector3.new(0, 0.03, 0)) * CFrame.Angles(0, math.rad(rng:Number(0, 360)), 0), Color3.fromRGB(214, 206, 184), Enum.Material.SmoothPlastic, { CanCollide = false, CastShadow = false })
 	local hit = Build.part(paper, "Hit", Vector3.new(1.6, 0.8, 1.6), paper.CFrame * CFrame.new(0, 0.3, 0), Color3.new(), Enum.Material.SmoothPlastic, { Transparency = 1, CanCollide = false, CastShadow = false })
 	hit:AddTag("Interactable")
@@ -279,12 +265,19 @@ function ObjectiveService:Plan(map, rng, playerCount: number)
 			end, "offering")
 		end
 	end
-	-- lore
-	local lore = table.clone(LORE)
-	rng:Shuffle(lore)
-	for i = 1, 4 do
-		local entry = lore[i]
-		placeDocument(map, rng, "LORE_" .. i, entry[1], entry[2], unlocked, "lore")
+	-- lore: tonight's pieces continue the team's story in order (Catalog/Lore)
+	local team = {}
+	for _, p in Players:GetPlayers() do
+		local d = Registry.DataService:Get(p)
+		if d then
+			table.insert(team, d.lore or {})
+		end
+	end
+	if #team == 0 then
+		table.insert(team, {})
+	end
+	for _, entry in Lore.pick(team, 4, rng) do
+		placeDocument(map, rng, "LORE_" .. entry.id, entry.title, entry.body, unlocked, "lore", entry.id)
 	end
 	Registry.PuzzleService:Setup(map, state, rng)
 	self:UpdateExitPanel()
@@ -475,7 +468,11 @@ local function onRead(player: Player, target: Instance): boolean
 		return false
 	end
 	Registry.AudioService:Play2D({ player }, "PaperRustle")
-	Net.fire(player, "Document", { id = id, title = doc.title, body = doc.body, kind = doc.kind })
+	local entry = doc.loreId and Lore.ById[doc.loreId]
+	Net.fire(player, "Document", { id = id, title = doc.title, body = doc.body, kind = doc.kind, category = entry and entry.category, format = entry and entry.kind })
+	if entry then
+		ObjectiveService:RecordLore(player, entry.id)
+	end
 	if Registry.GuidanceService then
 		Registry.GuidanceService:DocumentRead(id)
 	end
@@ -485,6 +482,32 @@ local function onRead(player: Player, target: Instance): boolean
 		readBy[player][id] = true
 		Registry.ProgressionService:Challenge(player, "note", 1)
 	end
+	return true
+end
+
+--[[
+	Adds an archive entry to the player's profile (once) and announces it. The
+	archive (Field Office records) and THE WITNESS ending read from it.
+]]
+function ObjectiveService:RecordLore(player: Player, loreId: string)
+	local entry = Lore.ById[loreId]
+	local data = Registry.DataService:Get(player)
+	if not entry or not data or data.lore[loreId] then
+		return false
+	end
+	Registry.DataService:Update(player, function(d)
+		d.lore[loreId] = os.time()
+	end)
+	local found = Lore.found(Registry.DataService:Get(player).lore)
+	Net.fire(player, "Unlock", { type = "lore", name = entry.title, category = entry.category, found = found, total = Lore.Count })
+	Registry.AnalyticsService:Event(player, "LoreFound", found, { id = loreId, chapter = entry.chapter })
+	if found == 1 then
+		Registry.AnalyticsService:Milestone(player, "FIRST_LORE")
+	end
+	if entry.witness then
+		Registry.AnalyticsService:Milestone(player, "SECRET_DISCOVERY", entry.chapter)
+	end
+	Registry.ProgressionService:Push(player)
 	return true
 end
 

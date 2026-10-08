@@ -43,6 +43,7 @@ function ProgressionService:Snapshot(player: Player)
 		xpInto = into,
 		xpNeed = need,
 		journal = data.journal,
+		lore = data.lore,
 		achievements = data.achievements,
 		owned = Registry.EconomyService:OwnedList(player),
 		equipped = data.equipped,

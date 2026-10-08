@@ -20,6 +20,7 @@ local HttpService = game:GetService("HttpService")
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Cosmetics = require(ReplicatedStorage.Shared.Catalog.Cosmetics)
 local JournalCatalog = require(ReplicatedStorage.Shared.Catalog.JournalCatalog)
+local Lore = require(ReplicatedStorage.Shared.Catalog.Lore)
 local Achievements = require(ReplicatedStorage.Shared.Catalog.Achievements)
 local Equipment = require(ReplicatedStorage.Shared.Catalog.Equipment)
 local Challenges = require(ReplicatedStorage.Shared.Catalog.Challenges)
@@ -32,7 +33,7 @@ DataService.Loaded = Signal.new() -- (player, data)
 DataService.Changed = Signal.new() -- (player, data)
 
 -- v1: launch. v2: equipment, loadout, upgrades, challenges, gloves & badges.
-local SCHEMA_VERSION = 2
+local SCHEMA_VERSION = 3
 
 local TEMPLATE = {
 	version = SCHEMA_VERSION,
@@ -58,6 +59,7 @@ local TEMPLATE = {
 		legendaryReports = 0,
 	},
 	journal = {},
+	lore = {}, -- archive entries found: [id] = os.time() (Catalog/Lore)
 	achievements = {},
 	owned = {},
 	equipped = {
@@ -202,6 +204,10 @@ local function migrate(data)
 		-- Echoes, XP, journal, achievements and cosmetics carry over untouched.
 		data.gear = data.gear or Util.deepCopy(TEMPLATE.gear)
 	end
+	if from < 3 then
+		-- v3 adds the lore archive (empty: everyone starts the story at chapter 1)
+		data.lore = if type(data.lore) == "table" then data.lore else {}
+	end
 	return data
 end
 
@@ -227,6 +233,16 @@ local function validate(data)
 		end
 	end
 	data.journal = journal
+	-- lore: only known archive ids
+	local lore = {}
+	if type(data.lore) == "table" then
+		for id, t in data.lore do
+			if Lore.ById[id] then
+				lore[id] = num(t, os.time(), 0, 1e11)
+			end
+		end
+	end
+	data.lore = lore
 	local achievements = {}
 	if type(data.achievements) == "table" then
 		for id, t in data.achievements do

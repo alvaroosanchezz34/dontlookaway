@@ -73,6 +73,35 @@ function Analytics:Onboarding(player: Player, step: number, stepName: string)
 	end)
 end
 
+--[[
+	Beta metrics: named milestones logged once per player per session (FIRST_*)
+	or every time (the rest), and counted for the admin panel. Names:
+	  SESSION_START ARRIVAL_COMPLETE FIRST_ANOMALY FIRST_TOOL_USE FIRST_OBSERVER
+	  FIRST_DEATH FIRST_PUZZLE FIRST_LORE PUZZLE_COMPLETE BLACKOUT ESCAPE GAME_OVER
+	  SHOP_OPEN LOADOUT_CHANGE NIGHTMARE_START SECRET_DISCOVERY THE_WITNESS
+	Built on Roblox's own analytics (no external services).
+]]
+local milestoneSeen: { [Player]: { [string]: boolean } } = {}
+
+function Analytics:Milestone(player: Player?, name: string, value: number?)
+	if not player then
+		return
+	end
+	local seen = milestoneSeen[player]
+	if not seen then
+		seen = {}
+		milestoneSeen[player] = seen
+	end
+	if string.sub(name, 1, 6) == "FIRST_" then
+		if seen[name] then
+			return
+		end
+		seen[name] = true
+	end
+	self:Count("m_" .. name)
+	self:Event(player, name, value or 1)
+end
+
 function Analytics:Count(key: string, amount: number?)
 	aggregates[key] = (aggregates[key] or 0) + (amount or 1)
 end
@@ -144,6 +173,7 @@ end
 
 function Analytics:PlayerLeft(player: Player)
 	funnelSessions[player] = nil
+	milestoneSeen[player] = nil
 end
 
 function Analytics:Start()

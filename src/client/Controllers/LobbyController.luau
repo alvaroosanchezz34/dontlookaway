@@ -7,10 +7,12 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Enums = require(ReplicatedStorage.Shared.Enums)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
+local Lore = require(ReplicatedStorage.Shared.Catalog.Lore)
 local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
 local Kit = require(script.Parent.Parent.UI.Kit)
@@ -116,7 +118,35 @@ function LobbyController:Init()
 	gui.Enabled = false
 end
 
+-- The Field Office evidence wall: a card for every chapter of the story this
+-- player has started (Catalog/Lore). Local only: everyone sees their own wall.
+local function revealEvidence()
+	local found = State.profile and State.profile.lore or {}
+	local chapters = {}
+	for id in found do
+		local e = Lore.ById[id]
+		if e then
+			chapters[e.chapter] = true
+		end
+	end
+	for _, d in CollectionService:GetTagged("LoreCard") do
+		if d:IsA("BasePart") then
+			local show = chapters[d:GetAttribute("Chapter") or 99] == true
+			d.Transparency = if show then 0 else 1
+			local gui = d:FindFirstChildWhichIsA("SurfaceGui")
+			if gui then
+				gui.Enabled = show
+			end
+		end
+	end
+end
+
 function LobbyController:Start()
+	State.ProfileChanged:Connect(revealEvidence)
+	CollectionService:GetInstanceAddedSignal("LoreCard"):Connect(function()
+		task.defer(revealEvidence)
+	end)
+	task.defer(revealEvidence)
 	State.LobbyChanged:Connect(render)
 	local function visibility()
 		gui.Enabled = State.status == "LOBBY" and not Registry.SpectatorController:IsActive()

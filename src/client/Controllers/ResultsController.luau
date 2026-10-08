@@ -25,7 +25,7 @@ local ENDINGS = {
 	EVERYONE_SURVIVED = { "EVERYONE SURVIVED", "You kept your eyes on each other. It was enough. Tonight." },
 	OBSERVER_CAUGHT_YOU = { "THE OBSERVER CAUGHT YOU", "You looked away." },
 	FAILED_TO_IDENTIFY = { "FAILED TO IDENTIFY THE ANOMALIES", "Reality drifted too far. The building kept you." },
-	THE_WITNESS = { "THE WITNESS", "You carried the photograph out. Something is developing in it." },
+	THE_WITNESS = { "THE WITNESS", "The photograph develops on the drive home: eleven people on the front steps, and Vale among them. Behind every window, something tall is watching. Count the people again. There are twelve." },
 }
 
 local OUTCOME = { ESCAPED = "ESCAPED", DEAD = "TAKEN", LOST = "LOST" }

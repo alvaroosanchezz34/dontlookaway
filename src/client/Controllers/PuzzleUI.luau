@@ -81,7 +81,8 @@ end
 
 local function openDocument(doc)
 	close()
-	paperTitle.Text = doc.title or ""
+	-- archive pieces carry their file category (PROJECT FILES, AUDIO LOGS...)
+	paperTitle.Text = if doc.category then (doc.category .. "  ·  " .. (doc.title or "")) else (doc.title or "")
 	paperBody.Text = doc.body or ""
 	paper.Visible = true
 	openPanel = "paper"

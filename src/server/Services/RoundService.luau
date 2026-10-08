@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Enums = require(ReplicatedStorage.Shared.Enums)
+local Lore = require(ReplicatedStorage.Shared.Catalog.Lore)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
 local SeededRandom = require(ReplicatedStorage.Shared.Util.SeededRandom)
@@ -170,13 +171,32 @@ function RoundService:PlayerEscaped(player: Player)
 	if rec then
 		rec.outcome = "ESCAPED"
 		rec.escapedAt = self:GetElapsed()
-		rec.witness = Registry.InventoryService:Has(player, "PHOTOGRAPH")
+		-- THE WITNESS: the photograph only develops for someone who has read
+		-- enough of the archive (Catalog/Lore); otherwise it stays blank
+		local hasPhoto = Registry.InventoryService:Has(player, "PHOTOGRAPH")
+		local data = Registry.DataService:Get(player)
+		local known = data and Lore.found(data.lore) or 0
+		rec.witness = hasPhoto and known >= Lore.WitnessRequired
+		if hasPhoto and not rec.witness then
+			task.delay(2.5, function()
+				if player.Parent then
+					Net.fire(player, "Caption", { text = string.format("The photograph is blank. You don't know enough yet. (%d/%d archive entries)", known, Lore.WitnessRequired), duration = 6, speaker = "tape" })
+				end
+			end)
+		elseif rec.witness then
+			-- the last pages of the story come out with you
+			for _, id in { "CL_WITNESS", "AL_VALE_04" } do
+				Registry.ObjectiveService:RecordLore(player, id)
+			end
+			Registry.AnalyticsService:Milestone(player, "THE_WITNESS")
+		end
 		rec.lowBattery = battery < 10
 		rec.stats = Registry.InventoryService:GetRoundStats(player)
 	end
 	Registry.PlayerService:SetStatus(player, Status.Escaped)
 	Registry.InventoryService:SetFlashlight(player, false)
 	Registry.AnalyticsService:Escape(player, self:GetElapsed())
+	Registry.AnalyticsService:Milestone(player, "ESCAPE", math.floor(self:GetElapsed()))
 	local map = Registry.MapService:GetMap()
 	Net.fire(player, "Effect", { name = "Escaped", camera = map and map.EscapeCamera, witness = rec and rec.witness })
 	Registry.AudioService:Play2D({ player }, "EscapeSuccess")

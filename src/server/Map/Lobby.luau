@@ -78,6 +78,42 @@ local function board(folder: Instance, name: string, title: string, rows: number
 	return face, labels
 end
 
+--[[
+	The evidence wall: one pinned card per chapter of the story (Catalog/Lore).
+	Built hidden; each client reveals the cards its own player has reached
+	(LobbyController), so the Field Office slowly fills in as you learn more.
+]]
+local EVIDENCE = {
+	{ "PROJECT CHARTER", "ashgrove observation project\n- one year -" },
+	{ "INCIDENT 14", "clock reads 3:40\nno batteries" },
+	{ "FLOOR PLAN", "basement corridor\nlonger???" },
+	{ "SUBJECT O-01", "2.9 m\nmoves only\nbetween looks" },
+	{ "ROSTER", "active 6\nunaccounted 5" },
+	{ "SIGN-OUT SHEET", "6 in. 6 out.\n7 signatures" },
+	{ "VALE", "\"we were never\nthe observers\"" },
+	{ "THE WITNESS", "count the people\ncount again" },
+}
+
+local function evidenceWall(folder: Instance, wallCf: CFrame)
+	local m = Build.model(folder, "EvidenceWall", wallCf)
+	Build.detail(m, "Cork", Vector3.new(9, 3.4, 0.15), wallCf * CFrame.new(0, 0, -0.08), Color3.fromRGB(118, 92, 64), M.Fabric)
+	for i, card in EVIDENCE do
+		local col, row = (i - 1) % 4, math.floor((i - 1) / 4)
+		local cf = wallCf * CFrame.new(-3.3 + col * 2.2, 0.75 - row * 1.55, -0.2) * CFrame.Angles(0, 0, math.rad((i * 37) % 9 - 4))
+		local paper = Build.part(m, "LoreCard", Vector3.new(1.8, 1.25, 0.03), cf, Color3.fromRGB(226, 218, 196), M.SmoothPlastic, { CanCollide = false, CanQuery = false, Transparency = 1 })
+		paper:SetAttribute("Chapter", i)
+		paper:AddTag("LoreCard")
+		local gui = Build.surfaceGui(paper, Enum.NormalId.Front, 60)
+		gui.Enabled = false
+		Build.text(gui, { Size = UDim2.fromScale(0.9, 0.3), Position = UDim2.fromScale(0.05, 0.06), Text = card[1], Font = Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(40, 34, 30) })
+		Build.text(gui, { Size = UDim2.fromScale(0.9, 0.56), Position = UDim2.fromScale(0.05, 0.38), Text = card[2], Font = Enum.Font.SpecialElite, TextColor3 = Color3.fromRGB(60, 50, 44) })
+		local pin = Build.ball(m, "Pin", 0.14, cf * CFrame.new(0, 0.5, -0.05), Color3.fromRGB(160, 30, 30), M.SmoothPlastic, { CanCollide = false, CanQuery = false, Transparency = 1 })
+		pin:SetAttribute("Chapter", i)
+		pin:AddTag("LoreCard")
+	end
+	return m
+end
+
 local function pendant(folder: Instance, at: Vector3, range: number, brightness: number)
 	local bulb = Build.ball(folder, "Bulb", 0.7, CFrame.new(at), Color3.fromRGB(255, 214, 160), M.Neon, { CanCollide = false })
 	Build.detail(folder, "Shade", Vector3.new(2.2, 0.5, 2.2), CFrame.new(at + Vector3.new(0, 0.45, 0)), Color3.fromRGB(36, 40, 38), M.Metal)
@@ -135,6 +171,8 @@ function Lobby.build(parent: Instance)
 	Props.sign(folder, CFrame.lookAt(O + Vector3.new(westX + 0.05, 9.5, -4), O + Vector3.new(0, 9.5, -4)), "RECORDS", 5, 0.9, "brass")
 	kiosk(folder, "JournalKiosk", "JOURNAL", "anomalies catalogued", "JOURNAL", CFrame.lookAt(O + Vector3.new(westX + 3, 0, -10), O + Vector3.new(0, 0, -10)))
 	kiosk(folder, "RecordKiosk", "RECORD", "stats & achievements", "RECORD", CFrame.lookAt(O + Vector3.new(westX + 3, 0, -3), O + Vector3.new(0, 0, -3)))
+	kiosk(folder, "ArchiveKiosk", "ARCHIVE", "project files", "ARCHIVE", CFrame.lookAt(O + Vector3.new(westX + 3, 0, -16.5), O + Vector3.new(0, 0, -16.5)))
+	evidenceWall(folder, CFrame.lookAt(O + Vector3.new(westX + 0.05, 7.4, -13.5), O + Vector3.new(0, 7.4, -13.5)))
 	local leaderFace, leaderRows = board(folder, "Leaderboard", "MOST ESCAPES", 11, CFrame.lookAt(O + Vector3.new(westX + 0.05, 6.6, 8), O + Vector3.new(0, 6.6, 8)), 10, 7)
 	for i = 0, 2 do
 		Props.filingCabinet(folder, CFrame.lookAt(O + Vector3.new(westX + 1.3, 0, 15 + i * 2), O + Vector3.new(0, 0, 15 + i * 2)), rng)

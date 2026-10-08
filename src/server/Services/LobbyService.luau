@@ -171,6 +171,7 @@ end
 local STATIONS = {
 	JOURNAL = { "JOURNAL", "ALL" },
 	RECORD = { "JOURNAL", "RECORD" },
+	ARCHIVE = { "JOURNAL", "ARCHIVE" },
 	SHOP = { "SHOP", "EQUIPMENT" },
 	SUPPLY = { "SHOP", "EQUIPMENT" },
 	LOADOUT = { "SHOP", "LOADOUT" },

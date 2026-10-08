@@ -257,6 +257,50 @@ do
 	folder:Destroy()
 end
 
+section("lore archive")
+do
+	local RS = game:GetService("ReplicatedStorage")
+	local Lore = requireModule(RS.Shared.Catalog.Lore)
+	local SeededRandom = requireModule(RS.Shared.Util.SeededRandom)
+	local ids, perChapter, cats = {}, {}, {}
+	for _, c in Lore.Categories do
+		cats[c] = true
+	end
+	for _, e in Lore.List do
+		check(not ids[e.id], "unique lore id " .. e.id)
+		ids[e.id] = true
+		check(cats[e.category] == true, "known category for " .. e.id)
+		check(#e.body > 20 and #e.body < 420, "short lore body " .. e.id)
+		perChapter[e.chapter] = (perChapter[e.chapter] or 0) + 1
+	end
+	for chapter = 1, 8 do
+		check((perChapter[chapter] or 0) >= 2, "chapter " .. chapter .. " has entries")
+	end
+	check(Lore.WitnessRequired <= Lore.Count - 2, "the witness is reachable")
+	local rng = SeededRandom.new(5, "lore")
+	local fresh = Lore.pick({ {} }, 4, rng)
+	check(#fresh == 4, "four pieces a night")
+	for _, e in fresh do
+		check(e.chapter <= 2, "a new team starts at the beginning (got chapter " .. e.chapter .. ")")
+	end
+	-- a team that finished chapters 1-3 continues with 4 and 5
+	local known = {}
+	for _, e in Lore.List do
+		if e.chapter <= 3 then
+			known[e.id] = 1
+		end
+	end
+	check(Lore.chapter(known) == 4, "chapter after 1-3 is 4")
+	for _, e in Lore.pick({ known }, 4, rng) do
+		check(e.chapter == 4 or e.chapter == 5, "story continues in order (chapter " .. e.chapter .. ")")
+	end
+	-- mixed team: the newcomer pulls the story back to the start
+	for _, e in Lore.pick({ known, {} }, 4, rng) do
+		check(e.chapter <= 2, "newcomer gets the beginning too")
+	end
+	check(Lore.found({ PF_CHARTER = 1, BOGUS = 1 }) == 1, "unknown ids ignored")
+end
+
 section("original audio sheets")
 do
 	local RS = game:GetService("ReplicatedStorage")

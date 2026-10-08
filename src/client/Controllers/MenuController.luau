@@ -14,6 +14,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local JournalCatalog = require(ReplicatedStorage.Shared.Catalog.JournalCatalog)
 local Achievements = require(ReplicatedStorage.Shared.Catalog.Achievements)
+local Lore = require(ReplicatedStorage.Shared.Catalog.Lore)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
 local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
@@ -194,14 +195,54 @@ local function journal(body: Frame, tab: string?)
 			Kit.text({ Text = if hidden then "Some things are only found by looking." else a.description, Size = UDim2.new(0.5, -12, 1, 0), Position = UDim2.fromScale(0.5, 0), TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Light, TextSize = 13, TextColor3 = C.TextDim, Parent = row })
 		end
 	end
-	local select = tabs(body, { "ALL", "VISUAL", "ENVIRONMENT", "NPC", "PSYCHOLOGICAL", "DANGEROUS", "RECORD" }, function(name)
-		if name == "RECORD" then
+	-- ARCHIVE: the Ashgrove Observation Project, one short file at a time
+	local function showArchive()
+		content:ClearAllChildren()
+		local found = profile.lore or {}
+		local list = Kit.frame({ Size = UDim2.new(0.42, -8, 1, 0), BackgroundTransparency = 1, Parent = content })
+		local reader = Kit.frame({ Size = UDim2.new(0.58, -8, 1, 0), Position = UDim2.new(0.42, 8, 0, 0), BackgroundColor3 = C.PanelLight, BackgroundTransparency = 0.25, Parent = content })
+		Kit.corner(reader, 4)
+		Kit.padding(reader, 22)
+		local rTitle = Kit.text({ Text = "", Size = UDim2.new(1, 0, 0, 26), FontFace = Kit.F.Heading, TextSize = 20, Parent = reader })
+		local rMeta = Kit.text({ Text = "", Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 28), FontFace = Kit.F.Mono, TextSize = 13, TextColor3 = C.Muted, Parent = reader })
+		local rBody = Kit.text({ Text = "", Size = UDim2.new(1, 0, 1, -70), Position = UDim2.fromOffset(0, 60), FontFace = Kit.F.Type, TextSize = 18, TextColor3 = C.TextDim, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, Parent = reader })
+		local count = Lore.found(found)
+		rTitle.Text = string.format("ASHGROVE OBSERVATION PROJECT  ·  %d / %d", count, Lore.Count)
+		rBody.Text = if count == 0 then "Nothing recovered yet.\n\nDocuments, photographs and tapes are scattered through the building. Read them; they are kept here." elseif count < Lore.WitnessRequired then string.format("Some things only make sense once you know enough.\n\n%d more entries before you would understand the photograph.", Lore.WitnessRequired - count) else "You know enough now.\n\nThere is a room the plans don't show. Something in it should leave the building with you."
+		local scroll = Kit.scroll(list)
+		Kit.list(scroll, 4)
+		local order = 0
+		for _, category in Lore.Categories do
+			order += 1
+			Kit.text({ Text = category, Size = UDim2.new(1, -8, 0, 30), TextYAlignment = Enum.TextYAlignment.Bottom, FontFace = Kit.F.Heading, TextSize = 14, TextColor3 = C.Muted, LayoutOrder = order, Parent = scroll })
+			for _, e in Lore.List do
+				if e.category == category then
+					order += 1
+					local has = found[e.id] ~= nil
+					local b = Kit.button({ Text = if has then e.title else "[ REDACTED ]", Size = UDim2.new(1, -8, 0, 34), TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = order, Parent = scroll }, function()
+						if has then
+							rTitle.Text = e.title
+							rMeta.Text = string.format("%s  ·  %s", e.category, if e.kind == "tape" then "audio log (transcript)" elseif e.kind == "photo" then "photograph" else "document")
+							rBody.Text = e.body
+						end
+					end)
+					Kit.padding(b, 0, 12)
+					b.TextColor3 = if has then C.Text else C.Line
+					b.Active = has
+				end
+			end
+		end
+	end
+	local select = tabs(body, { "ALL", "VISUAL", "ENVIRONMENT", "NPC", "PSYCHOLOGICAL", "DANGEROUS", "ARCHIVE", "RECORD" }, function(name)
+		if name == "ARCHIVE" then
+			showArchive()
+		elseif name == "RECORD" then
 			showRecord()
 		else
 			showAnomalies(name)
 		end
 	end)
-	select(if tab == "RECORD" then "RECORD" else "ALL")
+	select(if tab == "RECORD" or tab == "ARCHIVE" then tab else "ALL")
 	backButton(body)
 end
 
