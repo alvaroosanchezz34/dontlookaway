@@ -819,6 +819,16 @@ function KINDS.corridor(ctx)
 	if room.floorId == "G" and ctx.map.Rooms.G_y then
 		ctx:decor(directionSign(ctx.map.Rooms.G_y.center, "LOADING DOCK"), 1, 8.2, true, Vector2.new(3.2, 0.7))
 	end
+	-- landmarks: each corridor has one thing you can name it by
+	if room.floorId == "B" and ctx.map.Rooms.B_d then
+		ctx:decor(directionSign(ctx.map.Rooms.B_d.center, "MAINTENANCE B-04"), 1, 8.2, true, Vector2.new(3.2, 0.7))
+	elseif room.floorId == "U" then
+		ctx:decor(function(f, cf, r)
+			local m = Props.sign(f, cf, "ASHGROVE OBSERVATION PROJECT\n\nYEAR ONE  ·  ELEVEN STAFF\n\"Everything accounted for.\"", 5, 2.6, "brass")
+			m.Name = "Landmark_Timeline"
+			return m
+		end, 1, 6.4, true, Vector2.new(5, 2.6))
+	end
 	ctx:decor(painting, math.max(2, length // 8), 6.5, true)
 	ctx:decor(photo, math.max(1, length // 12), 6, true, PHOTO)
 	ctx:decor(clock, 1, 9, true, CLOCK)
@@ -926,6 +936,11 @@ function KINDS.reception(ctx)
 	local big = Props.painting(ctx.folder, CFrame.lookAt(wallPos, wallPos + Vector3.new(0, 0, 1)), rng, 8, 5, "portrait")
 	big:SetAttribute("Tutorial", true)
 	table.insert(room.props, big)
+	-- landmark: the founder's portrait (lore: Dr. Elias Vale)
+	local plaquePos = wallPos - Vector3.new(0, 3.4, 0)
+	local plaque = Props.sign(ctx.folder, CFrame.lookAt(plaquePos, plaquePos + Vector3.new(0, 0, 1)), "DR. ELIAS VALE\nDIRECTOR", 2.4, 0.7, "brass")
+	plaque.Name = "Landmark_Vale"
+	table.insert(room.props, plaque)
 	-- nothing else hangs on that stretch of wall
 	for x = room.minX, room.maxX do
 		local cx = Layout.Origin.X + x * CELL + CELL / 2
@@ -1462,10 +1477,18 @@ function KINDS.cold(ctx)
 	ctx:dust(1.5)
 end
 
+local FLOOR_CODE = { B = "B1", G = "G", U = "1F" }
+
 function KINDS.stairs(ctx)
 	ctx:decor(function(f, cf, r)
 		return Props.sign(f, cf, directoryText(ctx.room.floorId), 4.2, 2, "brass")
 	end, 1, 6.2, true, Vector2.new(4.2, 2))
+	-- landmark: the floor painted big on the stairwell wall
+	ctx:decor(function(f, cf, r)
+		local m = Props.sign(f, cf, FLOOR_CODE[ctx.room.floorId] or "?", 2.4, 2.4, nil)
+		m.Name = "Landmark_Floor"
+		return m
+	end, 1, 4.2, true, Vector2.new(2.4, 2.4))
 	ctx:dust(1)
 end
 

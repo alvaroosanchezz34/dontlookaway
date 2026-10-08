@@ -124,6 +124,14 @@ for _, seed in { 1, 42, 1337, 99991, 123456 } do
 			check(room.folder ~= nil, "room furnished: " .. id)
 		end
 		check(rooms == 34, "34 rooms, got " .. rooms)
+		local landmarks = {}
+		for _, d in map.Root:GetDescendants() do
+			if d:IsA("Model") and string.sub(d.Name, 1, 9) == "Landmark_" then
+				landmarks[d.Name] = (landmarks[d.Name] or 0) + 1
+			end
+		end
+		check(landmarks.Landmark_Floor == 3, "a floor landmark in every stairwell (" .. tostring(landmarks.Landmark_Floor) .. ")")
+		check(landmarks.Landmark_Vale == 1 and landmarks.Landmark_Timeline == 1, "Vale portrait plaque and project timeline")
 		check(#map.EntranceDoors == 2, "two entrance doors")
 		check(map.ExitShutter ~= nil and map.ExitPanel ~= nil and map.EscapeZone ~= nil, "exit set piece")
 		check(#map.CourtyardSpawns == 4, "four courtyard spawns")
