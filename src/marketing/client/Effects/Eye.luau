@@ -133,13 +133,58 @@ local function imageUrl(key: string): string?
 	return nil
 end
 
+local failedImages: { [string]: string } = {}
+
 function Eye.photographic(): boolean
 	for _, key in { "sclera", "iris", "pupil", "socket" } do
-		if not imageUrl(key) then
+		local url = imageUrl(key)
+		if not url or failedImages[url] then
 			return false
 		end
 	end
 	return true
+end
+
+--[[
+	Load the eye layers (and any extra urls) before they are needed, and report
+	in the Output what Roblox could and could not load. A layer that fails makes
+	the eye fall back to the drawn one, so it never just disappears.
+]]
+function Eye.preload(extra: { string }?)
+	local urls = {}
+	for _, key in { "sclera", "iris", "pupil", "glint", "lidTop", "lidBottom", "socket" } do
+		local url = imageUrl(key)
+		if url then
+			table.insert(urls, url)
+		end
+	end
+	for _, url in (extra or {}) :: { string } do
+		table.insert(urls, url)
+	end
+	if #urls == 0 then
+		return
+	end
+	task.spawn(function()
+		local ok, err = pcall(function()
+			local loaded, failed = 0, {}
+			game:GetService("ContentProvider"):PreloadAsync(urls, function(id, status)
+				if status == Enum.AssetFetchStatus.Success then
+					loaded += 1
+				else
+					failedImages[id] = status.Name
+					table.insert(failed, id .. " (" .. status.Name .. ")")
+				end
+			end)
+			if #failed == 0 then
+				print(string.format("[Marketing] images: %d/%d loaded", loaded, #urls))
+			else
+				warn(string.format("[Marketing] images: %d/%d loaded. Failed: %s", loaded, #urls, table.concat(failed, ", ")))
+			end
+		end)
+		if not ok then
+			warn("[Marketing] could not preload images: " .. tostring(err))
+		end
+	end)
 end
 
 local function image(parent: Instance, name: string, key: string, z: number): ImageLabel
@@ -412,6 +457,33 @@ function Eye.update(dt: number, clock: number)
 	end
 	if s.anchor and s.holder then
 		pin(s)
+	end
+	-- one diagnostic line, a moment after it appears
+	if not (s :: any).reported and s.holder then
+		local born = (s :: any).born or clock
+		;(s :: any).born = born
+		if clock - born > 1.5 then
+			(s :: any).reported = true
+			local images, ready = 0, 0
+			for _, d in s.holder:GetDescendants() do
+				if d:IsA("ImageLabel") then
+					images += 1
+					local okLoaded, isLoaded = pcall(function()
+						return d.IsLoaded
+					end)
+					if okLoaded and isLoaded then
+						ready += 1
+					end
+				end
+			end
+			local okAbs, absPos, absSize = pcall(function()
+				local h = s.holder :: any
+				return h.AbsolutePosition, h.AbsoluteSize
+			end)
+			print(string.format("[Marketing] eye (%s, %s): %s, %d/%d image layers loaded, opacity %.2f", s.mode, if s.photo then "photographic" else "drawn",
+				if okAbs then string.format("on screen at %d,%d size %dx%d", absPos.X, absPos.Y, absSize.X, absSize.Y) else "position unknown",
+				ready, images, s.opacity))
+		end
 	end
 	local want = Vector2.zero
 	local target = s.lookTarget

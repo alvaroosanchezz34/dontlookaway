@@ -343,6 +343,12 @@ function MarketingController.PlayScene(name: string): (boolean, string?)
 	if options.FreezeCharacter then
 		freezeCharacter()
 	end
+	-- make sure the campaign images are loaded (and say so in the Output)
+	local extra = {}
+	if type(Config.TitleImage) == "number" and Config.TitleImage > 0 then
+		table.insert(extra, "rbxassetid://" .. string.format("%d", Config.TitleImage))
+	end
+	Eye.preload(extra)
 	local tl = Timeline.new(events, def.Duration or 10, Actions.run)
 	tl.speed = options.TimeScale or 1
 	Audio.setSpeedScale(tl.speed)
