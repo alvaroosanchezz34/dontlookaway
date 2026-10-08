@@ -137,276 +137,6 @@
   "stop": 263.314,
   "loop": true
  },
- "ObserverStep": {
-  "sheet": "horror",
-  "start": 0.1,
-  "stop": 2.1043,
-  "loop": false
- },
- "ObserverInhale": {
-  "sheet": "horror",
-  "start": 2.4543,
-  "stop": 4.824,
-  "loop": false
- },
- "ObserverScreech": {
-  "sheet": "horror",
-  "start": 5.174,
-  "stop": 8.5277,
-  "loop": false
- },
- "ObserverImpact": {
-  "sheet": "horror",
-  "start": 8.8777,
-  "stop": 12.2819,
-  "loop": false
- },
- "ObserverCrack": {
-  "sheet": "horror",
-  "start": 12.6319,
-  "stop": 13.2357,
-  "loop": false
- },
- "ObserverTwitch": {
-  "sheet": "horror",
-  "start": 13.5857,
-  "stop": 13.8923,
-  "loop": false
- },
- "ObserverAppear": {
-  "sheet": "horror",
-  "start": 14.2423,
-  "stop": 18.9726,
-  "loop": false
- },
- "ObserverVanish": {
-  "sheet": "horror",
-  "start": 19.3226,
-  "stop": 21.9692,
-  "loop": false
- },
- "ObserverSting": {
-  "sheet": "horror",
-  "start": 22.3192,
-  "stop": 26.5009,
-  "loop": false
- },
- "ObserverHunt": {
-  "sheet": "horror",
-  "start": 26.8509,
-  "stop": 33.7527,
-  "loop": false
- },
- "ObserverRush": {
-  "sheet": "horror",
-  "start": 34.1027,
-  "stop": 35.8147,
-  "loop": false
- },
- "ObserverWhisperName": {
-  "sheet": "horror",
-  "start": 36.1647,
-  "stop": 40.216,
-  "loop": false
- },
- "JumpSting": {
-  "sheet": "horror",
-  "start": 40.566,
-  "stop": 43.8969,
-  "loop": false
- },
- "DeathHit": {
-  "sheet": "horror",
-  "start": 44.2469,
-  "stop": 51.2589,
-  "loop": false
- },
- "TinnitusRing": {
-  "sheet": "horror",
-  "start": 51.6089,
-  "stop": 55.1089,
-  "loop": false
- },
- "Whisper": {
-  "sheet": "horror",
-  "start": 55.4589,
-  "stop": 59.7441,
-  "loop": false
- },
- "KnockDoor": {
-  "sheet": "horror",
-  "start": 60.0941,
-  "stop": 61.2936,
-  "loop": false
- },
- "Thud": {
-  "sheet": "horror",
-  "start": 61.6436,
-  "stop": 63.0365,
-  "loop": false
- },
- "DoorSlam": {
-  "sheet": "horror",
-  "start": 63.3865,
-  "stop": 65.4474,
-  "loop": false
- },
- "DistantKnock": {
-  "sheet": "horror",
-  "start": 65.7974,
-  "stop": 69.2652,
-  "loop": false
- },
- "DistantPipe": {
-  "sheet": "horror",
-  "start": 69.6152,
-  "stop": 76.1272,
-  "loop": false
- },
- "DistantMetal": {
-  "sheet": "horror",
-  "start": 76.4772,
-  "stop": 84.3776,
-  "loop": false
- },
- "DistantGroan": {
-  "sheet": "horror",
-  "start": 84.7276,
-  "stop": 88.1476,
-  "loop": false
- },
- "WoodCreak": {
-  "sheet": "horror",
-  "start": 88.4976,
-  "stop": 89.8847,
-  "loop": false
- },
- "ElevatorGroan": {
-  "sheet": "horror",
-  "start": 90.2347,
-  "stop": 97.441,
-  "loop": false
- },
- "BuildingSettle": {
-  "sheet": "horror",
-  "start": 97.791,
-  "stop": 100.2588,
-  "loop": false
- },
- "StretchGroan": {
-  "sheet": "horror",
-  "start": 100.6088,
-  "stop": 104.3964,
-  "loop": false
- },
- "Falsetto": {
-  "sheet": "horror",
-  "start": 104.7464,
-  "stop": 110.1882,
-  "loop": false
- },
- "MusicBox": {
-  "sheet": "horror",
-  "start": 110.5382,
-  "stop": 115.8517,
-  "loop": false
- },
- "RealityShift": {
-  "sheet": "horror",
-  "start": 116.2017,
-  "stop": 120.2529,
-  "loop": false
- },
- "RealitySnap": {
-  "sheet": "horror",
-  "start": 120.6029,
-  "stop": 122.6654,
-  "loop": false
- },
- "Heartbeat": {
-  "sheet": "horror",
-  "start": 123.0154,
-  "stop": 123.9154,
-  "loop": false
- },
- "HeartbeatFast": {
-  "sheet": "horror",
-  "start": 124.2654,
-  "stop": 124.8154,
-  "loop": false
- },
- "Breath": {
-  "sheet": "horror",
-  "start": 125.1654,
-  "stop": 126.7654,
-  "loop": false
- },
- "BreathHeavy": {
-  "sheet": "horror",
-  "start": 127.1154,
-  "stop": 128.2634,
-  "loop": false
- },
- "PowerDown": {
-  "sheet": "horror",
-  "start": 128.6134,
-  "stop": 133.3015,
-  "loop": false
- },
- "PowerOn": {
-  "sheet": "horror",
-  "start": 133.6515,
-  "stop": 138.0947,
-  "loop": false
- },
- "ElectricSurge": {
-  "sheet": "horror",
-  "start": 138.4447,
-  "stop": 139.4447,
-  "loop": false
- },
- "Sparks": {
-  "sheet": "horror",
-  "start": 139.7947,
-  "stop": 140.4947,
-  "loop": false
- },
- "BulbPop": {
-  "sheet": "horror",
-  "start": 140.8447,
-  "stop": 141.4975,
-  "loop": false
- },
- "LightFlicker": {
-  "sheet": "horror",
-  "start": 141.8475,
-  "stop": 142.1175,
-  "loop": false
- },
- "Drip": {
-  "sheet": "horror",
-  "start": 142.4675,
-  "stop": 143.5705,
-  "loop": false
- },
- "ExitUnlocked": {
-  "sheet": "horror",
-  "start": 143.9205,
-  "stop": 149.9983,
-  "loop": false
- },
- "TitleHit": {
-  "sheet": "horror",
-  "start": 150.3483,
-  "stop": 157.0376,
-  "loop": false
- },
- "FootstepsBehind": {
-  "sheet": "horror",
-  "start": 157.3876,
-  "stop": 158.774,
-  "loop": false
- },
  "StepConcrete": {
   "sheet": "world",
   "start": 0.1,
@@ -591,6 +321,276 @@
   "sheet": "world",
   "start": 37.7626,
   "stop": 38.8854,
+  "loop": false
+ },
+ "ObserverStep": {
+  "sheet": "horror",
+  "start": 0.1,
+  "stop": 1.3276,
+  "loop": false
+ },
+ "ObserverInhale": {
+  "sheet": "horror",
+  "start": 1.6776,
+  "stop": 4.1896,
+  "loop": false
+ },
+ "ObserverScreech": {
+  "sheet": "horror",
+  "start": 4.5396,
+  "stop": 6.5938,
+  "loop": false
+ },
+ "ObserverImpact": {
+  "sheet": "horror",
+  "start": 6.9438,
+  "stop": 7.9716,
+  "loop": false
+ },
+ "ObserverCrack": {
+  "sheet": "horror",
+  "start": 8.3216,
+  "stop": 9.1342,
+  "loop": false
+ },
+ "ObserverTwitch": {
+  "sheet": "horror",
+  "start": 9.4842,
+  "stop": 9.7911,
+  "loop": false
+ },
+ "ObserverAppear": {
+  "sheet": "horror",
+  "start": 10.1411,
+  "stop": 14.9036,
+  "loop": false
+ },
+ "ObserverVanish": {
+  "sheet": "horror",
+  "start": 15.2536,
+  "stop": 18.0371,
+  "loop": false
+ },
+ "ObserverSting": {
+  "sheet": "horror",
+  "start": 18.3871,
+  "stop": 22.7408,
+  "loop": false
+ },
+ "ObserverHunt": {
+  "sheet": "horror",
+  "start": 23.0908,
+  "stop": 29.9386,
+  "loop": false
+ },
+ "ObserverRush": {
+  "sheet": "horror",
+  "start": 30.2886,
+  "stop": 32.0006,
+  "loop": false
+ },
+ "ObserverWhisperName": {
+  "sheet": "horror",
+  "start": 32.3506,
+  "stop": 36.1353,
+  "loop": false
+ },
+ "JumpSting": {
+  "sheet": "horror",
+  "start": 36.4853,
+  "stop": 38.3659,
+  "loop": false
+ },
+ "DeathHit": {
+  "sheet": "horror",
+  "start": 38.7159,
+  "stop": 44.1432,
+  "loop": false
+ },
+ "TinnitusRing": {
+  "sheet": "horror",
+  "start": 44.4932,
+  "stop": 47.9932,
+  "loop": false
+ },
+ "Whisper": {
+  "sheet": "horror",
+  "start": 48.3432,
+  "stop": 52.3614,
+  "loop": false
+ },
+ "KnockDoor": {
+  "sheet": "horror",
+  "start": 52.7114,
+  "stop": 54.2744,
+  "loop": false
+ },
+ "Thud": {
+  "sheet": "horror",
+  "start": 54.6244,
+  "stop": 55.5937,
+  "loop": false
+ },
+ "DoorSlam": {
+  "sheet": "horror",
+  "start": 55.9437,
+  "stop": 57.9008,
+  "loop": false
+ },
+ "DistantKnock": {
+  "sheet": "horror",
+  "start": 58.2508,
+  "stop": 61.7141,
+  "loop": false
+ },
+ "DistantPipe": {
+  "sheet": "horror",
+  "start": 62.0641,
+  "stop": 68.5761,
+  "loop": false
+ },
+ "DistantMetal": {
+  "sheet": "horror",
+  "start": 68.9261,
+  "stop": 76.7237,
+  "loop": false
+ },
+ "DistantGroan": {
+  "sheet": "horror",
+  "start": 77.0737,
+  "stop": 80.3709,
+  "loop": false
+ },
+ "WoodCreak": {
+  "sheet": "horror",
+  "start": 80.7209,
+  "stop": 82.115,
+  "loop": false
+ },
+ "ElevatorGroan": {
+  "sheet": "horror",
+  "start": 82.465,
+  "stop": 89.7742,
+  "loop": false
+ },
+ "BuildingSettle": {
+  "sheet": "horror",
+  "start": 90.1242,
+  "stop": 92.3757,
+  "loop": false
+ },
+ "StretchGroan": {
+  "sheet": "horror",
+  "start": 92.7257,
+  "stop": 96.2212,
+  "loop": false
+ },
+ "Falsetto": {
+  "sheet": "horror",
+  "start": 96.5712,
+  "stop": 101.9655,
+  "loop": false
+ },
+ "MusicBox": {
+  "sheet": "horror",
+  "start": 102.3155,
+  "stop": 107.5891,
+  "loop": false
+ },
+ "RealityShift": {
+  "sheet": "horror",
+  "start": 107.9391,
+  "stop": 111.9242,
+  "loop": false
+ },
+ "RealitySnap": {
+  "sheet": "horror",
+  "start": 112.2742,
+  "stop": 114.3381,
+  "loop": false
+ },
+ "Heartbeat": {
+  "sheet": "horror",
+  "start": 114.6881,
+  "stop": 115.5881,
+  "loop": false
+ },
+ "HeartbeatFast": {
+  "sheet": "horror",
+  "start": 115.9381,
+  "stop": 116.4881,
+  "loop": false
+ },
+ "Breath": {
+  "sheet": "horror",
+  "start": 116.8381,
+  "stop": 118.4381,
+  "loop": false
+ },
+ "BreathHeavy": {
+  "sheet": "horror",
+  "start": 118.7881,
+  "stop": 119.9363,
+  "loop": false
+ },
+ "PowerDown": {
+  "sheet": "horror",
+  "start": 120.2863,
+  "stop": 124.4661,
+  "loop": false
+ },
+ "PowerOn": {
+  "sheet": "horror",
+  "start": 124.8161,
+  "stop": 129.2529,
+  "loop": false
+ },
+ "ElectricSurge": {
+  "sheet": "horror",
+  "start": 129.6029,
+  "stop": 130.6029,
+  "loop": false
+ },
+ "Sparks": {
+  "sheet": "horror",
+  "start": 130.9529,
+  "stop": 131.6529,
+  "loop": false
+ },
+ "BulbPop": {
+  "sheet": "horror",
+  "start": 132.0029,
+  "stop": 132.5946,
+  "loop": false
+ },
+ "LightFlicker": {
+  "sheet": "horror",
+  "start": 132.9446,
+  "stop": 133.2145,
+  "loop": false
+ },
+ "Drip": {
+  "sheet": "horror",
+  "start": 133.5645,
+  "stop": 134.6106,
+  "loop": false
+ },
+ "ExitUnlocked": {
+  "sheet": "horror",
+  "start": 134.9606,
+  "stop": 140.6202,
+  "loop": false
+ },
+ "TitleHit": {
+  "sheet": "horror",
+  "start": 140.9702,
+  "stop": 146.3862,
+  "loop": false
+ },
+ "FootstepsBehind": {
+  "sheet": "horror",
+  "start": 146.7362,
+  "stop": 147.9956,
   "loop": false
  }
 }

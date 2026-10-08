@@ -165,6 +165,7 @@ def reverb(x, sec=2.5, wet=0.35, damp=3500.0, pre=0.012):
     n = len(x) + len(ir)
     size = 1 << (n - 1).bit_length()
     y = np.fft.irfft(np.fft.rfft(x, size) * np.fft.rfft(ir, size), size)[:n]
+    y = hp(y, 220)  # a room must not pile up the low end (it smeared the hits)
     out = np.concatenate([x, np.zeros(len(ir))]) * (1 - wet) + y * wet * 1.4
     return out
 
@@ -553,24 +554,38 @@ def h_observer_inhale():
 
 
 def h_observer_screech():
-    sec = 1.9
+    """A human-ish scream: a rough voice tearing through an open 'aah', on two
+    clashing pitches. It hits at full strength at once and only sags at the end
+    (no rising sweep - that read as an engine spooling up)."""
+    sec = 1.4
     t = t_of(sec)
-    car = sweep(780, 1450, sec, "exp") * (1 + 0.03 * np.sin(2 * np.pi * 7.5 * t))
-    x = fm(car, 1.41, 3.5 + 3 * t / sec, sec) + 0.6 * fm(car * 1.33, 2.01, 5, sec)
-    x = drive(x * 0.8, 1.7) + hp(noise(sec), 2500) * 0.12
-    x *= env(sec, 0.04, 0, 1, 0.6)
-    return reverb(x, 1.8, 0.3, 4500)
-
+    jitter = lp(noise(sec), 25) * 3
+    sag = 1 - 0.14 * (t / sec) ** 2
+    out = np.zeros(n_of(sec))
+    for f0, amp in ((560, 1.0), (560 * 1.414, 0.55), (280, 0.35)):
+        f = f0 * sag * (1 + 0.035 * jitter + 0.012 * np.sin(2 * np.pi * 6.5 * t))
+        glottal = osc(f, sec, "saw") * (1 + 0.25 * np.clip(lp(noise(sec), 70) * 4, -1, 1))  # roughness
+        v = glottal * 0.15
+        for fc, q, g in ((850, 5, 3.0), (1250, 6, 2.2), (2800, 8, 1.4), (3600, 10, 0.8)):
+            v = peak(v, fc, q, g)
+        out += v * amp
+    out += bp(noise(sec), 2500, 6000) * 0.03  # breath in the scream
+    out = lp(drive(out * 0.7, 1.5), 6500) * env(sec, 0.006, 0, 1, 0.35)
+    return reverb(out, 1.0, 0.12, 5000)
 
 def h_observer_impact():
-    sec = 1.6
+    """The hit itself: a crack in the first milliseconds, a chest-punch of low
+    end, a metal slam, all over in a breath. Pure impact, nothing evolving."""
+    sec = 1.3
     t = t_of(sec)
-    sub = osc(sweep(130, 32, sec), sec) * np.exp(-t / 0.4) * 1.4
-    crash = lp(noise(sec), 5000) * np.exp(-t / 0.08)
-    clang = metal_bang(97, sec, 1.2) * 0.4
-    x = drive(add(sub, crash, clang), 2.5)
-    return reverb(x, 2.2, 0.3, 3000)
-
+    crack = hp(noise(sec), 1500) * np.exp(-t / 0.004) * 1.4
+    slam = lp(noise(sec), 3200) * np.exp(-t / 0.05) * 1.2
+    punch_f = 45 + 40 * np.exp(-t / 0.03)  # a fast drop: the kick of the hit
+    body = (osc(punch_f, sec) + 0.5 * osc(punch_f * 2, sec)) * np.exp(-t / 0.13) * 1.1
+    metal = metal_bang(150, sec, 1.1) * np.exp(-t / 0.15) * 0.55
+    # only the transients are driven: saturating the body would hold its tail up
+    x = add(drive(add(crack, slam, metal), 2.5), drive(body, 1.4))
+    return reverb(x, 0.7, 0.1, 3000)
 
 def h_observer_crack():
     x = np.zeros(n_of(0.6))
@@ -634,13 +649,22 @@ def h_whisper_name():
 
 
 def h_jump_sting():
-    sec = 1.6
+    """A horror stinger: a dissonant cluster of high torn strings that slams in
+    at full force and dies fast, with a low cluster and a bow scrape under it."""
+    sec = 1.3
     t = t_of(sec)
-    shriek = fm(sweep(1200, 1900, sec), 1.5, 6, sec, 0.02, 9) * env(sec, 0.005, 0, 1, 0.9)
-    stab = lp(noise(sec), 7000) * np.exp(-t / 0.04) * 2
-    low = osc(sweep(90, 40, sec), sec) * np.exp(-t / 0.3)
-    return reverb(drive(shriek * 0.7 + stab + low, 2.2), 1.8, 0.3, 5000)
-
+    hit_env = np.exp(-np.maximum(t - 0.12, 0) / 0.35) * env(sec, 0.003, 0, 1, 0.1)
+    strings = np.zeros(n_of(sec))
+    for f in (880.0, 932.3, 987.8, 1046.5, 1108.7, 1174.7):
+        fj = f * (1 + rng.uniform(-0.004, 0.004)) * (1 + 0.004 * np.sin(2 * np.pi * rng.uniform(5, 7) * t))
+        strings += osc(fj, sec, "saw") * rng.uniform(0.6, 1.0)
+    strings = bp(strings, 600, 4500, 3) * hit_env
+    scrape = bp(noise(sec), 1500, 6000) * (1 + 0.8 * np.sin(2 * np.pi * 37 * t)) * hit_env * 0.15
+    low = (osc(110, sec, "saw") + osc(116.5, sec, "saw")) * np.exp(-t / 0.4) * 0.6
+    low = lp(low, 900)
+    crack = hp(noise(sec), 1200) * np.exp(-t / 0.006) * 1.5
+    x = drive(add(strings * 0.3, scrape, low, crack), 1.6)
+    return reverb(x, 1.1, 0.12, 5000)
 
 def h_death_hit():
     sec = 3.0
@@ -1078,9 +1102,20 @@ def write_ogg(path, x):
 
 
 def main():
+    """python3 tools/gen_audio.py [sheet ...]  - only the named sheets are
+    rebuilt (the others keep their uploaded files and regions)."""
+    import sys
+    only = set(sys.argv[1:])
     os.makedirs(OUT, exist_ok=True)
     regions = {}
+    old_path = os.path.join(OUT, "regions.json")
+    if only and os.path.exists(old_path):
+        for k, r in json.load(open(old_path)).items():
+            if r["sheet"] not in only:
+                regions[k] = r
     for sheet, items in SHEETS.items():
+        if only and sheet not in only:
+            continue
         parts = [np.zeros(n_of(0.1))]
         cursor = 0.1
         for key, gen in items:

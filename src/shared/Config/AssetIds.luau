@@ -64,7 +64,7 @@ AssetIds.Observer = {
 -- holding many sounds (see Config/AudioSheets). Upload them as audio.
 AssetIds.Audio = {
 	ambience = 110871317153737,
-	horror = 105099112421159,
+	horror = 0, -- regenerated (punchier jumpscare): upload the new dla_horror.ogg and set its id
 	world = 124668448156045,
 }
 
