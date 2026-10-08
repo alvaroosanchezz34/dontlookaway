@@ -42,5 +42,14 @@ end
 
 local MarketingController = require(script.Parent:WaitForChild("MarketingController"))
 local Panel = require(script.Parent:WaitForChild("UI"):WaitForChild("Panel"))
-Panel.mount(MarketingController, Config)
+local ok, err = pcall(Panel.mount, MarketingController, Config)
+if not ok then
+	warn("[Marketing] panel failed to build: " .. tostring(err))
+	return
+end
+-- open once on start so it is obvious the tool is there
+Panel.setVisible(true)
+-- Studio command bar (Client view): shared.MarketingStudio.PlayScene("Scene04_TheEye")
+shared.MarketingStudio = MarketingController
+shared.MarketingStudioPanel = Panel
 print(string.format("[Marketing] Marketing Studio ready: %d scenes · %s to open", #MarketingController.ListScenes(), Config.ToggleKey.Name))

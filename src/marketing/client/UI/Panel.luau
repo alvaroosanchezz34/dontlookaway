@@ -129,7 +129,11 @@ function Panel.setVisible(on: boolean)
 	if window then
 		window.Visible = on
 	end
-	refresh()
+	print(string.format("[Marketing] panel %s (window %s, gui %s)", if on then "shown" else "hidden", if window then "ok" else "missing", if gui and gui.Parent then "in PlayerGui" else "not parented"))
+	local ok, err = pcall(refresh)
+	if not ok then
+		warn("[Marketing] panel refresh failed: " .. tostring(err))
+	end
 end
 
 function Panel.isVisible(): boolean
@@ -150,12 +154,13 @@ function Panel.mount(ctrl: any, config: any)
 	w.BackgroundColor3 = C.bg
 	w.BackgroundTransparency = 0.05
 	w.BorderSizePixel = 0
-	w.Position = UDim2.fromOffset(24, 80)
+	w.AnchorPoint = Vector2.new(0.5, 0.5)
+	w.Position = UDim2.fromScale(0.5, 0.5)
 	w.Size = UDim2.fromOffset(560, 420)
 	w.Visible = false
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = C.line
-	stroke.Thickness = 1
+	stroke.Thickness = 2
 	stroke.Parent = w
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft = UDim.new(0, 14)
@@ -283,8 +288,11 @@ function Panel.mount(ctrl: any, config: any)
 		Panel.setVisible(not Panel.isVisible())
 	end
 	UserInputService.InputBegan:Connect(function(input)
-		if table.find(keys, input.KeyCode) and not UserInputService:GetFocusedTextBox() then
-			toggle()
+		if table.find(keys, input.KeyCode) then
+			print("[Marketing] key " .. input.KeyCode.Name .. " pressed")
+			if not UserInputService:GetFocusedTextBox() then
+				toggle()
+			end
 		end
 	end)
 	-- a small on-screen button too (Studio can keep some function keys for itself);
@@ -308,7 +316,10 @@ function Panel.mount(ctrl: any, config: any)
 	openerStroke.Color = C.line
 	openerStroke.Parent = opener
 	opener.Parent = g
-	opener.Activated:Connect(toggle)
+	opener.Activated:Connect(function()
+		print("[Marketing] 🎬 button pressed")
+		toggle()
+	end)
 	openerButton = opener
 	controller.Changed:Connect(function(state)
 		if not state.playing and window and not window.Visible and controller.GetOption("HidePanelWhilePlaying") then
