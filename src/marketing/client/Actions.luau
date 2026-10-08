@@ -25,6 +25,7 @@ local CameraRig = require(script.Parent.Cameras.CameraRig)
 local Presets = require(script.Parent.Cameras.Presets)
 local Screen = require(script.Parent.Effects.Screen)
 local LightFX = require(script.Parent.Effects.LightFX)
+local Looks = require(script.Parent.Utilities.Looks)
 local Doors = require(script.Parent.Effects.Doors)
 local Eye = require(script.Parent.Effects.Eye)
 local Figures = require(script.Parent.Effects.Figures)
@@ -280,6 +281,48 @@ Actions.register("Blur", function(tl, e)
 	tl:span(e.duration or 0, "inOutSine", function(a)
 		Screen.setBlur(from + ((e.size or 0) - from) * a)
 	end, e.at, "screen.blur")
+end)
+
+-- A lighting + composition preset (Utilities/Looks): grade, exposure, fog, lens,
+-- vignette and key lights around the camera and `subject` in one event.
+Actions.register("LookPreset", function(tl, e)
+	local look = Looks.Presets[e.preset or ""]
+	if not look then
+		warn("[Marketing] unknown look " .. tostring(e.preset))
+		return
+	end
+	local duration = e.duration or 0.6
+	gradeTo(tl, look.grade, duration, e.at)
+	if look.exposure then
+		lightTo(tl, { ExposureCompensation = LightFX.lookBase() + look.exposure }, duration, "inOutSine", e.at)
+	end
+	if look.fog then
+		Actions.run(tl, { action = "Fog", density = look.fog, duration = duration, at = e.at })
+	end
+	if look.fov and e.fov ~= false then
+		local from = CameraRig.getFov()
+		tl:span(duration, "inOutSine", function(a)
+			CameraRig.setFov(from + (look.fov - from) * a)
+		end, e.at, "camera.fov")
+	end
+	Screen.setVignette(look.vignette == true)
+	-- the previous look's keys go, this look's arrive
+	for _, name in { "lookKey", "lookRim", "lookPool", "lookLeak", "lookBack", "lookFill", "lookTop" } do
+		LightFX.removeKey(name)
+	end
+	local camera = if typeof(e.camera) == "CFrame" then e.camera else CameraRig.getBase()
+	local subject = if typeof(e.subject) == "Vector3" then e.subject else nil
+	for _, key in look.keys do
+		local cf = Looks.keyCFrame(key, camera, subject)
+		if cf then
+			local light = LightFX.key(key.name, cf, { kind = "spot", angle = key.angle, range = key.range, brightness = key.brightness, color = key.color, shadows = true })
+			local target = light.Brightness
+			light.Brightness = 0
+			tl:span(duration, "inOutSine", function(a)
+				light.Brightness = target * a
+			end, e.at, "light.key." .. key.name)
+		end
+	end
 end)
 
 ------------------------------------------------------------------------------------

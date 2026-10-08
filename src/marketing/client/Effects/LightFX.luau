@@ -33,9 +33,21 @@ local function gameLights(): any
 	return if ok and type(registry) == "table" then registry.LightController else nil
 end
 
+local lookExposure: number? = nil
+
 function LightFX.reset()
 	table.clear(keys)
 	fill = nil
+	lookExposure = nil
+end
+
+-- The exposure looks are offset from: the scene's exposure (after the fill
+-- light) the first time a look is used, so consecutive looks never stack.
+function LightFX.lookBase(): number
+	if lookExposure == nil then
+		lookExposure = Lighting.ExposureCompensation
+	end
+	return lookExposure :: number
 end
 
 -- Flicker the real fixtures around a point.

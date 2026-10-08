@@ -20,13 +20,26 @@ con los materiales de Roblox y el Observer de piezas.
 | `textures/brick_grimy` | ladrillo con hollín | fachada y zonas industriales |
 | `textures/marble_stained` | mármol con vetas y manchas | recepción |
 | `textures/metal_worn` | metal pintado con óxido | metal en general |
+| `textures/wood_aged` *(V2, pendiente de subir)* | madera de carpintería con veta, barniz gastado, golpes | **sustituye a Wood**: puertas, marcos, zócalos, muebles |
+| `textures/fabric_worn` *(V2, pendiente)* | tapicería de sarga con bolitas y manchas | **sustituye a Fabric**: sillas, sofás, tablones |
+| `textures/metal_rusted` *(V2, pendiente)* | hierro con óxido en escamas, picaduras | **sustituye a CorrodedMetal**: tuberías, válvulas |
+| `textures/paint_peeling` *(V2, pendiente)* | pintura que se levanta sobre yeso húmedo, moho | paredes del sótano y escaleras (`DLA_PeelingPaint`) |
+| `textures/concrete_wet` *(V2, pendiente)* | losa húmeda con charcos y salitre | suelos del sótano y zonas industriales (`DLA_WetConcrete`) |
+| `textures/metal_bare` *(V2, pendiente)* | acero cepillado / latón gastado | bisagras, manillas, placas, aspersores (`DLA_Hardware`) |
 | `observer/*.obj` | 12 mallas del Observer | el Observer y sus cinemáticas |
 | `observer/observer_skin_*` | piel PBR (color, relieve, rugosidad) | el Observer |
 | `audio/dla_ambience.ogg` | 23 ambientes en bucle (zumbidos, lluvia, viento, ventilación, alarma, respiración del Observer, música de tensión) | todo el edificio |
 | `audio/dla_horror.ogg` | 45 sonidos de terror (Observer, sustos, crujidos, golpes, susurros, caja de música, apagones) | el Observer, anomalías, el director |
 | `audio/dla_world.ogg` | 31 sonidos del mundo (pasos por material, puertas, interruptores, teclado, cintas, persiana) | interacción |
 
-Cada textura tiene `_color`, `_normal` y `_roughness` (y `metal_worn` además `_metalness`).
+Cada textura tiene `_color`, `_normal` y `_roughness` (y `metal_worn`, `metal_rusted` y `metal_bare` además `_metalness`).
+
+**Las 6 texturas V2 (Visual Overhaul V2) están generadas en el repositorio pero NO subidas**:
+sus IDs están a `0` en `AssetIds.Materials`, así que esas piezas se ven con el material
+de Roblox (o con la textura vieja que ya sustituye a ese material) hasta que las subas.
+Son 20 imágenes: las `.png` de `wood_aged`, `fabric_worn`, `metal_rusted`,
+`paint_peeling`, `concrete_wet` y `metal_bare`. Súbelas igual que las demás y
+pásame los IDs (o pégalos) y ejecuta `python3 tools/sync_assets.py`.
 
 ## Cómo subirlo (una vez)
 
@@ -77,6 +90,7 @@ Si solo subes una parte, se usa esa parte y el resto sigue como antes.
 
 ```bash
 python3 tools/gen_textures.py 1024   # texturas (numpy + Pillow)
+python3 tools/gen_textures.py 1024 wood_aged metal_bare   # solo algunas
 python3 tools/gen_observer.py        # mallas, piel y src/shared/Config/ObserverMeshMeta.luau
 python3 tools/gen_audio.py           # audio (numpy + ffmpeg) y src/shared/Config/AudioSheets.luau
 ```

@@ -24,6 +24,7 @@ local Instance = roblox.Instance
 local Vector3 = roblox.Vector3
 local Vector2 = roblox.Vector2
 local CFrame = roblox.CFrame
+local Color3 = roblox.Color3
 
 local failures, checks = 0, 0
 local function check(cond, message)
@@ -669,6 +670,78 @@ task.wait(2.5)
 frames(3)
 print("  clicked " .. clicked .. " buttons")
 
+section("visual overhaul: shaped fixture lights + detail LOD")
+do
+	local camPos = workspace.CurrentCamera.CFrame.Position
+	-- a troffer like MapBuilder's: SurfaceLight main + point fill, each with its share
+	local fixture = Instance.new("Model")
+	fixture.Name = "Fixture"
+	local housing = Instance.new("Part")
+	housing.Name = "Housing"
+	housing.Anchored = true
+	housing.CFrame = CFrame.new(camPos + Vector3.new(4, 6, 0))
+	housing.Parent = fixture
+	local tube = Instance.new("Part")
+	tube.Name = "Tube"
+	tube.Anchored = true
+	tube.CFrame = housing.CFrame * CFrame.new(0, -0.3, 0)
+	tube.Parent = fixture
+	local fill = Instance.new("PointLight")
+	fill.Name = "Light"
+	fill:SetAttribute("Ratio", 0.42)
+	fill:SetAttribute("Solo", 1)
+	fill.Parent = tube
+	local main = Instance.new("SurfaceLight")
+	main.Name = "MainLight"
+	main:SetAttribute("Ratio", 1.15)
+	main:SetAttribute("Main", true)
+	main.Parent = housing
+	fixture.PrimaryPart = housing
+	fixture:SetAttribute("Mode", "on")
+	fixture:SetAttribute("Circuit", "MAIN")
+	fixture:SetAttribute("BaseBrightness", 1)
+	fixture:SetAttribute("BaseColor", Color3.fromRGB(220, 230, 220))
+	fixture:SetAttribute("Room", "G_c")
+	fixture:SetAttribute("Seed", 7)
+	fixture.Parent = workspace
+	fixture:AddTag("Fixture")
+	env.tagAdded("Fixture", fixture)
+	local prevPower = workspace:GetAttribute("Power")
+	workspace:SetAttribute("Power", true)
+	task.wait(0.1)
+	frames(30)
+	check(main.Enabled and fill.Enabled, "both lights of a lit fixture are on")
+	check(math.abs(main.Brightness - 1.15) < 0.01 and math.abs(fill.Brightness - 0.42) < 0.01, string.format("brightness shares (main %.2f fill %.2f)", main.Brightness, fill.Brightness))
+	fixture:SetAttribute("Tint", Color3.fromRGB(255, 0, 0))
+	frames(30)
+	check(main.Color == Color3.fromRGB(255, 0, 0) and fill.Color == Color3.fromRGB(255, 0, 0), "an anomaly tint reaches every light of the fixture")
+	fixture:SetAttribute("Override", "off")
+	frames(30)
+	check(not main.Enabled and not fill.Enabled, "an override switches every light off")
+	fixture:Destroy()
+	workspace:SetAttribute("Power", prevPower)
+
+	-- detail LOD hides a far room's detail and shows it again up close
+	local DetailLOD = Registry.DetailLOD
+	local group = Instance.new("Folder")
+	group.Name = "TestRoom"
+	group:SetAttribute("Center", camPos + Vector3.new(0, 0, 400))
+	group:SetAttribute("Radius", 10)
+	local bolt = Instance.new("Part")
+	bolt.Anchored = true
+	bolt.Parent = group
+	group.Parent = workspace
+	group:AddTag("DetailGroup")
+	env.tagAdded("DetailGroup", group)
+	task.wait(0.1)
+	local before = DetailLOD:HiddenCount()
+	DetailLOD:Update(camPos)
+	check(DetailLOD:HiddenCount() == before + 1, "far detail group hidden")
+	DetailLOD:Update(camPos + Vector3.new(0, 0, 400))
+	check(DetailLOD:HiddenCount() == before, "near detail group shown again")
+	group:Destroy()
+end
+
 section("marketing studio")
 do
 	local Lighting = game:GetService("Lighting")
@@ -681,7 +754,19 @@ do
 	local Panel = requireModule(mRoot.UI.Panel)
 	local Config = requireModule(RS.Marketing.MarketingConfig)
 	local scenes = MC.ListScenes()
-	check(#scenes >= 54, "all scenes registered (" .. #scenes .. ")")
+	check(#scenes >= 56, "all scenes registered (" .. #scenes .. ")")
+	do
+		local Looks = requireModule(mRoot.Utilities.Looks)
+		check(#Looks.Order == 8, "eight looks")
+		for _, name in Looks.Order do
+			local look = Looks.Presets[name]
+			check(look ~= nil and type(look.grade) == "string", "look defined: " .. name)
+			for _, key in look.keys do
+				local cf = Looks.keyCFrame(key, CFrame.lookAt(Vector3.new(0, 5, 10), Vector3.new(0, 4, 0)), Vector3.new(0, 4, 0))
+				check(cf ~= nil and cf.Position == cf.Position, "look key placed: " .. name .. "." .. key.name)
+			end
+		end
+	end
 	local seenNames = {}
 	for _, n in scenes do
 		check(not seenNames[n], "unique scene name " .. n)

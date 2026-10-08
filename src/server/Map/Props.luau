@@ -79,7 +79,18 @@ function Props.officeChair(parent, cf: CFrame, rng)
 	local fabric = Build.vary(C.fabric, rng)
 	P(m, "Seat", Vector3.new(2, 0.4, 2), at(cf, 0, 1.9, 0), fabric, M.Fabric)
 	P(m, "Back", Vector3.new(1.9, 2.2, 0.35), at(cf, 0, 3.3, 0.95, -8, 0, 0), fabric, M.Fabric)
+	-- moulded shell under the cushions, a steel spine to the back, armrests
+	D(m, "SeatShell", Vector3.new(1.84, 0.16, 1.84), at(cf, 0, 1.62, 0), C.black, M.Plastic)
+	D(m, "BackShell", Vector3.new(1.76, 2.04, 0.12), at(cf, 0, 3.3, 0.95, -8, 0, 0) * CFrame.new(0, 0, 0.22), C.black, M.Plastic)
+	D(m, "Spine", Vector3.new(0.3, 0.14, 1.2), at(cf, 0, 1.47, 0.85), C.metalDark, M.Metal)
+	D(m, "SpineUp", Vector3.new(0.3, 1.0, 0.14), at(cf, 0, 2.1, 1.38, -8, 0, 0), C.metalDark, M.Metal)
+	for _, sx in { -1, 1 } do
+		D(m, "ArmPost", Vector3.new(0.16, 0.9, 0.2), at(cf, sx * 1.08, 2.4, 0.15), C.black, M.Plastic)
+		D(m, "ArmPad", Vector3.new(0.3, 0.12, 1.1), at(cf, sx * 1.08, 2.9, 0.05), C.black, M.Rubber)
+	end
 	D(m, "Pole", Vector3.new(0.25, 1.4, 0.25), at(cf, 0, 1.0, 0), C.metalDark, M.Metal)
+	D(m, "GasLift", Vector3.new(0.34, 0.6, 0.34), at(cf, 0, 0.62, 0), C.black, M.Plastic)
+	D(m, "Hub", Vector3.new(0.6, 0.2, 0.6), at(cf, 0, 0.36, 0), C.black, M.Plastic)
 	for i = 0, 4 do
 		local a = math.rad(i * 72)
 		D(m, "Leg", Vector3.new(0.18, 0.15, 1.1), cf * CFrame.new(0, 0.32, 0) * CFrame.Angles(0, a, 0) * CFrame.new(0, 0, -0.55), C.metalDark, M.Metal)
@@ -95,10 +106,26 @@ end
 function Props.woodChair(parent, cf: CFrame, rng)
 	local m = model(parent, "Chair", cf)
 	local wood = Build.vary(C.wood, rng)
+	local frame = wood:Lerp(C.black, 0.2)
 	P(m, "Seat", Vector3.new(1.8, 0.25, 1.8), at(cf, 0, 1.9, 0), wood, M.Wood)
-	P(m, "Back", Vector3.new(1.8, 2, 0.2), at(cf, 0, 3.0, 0.8), wood, M.Wood)
+	-- the back: two posts carrying a top rail and three slats
+	P(m, "Back", Vector3.new(1.62, 0.42, 0.12), at(cf, 0, 3.72, 0.8), wood, M.Wood)
+	for _, sx in { -0.75, 0.75 } do
+		D(m, "BackPost", Vector3.new(0.18, 2.0, 0.18), at(cf, sx, 3.0, 0.8), frame, M.Wood)
+	end
+	for _, sx in { -0.4, 0, 0.4 } do
+		D(m, "Slat", Vector3.new(0.16, 1.4, 0.08), at(cf, sx, 2.81, 0.8), wood, M.Wood)
+	end
 	for _, o in { { -0.75, -0.75 }, { 0.75, -0.75 }, { -0.75, 0.75 }, { 0.75, 0.75 } } do
-		D(m, "Leg", Vector3.new(0.2, 1.8, 0.2), at(cf, o[1], 0.9, o[2]), wood:Lerp(C.black, 0.2), M.Wood)
+		D(m, "Leg", Vector3.new(0.2, 1.8, 0.2), at(cf, o[1], 0.9, o[2]), frame, M.Wood)
+	end
+	-- aprons under the seat and low stretchers between the legs
+	for _, sz in { -0.75, 0.75 } do
+		D(m, "Apron", Vector3.new(1.3, 0.3, 0.1), at(cf, 0, 1.62, sz), frame, M.Wood)
+	end
+	for _, sx in { -0.75, 0.75 } do
+		D(m, "Apron", Vector3.new(0.1, 0.3, 1.3), at(cf, sx, 1.62, 0), frame, M.Wood)
+		D(m, "Stretcher", Vector3.new(0.09, 0.09, 1.3), at(cf, sx, 0.5, 0), frame, M.Wood)
 	end
 	tagModel(m, "Chair", "Movable")
 	return m
@@ -203,13 +230,22 @@ function Props.desk(parent, cf: CFrame, rng, opts)
 	local m = model(parent, "Desk", cf)
 	local wood = Build.vary(rng:Pick({ C.wood, C.woodDark, Color3.fromRGB(98, 84, 66) }), rng)
 	P(m, "Top", Vector3.new(6, 0.3, 3), at(cf, 0, 3.15, 0), wood, M.Wood)
-	P(m, "SideL", Vector3.new(0.25, 3, 2.8), at(cf, -2.85, 1.5, 0), wood, M.Wood)
-	P(m, "Drawers", Vector3.new(1.8, 3, 2.8), at(cf, 1.95, 1.5, 0), wood, M.Wood)
+	local dark = wood:Lerp(C.black, 0.35)
+	P(m, "SideL", Vector3.new(0.25, 2.86, 2.8), at(cf, -2.85, 1.57, 0), wood, M.Wood)
+	P(m, "Drawers", Vector3.new(1.8, 2.86, 2.8), at(cf, 1.95, 1.57, 0), wood, M.Wood)
+	-- toe kick: a dark recessed plinth under the pedestal, feet under the side
+	D(m, "Plinth", Vector3.new(1.6, 0.14, 2.5), at(cf, 1.95, 0.07, 0.05), dark, M.Wood)
+	for _, sz in { -1.2, 1.2 } do
+		D(m, "Foot", Vector3.new(0.22, 0.14, 0.3), at(cf, -2.85, 0.07, sz), C.black, M.Rubber)
+	end
 	D(m, "Modesty", Vector3.new(5.6, 1.8, 0.15), at(cf, 0, 2.1, 1.3), wood:Lerp(C.black, 0.15), M.Wood)
 	for i = 0, 2 do
-		D(m, "DrawerFront", Vector3.new(1.6, 0.85, 0.06), at(cf, 1.95, 0.6 + i * 0.95, -1.42), wood:Lerp(C.black, 0.1), M.Wood)
-		D(m, "Handle", Vector3.new(0.5, 0.08, 0.08), at(cf, 1.95, 0.75 + i * 0.95, -1.47), C.metal, M.Metal)
+		D(m, "DrawerFront", Vector3.new(1.6, 0.85, 0.06), at(cf, 1.95, 0.62 + i * 0.95, -1.42), wood:Lerp(C.black, 0.1), M.Wood)
+		D(m, "PullPlate", Vector3.new(0.66, 0.16, 0.03), at(cf, 1.95, 0.77 + i * 0.95, -1.465), C.metal:Lerp(C.black, 0.25), M.Metal)
+		D(m, "Handle", Vector3.new(0.5, 0.08, 0.08), at(cf, 1.95, 0.77 + i * 0.95, -1.52), C.metal, M.Metal)
 	end
+	D(m, "Lock", Vector3.new(0.12, 0.12, 0.03), at(cf, 1.95, 2.72, -1.465), C.metal, M.Metal)
+	Build.cylinder(m, "Grommet", 0.03, 0.4, at(cf, -2.2, 3.315, 1.05, 0, 0, 90), C.black, M.Plastic, { CanCollide = false, CastShadow = false })
 	local top = at(cf, 0, 3.3, 0)
 	m:SetAttribute("SurfaceHeight", 3.3)
 	if opts.monitor ~= false and rng:Chance(0.7) then
@@ -237,9 +273,20 @@ function Props.table(parent, cf: CFrame, rng, width: number?, depth: number?)
 	local m = model(parent, "Table", cf)
 	local w, d = width or 5, depth or 3
 	local wood = Build.vary(rng:Pick({ C.wood, C.woodLight, C.woodDark }), rng)
+	local frame = wood:Lerp(C.black, 0.25)
 	P(m, "Top", Vector3.new(w, 0.25, d), at(cf, 0, 3, 0), wood, M.Wood)
 	for _, o in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
-		D(m, "Leg", Vector3.new(0.25, 2.9, 0.25), at(cf, o[1] * (w / 2 - 0.3), 1.45, o[2] * (d / 2 - 0.3)), wood:Lerp(C.black, 0.25), M.Wood)
+		local lx, lz = o[1] * (w / 2 - 0.3), o[2] * (d / 2 - 0.3)
+		-- square at the top where the aprons join, tapering to the floor
+		D(m, "Leg", Vector3.new(0.28, 0.5, 0.28), at(cf, lx, 2.62, lz), frame, M.Wood)
+		D(m, "LegLow", Vector3.new(0.21, 2.32, 0.21), at(cf, lx, 1.21, lz), frame, M.Wood)
+		D(m, "Glide", Vector3.new(0.18, 0.05, 0.18), at(cf, lx, 0.025, lz), C.black, M.Rubber)
+	end
+	for _, sz in { -1, 1 } do
+		D(m, "Apron", Vector3.new(w - 0.88, 0.42, 0.1), at(cf, 0, 2.66, sz * (d / 2 - 0.3)), frame, M.Wood)
+	end
+	for _, sx in { -1, 1 } do
+		D(m, "Apron", Vector3.new(0.1, 0.42, d - 0.88), at(cf, sx * (w / 2 - 0.3), 2.66, 0), frame, M.Wood)
 	end
 	m:SetAttribute("SurfaceHeight", 3.12)
 	local spot = Instance.new("Attachment")
@@ -331,9 +378,25 @@ function Props.metalShelf(parent, cf: CFrame, rng, opts)
 			P(m, "Post", Vector3.new(0.2, 7, 0.2), at(cf, x, 3.5, z), col, M.Metal)
 		end
 	end
+	for _, x in { -(hw - 0.1), hw - 0.1 } do
+		for _, z in { -0.85, 0.85 } do
+			D(m, "FootPlate", Vector3.new(0.34, 0.04, 0.34), at(cf, x, 0.02, z), col:Lerp(C.black, 0.3), M.Metal)
+		end
+	end
+	-- X-bracing across the back between the lowest and the top shelf
+	do
+		local span = width - 0.4
+		local rise = 6.3
+		local len = math.sqrt(span * span + rise * rise)
+		local ang = math.deg(math.atan2(rise, span))
+		for _, sgn in { -1, 1 } do
+			D(m, "Brace", Vector3.new(len, 0.08, 0.04), at(cf, 0, 3.65, 0.93, 0, 0, sgn * ang), col:Lerp(C.black, 0.2), M.Metal)
+		end
+	end
 	for i = 0, 3 do
 		local y = 0.5 + i * 2.1
 		P(m, "Shelf", Vector3.new(width, 0.15, 2), at(cf, 0, y, 0), col, M.Metal)
+		D(m, "Lip", Vector3.new(width - 0.42, 0.3, 0.05), at(cf, 0, y - 0.05, -1.02), col:Lerp(C.black, 0.1), M.Metal)
 		local x = -(hw - 0.6)
 		while x < hw - 0.6 do
 			if rng:Chance(opts.fill or 0.6) then
@@ -382,10 +445,25 @@ function Props.filingCabinet(parent, cf: CFrame, rng)
 	local m = model(parent, "FilingCabinet", cf)
 	local col = Build.vary(rng:Pick({ Color3.fromRGB(100, 104, 100), Color3.fromRGB(80, 84, 90), Color3.fromRGB(120, 112, 96) }), rng)
 	P(m, "Body", Vector3.new(1.8, 4.4, 2.2), at(cf, 0, 2.2, 0), col, M.Metal)
+	D(m, "ToeKick", Vector3.new(1.62, 0.3, 0.04), at(cf, 0, 0.17, -1.12), C.black, M.Metal)
+	D(m, "LockCylinder", Vector3.new(0.14, 0.14, 0.05), at(cf, 0.62, 4.2, -1.12), C.metal, M.Metal)
 	for i = 0, 2 do
 		local open = rng:Chance(0.12)
-		D(m, "Drawer", Vector3.new(1.6, 1.25, 0.08), at(cf, 0, 0.75 + i * 1.4, if open then -1.6 else -1.12), col:Lerp(C.black, 0.08), M.Metal)
-		D(m, "Handle", Vector3.new(0.6, 0.1, 0.1), at(cf, 0, 1.0 + i * 1.4, if open then -1.68 else -1.2), C.metal, M.Metal)
+		local z = if open then -1.6 else -1.12
+		local y = 0.75 + i * 1.4
+		D(m, "Drawer", Vector3.new(1.6, 1.25, 0.08), at(cf, 0, y + 0.05, z), col:Lerp(C.black, 0.08), M.Metal)
+		if open then
+			-- the drawer box shows: its sides and the files inside
+			for _, sx in { -0.74, 0.74 } do
+				D(m, "DrawerSide", Vector3.new(0.06, 0.9, 0.5), at(cf, sx, y, -1.33), col:Lerp(C.black, 0.15), M.Metal)
+			end
+			for k = 0, 5 do
+				D(m, "Folder", Vector3.new(1.3 - (k % 3) * 0.05, 0.85 - (k % 2) * 0.04, 0.05), at(cf, 0, y + 0.08, -1.48 + k * 0.07, -8, 0, 0), C.paper:Lerp(C.cardboard, (k % 3) * 0.3), M.Cardboard)
+			end
+		end
+		D(m, "LabelHolder", Vector3.new(0.5, 0.26, 0.03), at(cf, 0, y + 0.42, z - 0.055), C.metal, M.Metal)
+		D(m, "Label", Vector3.new(0.42, 0.18, 0.02), at(cf, 0, y + 0.42, z - 0.08), C.paper, M.SmoothPlastic)
+		D(m, "Handle", Vector3.new(0.6, 0.1, 0.1), at(cf, 0, y + 0.18, z - 0.08), C.metal, M.Metal)
 	end
 	m:SetAttribute("SurfaceHeight", 4.4)
 	local spot = Instance.new("Attachment")
@@ -401,7 +479,12 @@ function Props.locker(parent, cf: CFrame, rng)
 	local m = model(parent, "Locker", cf)
 	local col = Build.vary(rng:Pick({ Color3.fromRGB(70, 84, 92), Color3.fromRGB(96, 92, 80), Color3.fromRGB(84, 90, 84) }), rng)
 	P(m, "Body", Vector3.new(2, 6.6, 1.8), at(cf, 0, 3.3, 0), col, M.Metal)
-	D(m, "Door", Vector3.new(1.8, 6.2, 0.06), at(cf, 0, 3.3, -0.93), col:Lerp(C.black, 0.06), M.Metal)
+	D(m, "Door", Vector3.new(1.8, 6.2, 0.06), at(cf, 0, 3.4, -0.93), col:Lerp(C.black, 0.06), M.Metal)
+	D(m, "Plinth", Vector3.new(1.84, 0.26, 0.04), at(cf, 0, 0.15, -0.92), C.black, M.Metal)
+	for _, y in { 1.2, 5.6 } do
+		Build.cylinder(m, "HingePin", 0.5, 0.1, at(cf, -0.92, y, -0.97, 0, 0, 90), C.metal, M.Metal, { CanCollide = false, CastShadow = false })
+	end
+	D(m, "NumberPlate", Vector3.new(0.5, 0.3, 0.03), at(cf, 0, 4.7, -0.975), C.metal:Lerp(C.white, 0.3), M.Metal)
 	for i = 0, 3 do
 		D(m, "Vent", Vector3.new(1, 0.08, 0.04), at(cf, 0, 5.6 + i * 0.22, -0.97), C.black, M.Metal)
 	end
@@ -774,10 +857,16 @@ function Props.toiletStall(parent, cf: CFrame, rng, doorOpen: boolean?)
 	local panel = Build.vary(rng:Pick({ Color3.fromRGB(110, 120, 116), Color3.fromRGB(130, 120, 100) }), rng, 0.04)
 	-- the right side sits 2 cm in so a neighbouring stall's left side never shares its plane
 	P(m, "SideL", Vector3.new(0.15, 6.4, 5.6), at(cf, -2, 3.7, 0), panel, M.SmoothPlastic)
-	P(m, "SideR", Vector3.new(0.15, 6.4, 5.6), at(cf, 1.98, 3.7, 0), panel, M.SmoothPlastic)
+	-- and is 4 cm smaller, so where neighbours overlap none of their faces line up
+	P(m, "SideR", Vector3.new(0.15, 6.36, 5.56), at(cf, 1.98, 3.7, 0), panel, M.SmoothPlastic)
+	-- a stainless foot carries the left partition at the front (narrower than
+	-- the panel, so it never reaches the wall or the neighbouring stall)
+	D(m, "StallFoot", Vector3.new(0.12, 0.5, 0.36), at(cf, -2, 0.25, -2.4), C.metal, M.Metal)
 	local door = P(m, "StallDoor", Vector3.new(3.4, 5.8, 0.12), at(cf, 0, 3.6, -2.8), panel:Lerp(C.black, 0.1), M.SmoothPlastic)
 	if doorOpen then
 		door.CFrame = at(cf, -1.75, 3.6, -2.8) * CFrame.Angles(0, math.rad(-80), 0) * CFrame.new(1.7, 0, 0)
+	else
+		D(m, "Latch", Vector3.new(0.3, 0.12, 0.1), at(cf, 1.45, 3.9, -2.92), C.metal, M.Metal)
 	end
 	-- toilet
 	local white = C.white

@@ -149,7 +149,7 @@ Reglas de un timeline:
 | Grupo | Eventos |
 |---|---|
 | Cámara | `SetCamera` / `Cut` / `TeleportCamera`, `MoveCamera`, `SetFOV`, `ShakeCamera`, `Jolt`, `TrackTarget`, `StopTracking` |
-| Luz | `SetLighting`, `FadeLights`, `RestoreLights`, `Blackout`, `FlickerLights`, `KeyLight`, `KeyLightOff`, `Fog`, `Grade`, `Vignette`, `Blur` |
+| Luz | `SetLighting`, `FadeLights`, `RestoreLights`, `Blackout`, `FlickerLights`, `KeyLight`, `KeyLightOff`, `Fog`, `Grade`, `Vignette`, `Blur`, `LookPreset` (sección 13) |
 | Sonido | `PlaySound`, `PlayAmbience`, `StopSound`, `Silence`, `Unsilence`, `MuteGame` |
 | Objetos | `UseDoor`, `OpenDoor`, `CloseDoor`, `SpawnEffect` (`person` / `entity`), `DestroyEffect`, `MoveObject`, `FadeObject` |
 | Ojo | `ShowEye`, `HideEye`, `BlinkEye`, `EyeLook`, `SetEye` |
@@ -265,7 +265,7 @@ python3 tools/gen_eye.py
 python3 tools/gen_title.py
 ```
 
-## 12. Catálogo de escenas (54)
+## 12. Catálogo de escenas (56)
 
 En el panel (F7, F6 o 🎬) las escenas salen **agrupadas por categoría**, con su duración. Al elegir una se muestra su descripción, y el buscador filtra por nombre, categoría o palabras de la descripción.
 
@@ -279,6 +279,7 @@ En el panel (F7, F6 o 🎬) las escenas salen **agrupadas por categoría**, con 
 | E · MESSAGES | `Scenes/E_Messages.luau` | DontLookAway, TheMessageChanges, ThisVideoIsWrong, TheCameraNoticesYou, YouMissedSomething, TheFinalWarning | negro / habitación / pasillo |
 | F · SOUND | `Scenes/F_Sound.luau` | TheBreathingRoom, FootstepsApproaching, TheSilence, WhisperFromTheWall, TheSoundFollows | habitación / pasillo |
 | G · MICRO (4–6 s) | `Scenes/G_Micro.luau` | MicroEyeReveal, MicroDoorMovement, MicroCAM04, MicroShadow, MicroFigureBehindCamera, MicroOneFrameAnomaly, MicroFinalWarning, MicroDidYouSeeIt, MicroTheWrongReflection, MicroTheDoorWasOpen | todas |
+| H · LOOKS | `Scenes/H_Looks.luau` | LookBook (los 8 looks rotulados), DoorAjarToEye | habitación + pasillo / decorado puerta |
 
 **Dónde graban:**
 
@@ -331,3 +332,30 @@ En el panel (F7, F6 o 🎬) las escenas salen **agrupadas por categoría**, con 
 - Roblox no refleja la escena en espejos ni ventanas. Los "reflejos" se simulan con el ojo anclado y con siluetas sobre el cristal.
 - Las sombras de pared son siluetas dibujadas, no sombras proyectadas.
 - No se han inventado assets. Lo que no existía (cámara de seguridad, sombras, brillos, decorados) se construye con piezas.
+
+## 13. Looks: presets de luz y composición (Visual Overhaul V2)
+
+`Utilities/Looks.luau` define 8 looks. Cada uno aplica de una vez: grade, exposición
+(relativa a la de la escena, no se acumula), niebla, objetivo (FOV), viñeta y hasta dos
+luces clave/contra colocadas respecto a la cámara y al sujeto. Todo pasa por
+`LightFX` / `Screen` / `CameraRig`, así que la limpieza lo deja todo como estaba.
+
+| Look | Para qué | Luces |
+|---|---|---|
+| `EyeCloseUp` | primer plano del ojo | clave cálida baja lateral + contra fría detrás |
+| `LongCorridor` | pasillo en punto de fuga | un charco de luz fría a mitad, niebla densa |
+| `DoorAjar` | puerta entreabierta | luz de sodio que se cuela por la rendija hacia la cámara |
+| `CCTV` | cámara de seguridad | ninguna (plano, gran angular, sin viñeta) |
+| `FigureAtBack` | figura al fondo | contraluz: se lee como silueta |
+| `NormalRoom` | la calma antes | relleno suave cálido |
+| `AnomalyReveal` | la revelación | cenital dura sobre el sujeto, negros aplastados |
+| `CutToBlack` | corte | todo a negro |
+
+```lua
+{ at = 3.0, action = "LookPreset", preset = "FigureAtBack", subject = figurePos, camera = shotCf, duration = 0.4 },
+```
+
+`subject` (Vector3) es el punto al que miran/rodean las luces; `camera` (CFrame) es el
+plano para el que se colocan (si no se da, el plano actual). `fov = false` no toca el objetivo.
+`Scene_LookBook` enseña los 8 seguidos y rotulados para comparar.
+
