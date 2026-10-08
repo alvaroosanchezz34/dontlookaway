@@ -689,7 +689,15 @@ do
 	end
 	local ok, perr = pcall(Panel.mount, MC, Config)
 	check(ok, "marketing panel mounts: " .. tostring(perr))
-	print("  marketing: panel done")
+	local panelGui = playerGui:FindFirstChild("MarketingStudioPanel")
+	local window = panelGui and panelGui:FindFirstChild("Window")
+	check(window ~= nil, "marketing panel window is inside its ScreenGui")
+	check(panelGui and panelGui:FindFirstChild("Opener") ~= nil, "marketing opener button")
+	if window then
+		Panel.setVisible(true)
+		check(window.Visible == true and #window:GetChildren() > 5, "marketing panel shows its controls")
+		Panel.setVisible(false)
+	end
 	MC.SetOption("HoldAtEnd", 0)
 
 	local function snapshot()

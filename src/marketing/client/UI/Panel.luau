@@ -129,7 +129,6 @@ function Panel.setVisible(on: boolean)
 	if window then
 		window.Visible = on
 	end
-	print(string.format("[Marketing] panel %s (window %s, gui %s)", if on then "shown" else "hidden", if window then "ok" else "missing", if gui and gui.Parent then "in PlayerGui" else "not parented"))
 	local ok, err = pcall(refresh)
 	if not ok then
 		warn("[Marketing] panel refresh failed: " .. tostring(err))
@@ -171,6 +170,7 @@ function Panel.mount(ctrl: any, config: any)
 	list.Padding = UDim.new(0, 8)
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.Parent = w
+	w.Parent = g
 	window = w
 
 	local title = label(w, "MARKETING STUDIO", 20, C.line)
@@ -289,7 +289,6 @@ function Panel.mount(ctrl: any, config: any)
 	end
 	UserInputService.InputBegan:Connect(function(input)
 		if table.find(keys, input.KeyCode) then
-			print("[Marketing] key " .. input.KeyCode.Name .. " pressed")
 			if not UserInputService:GetFocusedTextBox() then
 				toggle()
 			end
@@ -317,7 +316,6 @@ function Panel.mount(ctrl: any, config: any)
 	openerStroke.Parent = opener
 	opener.Parent = g
 	opener.Activated:Connect(function()
-		print("[Marketing] 🎬 button pressed")
 		toggle()
 	end)
 	openerButton = opener

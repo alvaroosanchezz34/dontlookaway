@@ -11,12 +11,12 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local shared = ReplicatedStorage:WaitForChild("Marketing", 10)
-if not shared then
+local marketingFolder = ReplicatedStorage:WaitForChild("Marketing", 10)
+if not marketingFolder then
 	return
 end
-local Config = require(shared:WaitForChild("MarketingConfig"))
-local Access = require(shared:WaitForChild("MarketingAccess"))
+local Config = require(marketingFolder:WaitForChild("MarketingConfig"))
+local Access = require(marketingFolder:WaitForChild("MarketingAccess"))
 
 -- the client can only check Studio itself; a private server is vouched for by
 -- the server's grant below
