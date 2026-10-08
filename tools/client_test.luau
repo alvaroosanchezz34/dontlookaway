@@ -214,6 +214,9 @@ env.setService("RunService", {
 	BindToRenderStep = function(_, name, _, fn)
 		renderFns[name] = fn
 	end,
+	UnbindFromRenderStep = function(_, name)
+		renderFns[name] = nil
+	end,
 	RenderStepped = loops.RenderStepped,
 	Heartbeat = loops.Heartbeat,
 	Stepped = loops.Stepped,
@@ -665,6 +668,169 @@ end
 task.wait(2.5)
 frames(3)
 print("  clicked " .. clicked .. " buttons")
+
+section("marketing studio")
+do
+	local Lighting = game:GetService("Lighting")
+	local SoundService = game:GetService("SoundService")
+	local mRoot = game:GetService("StarterPlayer").StarterPlayerScripts:FindFirstChild("Marketing")
+	check(mRoot ~= nil, "marketing client folder")
+	local MC = requireModule(mRoot.MarketingController)
+	local Runtime = requireModule(mRoot.Runtime)
+	local Actions = requireModule(mRoot.Actions)
+	local Panel = requireModule(mRoot.UI.Panel)
+	local Config = requireModule(RS.Marketing.MarketingConfig)
+	local scenes = MC.ListScenes()
+	check(#scenes == 8, "eight scenes (" .. #scenes .. ")")
+	-- every action used by a scene exists
+	for _, name in scenes do
+		local def = MC.GetScene(name)
+		check(def ~= nil and type(def.Build) == "function" and def.Duration > 0, "scene module " .. name)
+	end
+	local ok, perr = pcall(Panel.mount, MC, Config)
+	check(ok, "marketing panel mounts: " .. tostring(perr))
+	print("  marketing: panel done")
+	MC.SetOption("HoldAtEnd", 0)
+
+	local function snapshot()
+		local snap = {}
+		for _, prop in { "ExposureCompensation", "Ambient", "OutdoorAmbient", "Brightness", "FogEnd" } do
+			snap["L." .. prop] = tostring((Lighting :: any)[prop])
+		end
+		local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+		if atmosphere then
+			snap["A.Density"] = tostring(atmosphere.Density)
+		end
+		snap.workspace = #workspace:GetChildren()
+		snap.camera = #workspace.CurrentCamera:GetChildren()
+		snap.playerGui = #playerGui:GetChildren()
+		snap.sound = #SoundService:GetChildren()
+		local enabled = 0
+		for _, g in playerGui:GetChildren() do
+			if g:IsA("ScreenGui") and g.Enabled then
+				enabled += 1
+			end
+		end
+		snap.enabledGuis = enabled
+		return snap
+	end
+	local function same(a, b, label)
+		for k, v in a do
+			check(b[k] == v, label .. ": " .. k .. " restored (" .. tostring(v) .. " -> " .. tostring(b[k]) .. ")")
+		end
+	end
+	local function run(name, label)
+		print("  marketing: " .. label .. " " .. name)
+		local before = snapshot()
+		local okPlay, err = MC.PlayScene(name)
+		check(okPlay, label .. " " .. name .. " plays: " .. tostring(err))
+		local fn = renderFns.MarketingStudio
+		check(fn ~= nil, label .. " " .. name .. " drives a render step")
+		local def = MC.GetScene(name)
+		local steps = 0
+		while renderFns.MarketingStudio and steps < (def.Duration + 2) * 30 do
+			local okStep, e = pcall(renderFns.MarketingStudio, 1 / 30)
+			check(okStep, label .. " " .. name .. " step: " .. tostring(e))
+			if not okStep then
+				break
+			end
+			steps += 1
+		end
+		check(not MC.IsPlaying(), label .. " " .. name .. " ends by itself")
+		check(renderFns.MarketingStudio == nil, label .. " " .. name .. " unbinds its render step")
+		check(Runtime.isClean(), label .. " " .. name .. " leaves MarketingRuntime clean")
+		same(before, snapshot(), label .. " " .. name)
+	end
+	-- 1. anywhere (no building): the virtual set
+	for _, name in scenes do
+		run(name, "virtual")
+	end
+	-- 2. inside a (small) Ashgrove-like building
+	local building = Instance.new("Folder")
+	building.Name = "Building"
+	local function floor(room, size, pos)
+		local p = Instance.new("Part")
+		p.Name = "Floor"
+		p.Size = size
+		p.CFrame = CFrame.new(pos)
+		p:SetAttribute("Room", room)
+		p.Parent = building
+	end
+	floor("G_c", Vector3.new(152, 1, 8), Vector3.new(76, -0.5, 44))
+	floor("U_c", Vector3.new(152, 1, 8), Vector3.new(76, 17.5, 44))
+	floor("G_k", Vector3.new(44, 1, 36), Vector3.new(22, -0.5, 90))
+	floor("U_o", Vector3.new(30, 1, 30), Vector3.new(60, 17.5, 20))
+	floor("G_b", Vector3.new(30, 1, 30), Vector3.new(60, -0.5, 20))
+	local door = Instance.new("Model")
+	door.Name = "Door"
+	local leaf = Instance.new("Part")
+	leaf.Name = "Leaf"
+	leaf.Size = Vector3.new(4, 10, 0.3)
+	leaf.CFrame = CFrame.new(60, 5, 39.9)
+	leaf.Parent = door
+	door.PrimaryPart = leaf
+	door:SetAttribute("RoomA", "G_b")
+	door:SetAttribute("RoomB", "G_c")
+	door:SetAttribute("ClosedCFrame", leaf.CFrame)
+	door:SetAttribute("OpenCFrame", CFrame.new(58, 5, 38) * CFrame.Angles(0, math.rad(90), 0))
+	door:SetAttribute("Open", false)
+	door:AddTag("Door")
+	door.Parent = building
+	local mirror = Instance.new("Model")
+	mirror.Name = "Mirror"
+	local glass = Instance.new("Part")
+	glass.Name = "Glass"
+	glass.Size = Vector3.new(3, 3.6, 0.05)
+	glass.CFrame = CFrame.new(10, 6, 80)
+	glass.Parent = mirror
+	local overlay = Instance.new("SurfaceGui")
+	overlay.Name = "Overlay"
+	overlay.Parent = glass
+	mirror:AddTag("Mirror")
+	mirror.Parent = building
+	building.Parent = workspace
+	env.syncPositions(workspace)
+	local doorBefore = leaf.CFrame
+	for _, name in scenes do
+		run(name, "building")
+	end
+	check(leaf.CFrame == door:GetAttribute("ClosedCFrame"), "the real door is back where the game left it")
+	local _ = doorBefore
+	-- 3. pause / resume / restart / stop mid-scene, slow motion, formats, camera styles
+	MC.SetOption("TimeScale", 0.5)
+	MC.SetFormat("SQUARE")
+	MC.SetCameraStyle("HANDHELD")
+	MC.PlayScene("Scene08_Launch")
+	for _ = 1, 40 do
+		renderFns.MarketingStudio(1 / 30)
+	end
+	MC.PauseScene()
+	local clock = MC.GetState().clock
+	for _ = 1, 10 do
+		renderFns.MarketingStudio(1 / 30)
+	end
+	check(MC.GetState().clock == clock, "pause freezes the scene clock")
+	MC.ResumeScene()
+	renderFns.MarketingStudio(1 / 30)
+	check(MC.GetState().clock > clock, "resume continues")
+	check(math.abs(MC.GetState().clock - (clock + 0.5 / 30)) < 1e-6, "slow motion runs at half speed")
+	MC.RestartScene()
+	check(MC.GetState().clock == 0 and MC.IsPlaying(), "restart starts over")
+	for _ = 1, 20 do
+		renderFns.MarketingStudio(1 / 30)
+	end
+	MC.StopScene()
+	check(not MC.IsPlaying() and Runtime.isClean(), "stop mid-scene cleans everything")
+	MC.CleanupMarketingScene()
+	MC.CleanupMarketingScene()
+	check(Runtime.isClean(), "cleanup is idempotent")
+	MC.SetOption("TimeScale", 1)
+	MC.SetFormat("SOCIAL_VERTICAL")
+	MC.SetCameraStyle("AUTO")
+	check(#Actions.names() >= 40, "action vocabulary (" .. #Actions.names() .. ")")
+	building:Destroy()
+	Panel.unmount()
+end
 
 section("summary")
 print(string.format("%d checks, %d failures, %d controllers", checks, failures, #controllers))

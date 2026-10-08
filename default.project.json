@@ -6,12 +6,18 @@
       "$className": "ReplicatedStorage",
       "Shared": {
         "$path": "src/shared"
+      },
+      "Marketing": {
+        "$path": "src/marketing/shared"
       }
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
       "Server": {
         "$path": "src/server"
+      },
+      "Marketing": {
+        "$path": "src/marketing/server"
       }
     },
     "StarterPlayer": {
@@ -37,6 +43,9 @@
         },
         "RbxCharacterSounds": {
           "$path": "src/playerscripts/RbxCharacterSounds.client.luau"
+        },
+        "Marketing": {
+          "$path": "src/marketing/client"
         }
       }
     },

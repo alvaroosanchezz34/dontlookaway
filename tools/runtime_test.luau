@@ -282,6 +282,34 @@ do
 	end
 end
 
+section("marketing studio access")
+do
+	local Access = requireModule(RS.Marketing.MarketingAccess)
+	local Config = requireModule(RS.Marketing.MarketingConfig)
+	local E = env.roblox.Enum
+	local cfg = table.clone(Config)
+	cfg.AdminUserIds = { 4242 }
+	local public = { studio = false, privateServerId = "", privateServerOwnerId = 0, creatorType = E.CreatorType.User, creatorId = 99 }
+	local studio = { studio = true, privateServerId = "", privateServerOwnerId = 0, creatorType = E.CreatorType.User, creatorId = 99 }
+	local vip = { studio = false, privateServerId = "abc", privateServerOwnerId = 99, creatorType = E.CreatorType.User, creatorId = 99 }
+	local reserved = { studio = false, privateServerId = "abc", privateServerOwnerId = 0, creatorType = E.CreatorType.User, creatorId = 99 }
+	check(not Access.environmentAllowed(cfg, public), "marketing: never on public servers")
+	for _, id in { 4242, 99, 1, -1 } do
+		check(not Access.isAuthorized(id, cfg, public), "marketing: public server denies " .. id)
+	end
+	check(Access.environmentAllowed(cfg, studio), "marketing: allowed in Studio")
+	check(Access.isAuthorized(4242, cfg, studio) and Access.isAuthorized(99, cfg, studio), "marketing: listed user and owner in Studio")
+	check(not Access.isAuthorized(12345, cfg, studio), "marketing: a stranger is denied even in Studio")
+	check(Access.isAuthorized(-1, cfg, studio), "marketing: Studio test players")
+	check(not Access.environmentAllowed(cfg, vip), "marketing: private servers off by default")
+	cfg.AllowInPrivateServers = true
+	check(Access.isAuthorized(99, cfg, vip) and not Access.isAuthorized(12345, cfg, vip) and not Access.isAuthorized(-1, cfg, vip), "marketing: private server only for authorised users")
+	check(not Access.environmentAllowed(cfg, reserved), "marketing: never on reserved (matchmade) servers")
+	cfg.Enabled = false
+	check(not Access.isAuthorized(99, cfg, studio), "marketing: Enabled = false turns everything off")
+	check(Config.AllowInPrivateServers == false, "marketing: shipped config keeps private servers off")
+end
+
 section("lore archive")
 do
 	local RS = game:GetService("ReplicatedStorage")
