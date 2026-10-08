@@ -43,6 +43,8 @@ function Timeline.new(events: { Event }, duration: number, runEvent: (any, Event
 		speed = 1,
 		runEvent = runEvent,
 		data = {}, -- per-scene scratch for actions
+		ran = 0,
+		failed = 0,
 	}, Timeline)
 	return self
 end
@@ -82,7 +84,9 @@ function Timeline:step(dt: number)
 		local e = self.events[self.nextIndex]
 		self.nextIndex += 1
 		local ok, err = pcall(self.runEvent, self, e)
+		self.ran += 1
 		if not ok then
+			self.failed += 1
 			warn(string.format("[Marketing] event %s at %.2fs failed: %s", tostring(e.action), e.at, tostring(err)))
 		end
 	end

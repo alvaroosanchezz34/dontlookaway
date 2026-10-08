@@ -188,6 +188,29 @@ end
 -- The loop
 ------------------------------------------------------------------------------------
 
+local FRAME_JOBS = {
+	{ "camera", function(_tl, dt)
+		CameraRig.update(dt)
+	end },
+	{ "eye", function(tl, dt)
+		Eye.update(dt, tl.clock)
+	end },
+	{ "titles", function(tl, dt)
+		Titles.update(dt, tl.clock)
+		Titles.updateImages()
+	end },
+	{ "grain", function()
+		Screen.updateGrain()
+	end },
+	{ "cctv", function(tl)
+		if tl.data.cctvClock then
+			local secs = tl.data.cctvStart + (tl.clock - tl.data.cctvClock)
+			local stamp = string.format("%s  %02d:%02d:%02d", tl.data.cctvDate, math.floor(secs / 3600) % 24, math.floor(secs / 60) % 60, math.floor(secs) % 60)
+			Screen.updateCCTV(tl.clock, stamp)
+		end
+	end },
+}
+
 local function step(dt: number)
 	local tl = current
 	if not tl then
@@ -196,15 +219,14 @@ local function step(dt: number)
 	tl:step(dt)
 	if not tl.paused then
 		local scaled = dt * tl.speed
-		CameraRig.update(scaled)
-		Eye.update(scaled, tl.clock)
-		Titles.update(scaled, tl.clock)
-		Titles.updateImages()
-		Screen.updateGrain()
-		if tl.data.cctvClock then
-			local secs = tl.data.cctvStart + (tl.clock - tl.data.cctvClock)
-			local stamp = string.format("%s  %02d:%02d:%02d", tl.data.cctvDate, math.floor(secs / 3600) % 24, math.floor(secs / 60) % 60, math.floor(secs) % 60)
-			Screen.updateCCTV(tl.clock, stamp)
+		-- each per-frame layer is isolated: one failing never stops the others
+		for _, job in FRAME_JOBS do
+			local ok, err = pcall(job[2], tl, scaled)
+			if not ok and not tl.data["warned_" .. job[1]] then
+				tl.data["warned_" .. job[1]] = true
+				tl.failed += 1
+				warn(string.format("[Marketing] %s failed every frame: %s", job[1], tostring(err)))
+			end
 		end
 	end
 	Screen.layout()
@@ -331,11 +353,20 @@ function MarketingController.PlayScene(name: string): (boolean, string?)
 	currentName = name
 	finishedAt = nil
 	bind()
+	print(string.format("[Marketing] ▶ %s (%d events, %.1f s)%s", name, #events, def.Duration or 10, if Eye.photographic() then "" else " · eye images not set: drawn eye"))
 	fire()
 	return true, nil
 end
 
+local function report(reason: string)
+	local tl = current
+	if tl and currentName then
+		print(string.format("[Marketing] %s %s: %d/%d events ran, %d failed%s", currentName, reason, tl.ran, #tl.events, tl.failed, if tl.failed > 0 then " (see the warnings above)" else ""))
+	end
+end
+
 function MarketingController.StopScene()
+	report(if current and current:isFinished() then "finished" else "stopped")
 	MarketingController.CleanupMarketingScene()
 	fire()
 end
