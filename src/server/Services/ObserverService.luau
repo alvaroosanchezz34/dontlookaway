@@ -522,7 +522,15 @@ local function attack(victim: Player)
 			humanoid.WalkSpeed = 0
 		end
 	end
-	Registry.AudioService:PlayAt("ObserverScreech", headPos(), { volume = 0.55 })
+	-- everyone else hears the catch; the victim hears nothing until the impact
+	-- (their client plays it on the exact frame), so nothing gives it away
+	local others = {}
+	for _, p in Players:GetPlayers() do
+		if p ~= victim then
+			table.insert(others, p)
+		end
+	end
+	Registry.AudioService:PlayAtFor(others, "ObserverScreech", headPos(), { volume = 0.55 })
 	ObserverService.Caught:Fire(victim)
 	Registry.RoundService:KillPlayer(victim, model:GetPivot(), info)
 	Registry.AnalyticsService:Event(victim, "ObserverCatch", 1, { variant = info.variant })

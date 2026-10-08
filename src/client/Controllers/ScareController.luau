@@ -5,13 +5,12 @@
 	into walls you cannot see). The real, replicated Observer is hidden locally
 	while a cinematic runs.
 
-	Every catch is 2-4 seconds and follows the same grammar, with a different
-	sentence each time:
-	  1  the light changes, the sound drops out for a moment
-	  2  breathing, very close; the view starts to tremble
-	  3  you look (or are made to look)
-	  4  it is there, much too close; its head moves the wrong way, its face
-	     opens along the seam
+	Every catch is SUDDEN - you must never see it coming - and follows the same
+	grammar, with a different sentence each time:
+	  1  the sound cuts out and the grade goes cold, all at once
+	  2  (gone: no breathing build-up)
+	  3  the camera is whipped round to it in about a tenth of a second
+	  4  it is there, much too close, already lunging
 	  5  THE IMPACT. It crosses the last metres in a blink, folds down to your
 	     eye level with its face split open and its hands on you. On that exact
 	     frame - never before - a hard, cold light snaps on from your camera
@@ -275,33 +274,39 @@ function ScareController:Death(payload, done: () -> ())
 	end
 	setServerObserverHidden(true)
 
-	-- where it stands, where we look first
+	-- where it stands, where we look first. No build-up: the camera is
+	-- WHIPPED round (about a tenth of a second) and it is already lunging.
 	local rigFeet: Vector3
 	local firstLook: Vector3? = nil
-	local turnStart, turnTime = 0.55, 0.8
-	local lungeAt = 1.35
+	local turnStart, turnTime = 0, 0.12
+	local lungeAt = 0.14
 	if variant == "behind" then
 		rigFeet = feetAt(eye - flatLook * 3)
-		turnTime = 0.95
+		turnTime = 0.13
 	elseif variant == "side" then
 		rigFeet = feetAt(eye + right * (payload.side or 1) * 2.8)
-		turnStart, turnTime = 0.75, 0.22
+		turnTime, lungeAt = 0.09, 0.1
 	elseif variant == "front" then
-		rigFeet = feetAt(eye + flatLook * 7)
+		rigFeet = feetAt(eye + flatLook * 5)
+		lungeAt = 0.05
 	elseif variant == "dark" then
+		-- the light dies for a breath, then it is at your face
 		rigFeet = feetAt(eye + flatLook * 1.7)
+		lungeAt = 0.22
 	elseif variant == "door" and typeof(payload.door) == "Vector3" then
 		local to = Util.flat(payload.door - eye)
 		local d = math.clamp(to.Magnitude, 2.5, 6)
 		rigFeet = feetAt(eye + (if to.Magnitude > 0.01 then to.Unit else flatLook) * d)
 	elseif variant == "mirror" then
+		-- a glimpse in the glass, then the whip round
 		rigFeet = feetAt(eye - flatLook * 3)
 		firstLook = if typeof(payload.mirror) == "Vector3" then payload.mirror else nil
-		turnStart, turnTime = 1.0, 0.65
-		lungeAt = 1.75
+		turnStart, turnTime = 0.2, 0.1
+		lungeAt = 0.3
 	elseif variant == "mimic" then
-		rigFeet = feetAt(eye + flatLook * 5)
-		lungeAt = 1.7
+		-- its head spins round, and it is on you
+		rigFeet = feetAt(eye + flatLook * 4)
+		lungeAt = 0.32
 	else
 		rigFeet = feetAt(eye - flatLook * 3)
 	end
@@ -335,40 +340,29 @@ function ScareController:Death(payload, done: () -> ())
 	end
 	local lookTarget = firstLook or (eye + flatLook * 10)
 
-	-- 1. the light changes, the sound drops out
+	-- 1. the sound drops out at once, the grade turns cold (no slow build-up)
 	audio:Silence(2.2)
-	fx:Blur(2, 0.4)
-	Kit.tween(fx:GetGrade(), 0.5, { TintColor = if variant == "dark" then Color3.fromRGB(255, 205, 200) else Color3.fromRGB(205, 220, 255), Saturation = -0.5 })
-	-- 2. breathing, very close
-	task.delay(0.3, function()
-		audio:Play("ObserverInhale", nil, { volume = 1 })
-	end)
-	task.delay(0.55, function()
-		audio:Play("HeartbeatFast", nil, { volume = 1 })
-	end)
+	Kit.tween(fx:GetGrade(), 0.06, { TintColor = if variant == "dark" then Color3.fromRGB(255, 205, 200) else Color3.fromRGB(205, 220, 255), Saturation = -0.5 })
 	if variant == "dark" then
-		task.delay(0.25, function()
-			fx:Fade(0.95, 0.06)
-			audio:Play("FlashlightDead", nil, { volume = 0.8 })
-		end)
-		task.delay(lungeAt - 0.12, function()
+		fx:Fade(0.95, 0.03)
+		audio:Play("FlashlightDead", nil, { volume = 0.8 })
+		task.delay(lungeAt - 0.03, function()
 			rig.Parent = Workspace
-			fx:Fade(0, 0.05)
+			fx:Fade(0, 0.03)
 		end)
 	elseif variant == "mirror" then
-		task.delay(0.25, function()
+		task.delay(0.02, function()
 			-- the figure shows in the glass first
 			for _, mirror in CollectionService:GetTagged("Mirror") do
 				local glass = mirror:FindFirstChild("Glass")
 				local figure = glass and glass:FindFirstChild("Figure", true)
 				if figure and glass:IsA("BasePart") and typeof(payload.mirror) == "Vector3" and (glass.Position - payload.mirror).Magnitude < 1 then
 					(figure :: GuiObject).Visible = true
-					task.delay(1.4, function()
+					task.delay(0.5, function()
 						(figure :: GuiObject).Visible = false
 					end)
 				end
 			end
-			audio:Play("JumpSting", nil, { volume = 0.6 })
 		end)
 	end
 
@@ -379,7 +373,7 @@ function ScareController:Death(payload, done: () -> ())
 	local light = makeScareLight()
 	cam:SetOverride("Death", 50, function()
 		local t = os.clock() - start
-		local tremble = math.clamp((t - 0.35) / 1.2, 0, 1) * (if reduced() then 0.3 else 1)
+		local tremble = math.clamp(t / 0.15, 0, 1) * (if reduced() then 0.3 else 1)
 		local shake = CFrame.Angles(math.noise(t * 22, 1) * 0.01 * tremble, math.noise(t * 22, 2) * 0.014 * tremble, 0)
 		-- what we are looking at
 		local target = lookTarget
@@ -427,10 +421,10 @@ function ScareController:Death(payload, done: () -> ())
 			local head = teammate:FindFirstChild("Head")
 			local neck = head and head:FindFirstChild("Neck")
 			if neck and neck:IsA("Motor6D") then
-				local h = ease((t - 0.6) / 0.9)
+				local h = ease(t / 0.26)
 				neck.Transform = CFrame.Angles(math.rad(-10 * h), math.rad(178 * h), math.rad(16 * h))
 			end
-			if t >= lungeAt - 0.15 then
+			if t >= lungeAt - 0.04 then
 				mimicSwapped = true
 				teammate:Destroy()
 				teammate = nil
@@ -438,7 +432,7 @@ function ScareController:Death(payload, done: () -> ())
 			end
 		end
 		if t < lungeAt then
-			idlePose(m, if variant == "door" then 70 * ease((t - 0.6) / 0.5) else 22)
+			idlePose(m, if variant == "door" then 70 * ease(t / 0.12) else 22)
 			aimScareLight(light, lastCamPos, rigHead(), 0)
 		else
 			local l = (t - lungeAt) / LUNGE
