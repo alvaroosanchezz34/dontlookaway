@@ -63,9 +63,9 @@ AssetIds.Observer = {
 -- Original synthesised audio (assets/audio/dla_<sheet>.ogg): three files, each
 -- holding many sounds (see Config/AudioSheets). Upload them as audio.
 AssetIds.Audio = {
-	ambience = 0,
-	horror = 0,
-	world = 0,
+	ambience = 110871317153737,
+	horror = 105099112421159,
+	world = 124668448156045,
 }
 
 function AssetIds.url(id: number?): string?
