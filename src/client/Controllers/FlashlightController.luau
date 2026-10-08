@@ -26,6 +26,7 @@ local Workspace = game:GetService("Workspace")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
+local Equipment = require(ReplicatedStorage.Shared.Catalog.Equipment)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
 local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
@@ -68,6 +69,13 @@ local function makeHolder(name: string): Part
 	return p
 end
 
+-- The equipped flashlight's character (Catalog/Equipment `beam`).
+local DEFAULT_BEAM = { tone = Color3.new(1, 1, 1), core = 0.42, spill = 0.75, warmup = 0.18, wobble = 0.03, switch = 1 }
+local function beam()
+	local item = Equipment.get(player:GetAttribute("FlashlightModel") or "")
+	return item and item.beam or DEFAULT_BEAM
+end
+
 local function stats(): (number, number, number)
 	local range = player:GetAttribute("FlashlightRange")
 	local angle = player:GetAttribute("FlashlightAngle")
@@ -97,7 +105,7 @@ function FlashlightController:Toggle()
 	if want then
 		switchedAt = os.clock()
 	end
-	Registry.AudioController:PlayUI(if want then "FlashlightOn" else "FlashlightOff")
+	Registry.AudioController:Play(if want then "FlashlightOn" else "FlashlightOff", nil, { speed = beam().switch })
 	Registry.CameraController:Shake(0.04)
 	Net.event("Flashlight"):FireServer(want)
 end
@@ -108,7 +116,13 @@ end
 
 local function applyCosmetics()
 	local color = player:GetAttribute("FlashlightColor")
-	if typeof(color) == "Color3" then
+	if typeof(color) ~= "Color3" then
+		color = Color3.new(1, 1, 1)
+	end
+	do
+		-- the cosmetic colour, warmed or cooled by the flashlight's own bulb
+		local tone = beam().tone
+		color = Color3.new(color.R * tone.R, color.G * tone.G, color.B * tone.B)
 		core.Color = color
 		spill.Color = color
 		fill.Color = color
@@ -168,19 +182,23 @@ local function update(dt: number)
 
 	local battery = player:GetAttribute("Battery") or 100
 	local range, angle, power = stats()
+	local b = beam()
 	local on = localOn
 	local brightness = power
 	if on then
 		warnBattery(battery)
-		-- warm-up: a stutter, then full output
+		-- warm-up: a stutter, then full output (each bulb takes its own time)
 		local since = os.clock() - switchedAt
-		if since < 0.18 then
-			brightness *= if since < 0.05 or (since > 0.09 and since < 0.12) then 0.25 else 0.8
+		local warm = b.warmup
+		if since < warm then
+			local k = since / warm
+			brightness *= if k < 0.28 or (k > 0.5 and k < 0.67) then 0.25 else 0.55 + 0.45 * k
 		end
-		-- weak battery: dimmer and unsteady, never black
+		-- weak battery: dimmer and unsteady, never black. Good lights only fade.
+		local steady = b.graceful or player:GetAttribute("FlashlightSteady") == true
 		if battery < FL.LowBatteryThreshold then
 			brightness *= 0.5 + 0.5 * (battery / FL.LowBatteryThreshold)
-			local chance = if battery < 8 then 0.03 else 0.012
+			local chance = if steady then 0 elseif battery < 8 then 0.03 else 0.012
 			if random:NextNumber() < chance then
 				flickerUntil = os.clock() + random:NextNumber(0.05, 0.22)
 			end
@@ -190,6 +208,9 @@ local function update(dt: number)
 		if attacking and i > 0.4 then
 			-- strobe
 			brightness *= if math.floor(os.clock() * 14) % 2 == 0 then 1 else 0.1
+		elseif i > 0 and b.sense then
+			-- the prototype does not stutter near it: it breathes, slowly, darker
+			brightness *= 1 - i * 0.5 * (0.5 + 0.5 * math.sin(os.clock() * 2.6))
 		elseif i > 0 and random:NextNumber() < 0.02 + i * 0.12 then
 			flickerUntil = os.clock() + random:NextNumber(0.04, 0.12 + i * 0.3)
 		end
@@ -199,8 +220,8 @@ local function update(dt: number)
 		if os.clock() < flickerUntil then
 			brightness *= random:NextNumber(0.25, 0.5)
 		end
-		-- the faintest living flicker of a real bulb
-		brightness *= 0.97 + math.noise(t * 6, 3) * 0.03
+		-- the faintest living flicker of a real bulb (old ones more)
+		brightness *= 1 - b.wobble + math.noise(t * 6, 3) * b.wobble
 	elseif os.clock() < flickerUntil then
 		-- a dead light sputtering on a click
 		on = true
@@ -213,11 +234,11 @@ local function update(dt: number)
 	spill.Enabled = lit
 	fill.Enabled = lit
 	core.Range = range + 6
-	core.Angle = angle * 0.42
-	core.Brightness = out * 0.75
+	core.Angle = angle * b.core
+	core.Brightness = out * 0.75 * math.sqrt(0.42 / b.core)
 	spill.Range = range
 	spill.Angle = angle
-	spill.Brightness = out * 0.7
+	spill.Brightness = out * 0.7 * (b.spill / 0.75)
 	fill.Brightness = out * 0.05
 	local fx = effectsEnabled()
 	local effect = player:GetAttribute("BeamEffect") or "clean"
@@ -241,23 +262,24 @@ local function update(dt: number)
 			local yawCF = if root then (root.CFrame - root.CFrame.Position) else (head.CFrame - head.CFrame.Position)
 			rec.part.CFrame = CFrame.new(head.Position + yawCF.LookVector * 0.6 + Vector3.new(0, -0.2, 0)) * yawCF * CFrame.Angles(pitch, 0, 0)
 			local color = other:GetAttribute("FlashlightColor")
-			if typeof(color) == "Color3" then
-				rec.light.Color = color
-			end
+			local oItem = Equipment.get(other:GetAttribute("FlashlightModel") or "")
+			local tone = if oItem and oItem.beam then oItem.beam.tone else Color3.new(1, 1, 1)
+			color = if typeof(color) == "Color3" then color else Color3.new(1, 1, 1)
+			rec.light.Color = Color3.new(color.R * tone.R, color.G * tone.G, color.B * tone.B)
 			local oRange = other:GetAttribute("FlashlightRange")
 			local oAngle = other:GetAttribute("FlashlightAngle")
 			local oPower = other:GetAttribute("FlashlightPower")
 			rec.light.Range = if type(oRange) == "number" then oRange else FL.Range
 			rec.light.Angle = if type(oAngle) == "number" then oAngle else FL.Angle
-			local b = if type(oPower) == "number" then oPower else FL.Brightness
+			local oOut = if type(oPower) == "number" then oPower else FL.Brightness
 			local ob = other:GetAttribute("Battery") or 100
 			if ob < FL.LowBatteryThreshold then
-				b *= 0.5 + 0.5 * (ob / FL.LowBatteryThreshold)
+				oOut *= 0.5 + 0.5 * (ob / FL.LowBatteryThreshold)
 			end
 			if os.clock() < flickerUntil then
-				b *= 0.3
+				oOut *= 0.3
 			end
-			rec.light.Brightness = b
+			rec.light.Brightness = oOut
 		end
 		rec.light.Enabled = onOther
 	end
@@ -370,6 +392,7 @@ function FlashlightController:Start()
 		end
 	end)
 	player:GetAttributeChangedSignal("FlashlightColor"):Connect(applyCosmetics)
+	player:GetAttributeChangedSignal("FlashlightModel"):Connect(applyCosmetics)
 	player:GetAttributeChangedSignal("BeamEffect"):Connect(applyCosmetics)
 	applyCosmetics()
 	springPos = Workspace.CurrentCamera.CFrame.Position

@@ -474,6 +474,15 @@ local hudOk = pcall(function()
 	Registry.PuzzleUI:Close()
 end)
 check(hudOk, "HUD API")
+-- every flashlight has its own beam and runs on a weak battery
+for _, id in { "FL_STARTER", "FL_INDUSTRIAL", "FL_TACTICAL", "FL_ADVANCED", "FL_PROTOTYPE", "UNKNOWN" } do
+	localPlayer:SetAttribute("FlashlightModel", id)
+	localPlayer:SetAttribute("Flashlight", true)
+	localPlayer:SetAttribute("Battery", 6)
+	local ok = pcall(frames, 5)
+	check(ok, "flashlight beam " .. id)
+end
+localPlayer:SetAttribute("Battery", 100)
 -- presence: every proximity state and every paranoia moment runs and cleans up
 do
 	local before = #workspace:GetChildren()

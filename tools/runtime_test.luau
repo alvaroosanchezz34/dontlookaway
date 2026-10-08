@@ -257,6 +257,23 @@ do
 	folder:Destroy()
 end
 
+section("flashlight identities")
+do
+	local Equipment = requireModule(RS.Shared.Catalog.Equipment)
+	local seen = {}
+	for _, item in Equipment.List do
+		if item.kind == "FLASHLIGHT" then
+			local b = item.beam
+			check(b ~= nil and typeof(b.tone) == "Color3" and b.core > 0 and b.spill > 0 and b.switch > 0 and type(b.feel) == "string", "beam profile " .. item.id)
+			if b then
+				local key = string.format("%.2f/%.2f/%.2f", b.core, b.spill, b.warmup)
+				check(not seen[key], "beam is distinct " .. item.id)
+				seen[key] = true
+			end
+		end
+	end
+end
+
 section("lore archive")
 do
 	local RS = game:GetService("ReplicatedStorage")

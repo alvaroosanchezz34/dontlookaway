@@ -115,7 +115,11 @@ local function equipmentTab(content: Frame, gear: any)
 		Kit.list(info, 4)
 		Kit.text({ Text = item.rarity .. "  ·  " .. (Equipment.KindNames[item.kind] or item.kind), Size = UDim2.new(1, 0, 0, 16), FontFace = Kit.F.Mono, TextSize = 13, TextColor3 = rarityColor(item.rarity), LayoutOrder = 1, Parent = info })
 		Kit.text({ Text = item.name, Size = UDim2.new(1, 0, 0, 28), FontFace = Kit.F.Heading, TextSize = 22, LayoutOrder = 2, Parent = info })
-		Kit.text({ Text = item.description or "", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, FontFace = Kit.F.Light, TextSize = 15, TextColor3 = C.TextDim, LayoutOrder = 3, Parent = info })
+		local text = item.description or ""
+		if item.beam and item.beam.feel then
+			text ..= "\n" .. item.beam.feel
+		end
+		Kit.text({ Text = text, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, FontFace = Kit.F.Light, TextSize = 15, TextColor3 = C.TextDim, LayoutOrder = 3, Parent = info })
 		Kit.frame({ Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = C.Line, LayoutOrder = 4, Parent = info })
 		if item.kind == "FLASHLIGHT" then
 			statLine(info, "RANGE", item.range, current and current.range, 5)

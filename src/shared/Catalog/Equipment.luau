@@ -6,7 +6,10 @@
 	versatility, never invulnerability. Nothing here can be bought with Robux.
 
 	Kinds
-	  FLASHLIGHT  replaces the hand light (range / angle / output / drain)
+	  FLASHLIGHT  replaces the hand light (range / angle / output / drain) and has
+	              its own `beam`: colour temperature, hot-core vs flood ratio,
+	              warm-up, bulb wobble, switch click and behaviour (graceful
+	              fade on a weak battery, `sense`: dims near the Observer)
 	  BATTERY     the cell in it (capacity)
 	  TOOL        carried on the tool belt (loadout slots), used in a round
 
@@ -39,11 +42,11 @@ Equipment.KindNames = {
 
 Equipment.List = {
 	-- Flashlights: the starter is a real flashlight; better ones are kinder to use
-	{ id = "FL_STARTER", kind = "FLASHLIGHT", name = "Starter Flashlight", rarity = "COMMON", default = true, range = 46, angle = 52, power = 2.6, drain = 1, description = "Dependable. Gets you home." },
-	{ id = "FL_INDUSTRIAL", kind = "FLASHLIGHT", name = "Industrial Flashlight", rarity = "UNCOMMON", price = 600, level = 3, range = 52, angle = 56, power = 2.75, drain = 0.95, description = "A wider beam and a little more reach." },
-	{ id = "FL_TACTICAL", kind = "FLASHLIGHT", name = "Tactical Flashlight", rarity = "RARE", price = 1600, level = 8, range = 60, angle = 44, power = 3.1, drain = 0.9, description = "A tight, bright beam for long corridors." },
-	{ id = "FL_ADVANCED", kind = "FLASHLIGHT", name = "Lumen-9 Advanced", rarity = "EPIC", price = 3800, level = 15, range = 64, angle = 58, power = 3.25, drain = 0.85, description = "Wide and long. Kind to its battery." },
-	{ id = "FL_PROTOTYPE", kind = "FLASHLIGHT", name = "Halcyon Prototype", rarity = "LEGENDARY", price = 8000, level = 25, range = 68, angle = 60, power = 3.35, drain = 0.8, steady = true, description = "Never stutters on a weak battery. Nobody knows who built it." },
+	{ id = "FL_STARTER", kind = "FLASHLIGHT", name = "Starter Flashlight", rarity = "COMMON", default = true, range = 46, angle = 52, power = 2.6, drain = 1, beam = { tone = Color3.fromRGB(255, 232, 196), core = 0.42, spill = 0.75, warmup = 0.32, wobble = 0.05, switch = 0.9, feel = "Old bulb: warm, soft, a lazy warm-up." }, description = "Dependable. Gets you home." },
+	{ id = "FL_INDUSTRIAL", kind = "FLASHLIGHT", name = "Industrial Flashlight", rarity = "UNCOMMON", price = 600, level = 3, range = 52, angle = 56, power = 2.75, drain = 0.95, beam = { tone = Color3.fromRGB(255, 226, 172), core = 0.6, spill = 0.95, warmup = 0.22, wobble = 0.025, switch = 0.75, feel = "Halogen flood: lights the whole room, not the far end." }, description = "A wider beam and a little more reach." },
+	{ id = "FL_TACTICAL", kind = "FLASHLIGHT", name = "Tactical Flashlight", rarity = "RARE", price = 1600, level = 8, range = 60, angle = 44, power = 3.1, drain = 0.9, beam = { tone = Color3.fromRGB(222, 234, 255), core = 0.3, spill = 0.45, warmup = 0, wobble = 0.008, switch = 1.25, feel = "Cold LED spot: instant, a hard bright centre, dark edges." }, description = "A tight, bright beam for long corridors." },
+	{ id = "FL_ADVANCED", kind = "FLASHLIGHT", name = "Lumen-9 Advanced", rarity = "EPIC", price = 3800, level = 15, range = 64, angle = 58, power = 3.25, drain = 0.85, beam = { tone = Color3.fromRGB(246, 246, 255), core = 0.45, spill = 0.85, warmup = 0.08, wobble = 0.01, switch = 1.1, graceful = true, feel = "Even and clean. A weak battery fades it instead of making it stutter." }, description = "Wide and long. Kind to its battery." },
+	{ id = "FL_PROTOTYPE", kind = "FLASHLIGHT", name = "Halcyon Prototype", rarity = "LEGENDARY", price = 8000, level = 25, range = 68, angle = 60, power = 3.35, drain = 0.8, steady = true, beam = { tone = Color3.fromRGB(236, 232, 255), core = 0.44, spill = 0.85, warmup = 0.05, wobble = 0.004, switch = 1.4, graceful = true, sense = true, feel = "Never stutters. Near IT, it slowly dims and breathes instead: a warning." }, description = "Never stutters on a weak battery. Nobody knows who built it." },
 
 	-- Batteries: capacity in percent of the standard cell
 	{ id = "BAT_STANDARD", kind = "BATTERY", name = "Standard Battery", rarity = "COMMON", default = true, capacity = 100, description = "A standard cell." },
