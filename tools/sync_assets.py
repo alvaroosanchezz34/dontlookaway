@@ -34,6 +34,13 @@ DEFS = {
     "brick_grimy": ("DLA_Brick", "Brick", 8, True),
     "marble_stained": ("DLA_Marble", "Marble", 20, True),
     "metal_worn": ("DLA_Metal", "Metal", 6, True),
+    # Visual Overhaul V2
+    "wood_aged": ("DLA_Wood", "Wood", 6, True),
+    "fabric_worn": ("DLA_Fabric", "Fabric", 3, True),
+    "metal_rusted": ("DLA_Rust", "CorrodedMetal", 5, True),
+    "paint_peeling": ("DLA_PeelingPaint", "Plaster", 8, False),
+    "concrete_wet": ("DLA_WetConcrete", "Concrete", 12, False),
+    "metal_bare": ("DLA_Hardware", "Metal", 3, False),
 }
 
 MAPS = {"color": "ColorMap", "normal": "NormalMap", "roughness": "RoughnessMap", "metalness": "MetalnessMap"}

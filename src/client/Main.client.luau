@@ -43,6 +43,7 @@ local ORDER = {
 	"EffectsController",
 	"AccessibilityController",
 	"LightController",
+	"DetailLOD",
 	"DoorController",
 	"RealityController",
 	"WorldFXController",

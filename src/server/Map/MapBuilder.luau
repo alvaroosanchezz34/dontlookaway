@@ -12,8 +12,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Layout = require(script.Parent.Layout)
 local Build = require(script.Parent.Build)
 local Props = require(script.Parent.Props)
+local VisualStandards = require(ReplicatedStorage.Shared.VisualStandards)
 local MaterialLibrary = require(ReplicatedStorage.Shared.MaterialLibrary)
 local Furnisher = require(script.Parent.Furnisher)
+local Architecture = require(script.Parent.Architecture)
 local SeededRandom = require(ReplicatedStorage.Shared.Util.SeededRandom)
 
 local CELL = Layout.Cell
@@ -227,6 +229,9 @@ local function buildSlabs(map, floor, folder, belowFloor)
 			material, color = style.floor[1], style.floor[2]
 		end
 		local part = Build.part(folder, "Floor", Vector3.new(size.X, 1, size.Z), cf, color, material)
+		if room and Layout.Styles[room.style].floorVariant then
+			part.MaterialVariant = Layout.Styles[room.style].floorVariant
+		end
 		if room then
 			part:SetAttribute("Room", key)
 			table.insert(room.floorParts, part)
@@ -533,6 +538,7 @@ local function makeDoorModel(map, floor, folder, x: number, z: number, ch: strin
 	for _, p in { handle1, handle2, inset, inset2 } do
 		p:SetAttribute("Offset", panel.CFrame:ToObjectSpace(p.CFrame))
 	end
+	doorModel:SetAttribute("HingeSide", hingeSide)
 	doorModel:SetAttribute("ClosedCFrame", closedCF)
 	doorModel:SetAttribute("OpenCFrame", openCF)
 	doorModel:SetAttribute("Open", false)
@@ -761,17 +767,39 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 		Build.detail(fixture, "Cord", Vector3.new(0.06, 2, 0.06), CFrame.new(O + Vector3.new(0, -1, 0)), Props.Colors.black, M.Rubber)
 		lampPart = Build.ball(fixture, "Bulb", 0.5, CFrame.new(O + Vector3.new(0, -2.2, 0)), color, M.Neon, { CanCollide = false, CastShadow = false })
 	end
+	-- light profile (VisualStandards.Fixtures): a shaped main light where the
+	-- fitting has a shade or diffuser, and the "Light" point light as fill
+	local profile = VisualStandards.Fixtures[styleName] or VisualStandards.Fixtures.bulb
+	local total = opts.brightness or 1.05
+	local main = profile.main
 	local light = Build.light(lampPart, "PointLight", {
-		Brightness = opts.brightness or 1.05,
-		Range = opts.range or 20,
+		Brightness = total * profile.fill.ratio,
+		Range = math.min(opts.range or 20, profile.fill.range),
 		Color = color,
-		Shadows = opts.shadows == true,
+		Shadows = opts.shadows == true and main == nil,
 		Enabled = false,
 	})
 	light.Name = "Light"
+	light:SetAttribute("Ratio", profile.fill.ratio)
+	light:SetAttribute("Solo", profile.fill.solo)
+	if main then
+		local host = fixture:FindFirstChild(main.host) :: BasePart
+		local shaped = Build.light(host, main.class, {
+			Face = main.face,
+			Angle = main.angle,
+			Range = main.range,
+			Brightness = total * main.ratio,
+			Color = color,
+			Shadows = opts.shadows == true,
+			Enabled = false,
+		})
+		shaped.Name = "MainLight"
+		shaped:SetAttribute("Ratio", main.ratio)
+		shaped:SetAttribute("Main", true)
+	end
 	fixture:SetAttribute("Room", room.id)
 	fixture:SetAttribute("BaseColor", color)
-	fixture:SetAttribute("BaseBrightness", light.Brightness)
+	fixture:SetAttribute("BaseBrightness", total)
 	fixture:SetAttribute("Circuit", opts.circuit or "MAIN")
 	-- persistent personality of each fixture
 	local roll = rng:Number()
@@ -885,9 +913,9 @@ local function buildExpansions(map, folder, rng)
 		Build.part(group, "WallW", Vector3.new(CELL, LH - TOP_INSET, sz), CFrame.new(O + Vector3.new(exp.x0 * CELL - CELL / 2, y + (LH - TOP_INSET) / 2, cz)), Color3.fromRGB(66, 66, 64), M.Concrete)
 		-- interior skins
 		for _, side in { { "N", exp.z0 * CELL, 1 }, { "S", (exp.z1 + 1) * CELL, -1 } } do
-			Build.part(group, "Skin", Vector3.new(sx + CELL, CH, 0.2), CFrame.new(O + Vector3.new(cx + CELL / 2, y + CH / 2, side[2] + side[3] * 0.1)), style.upper[2], style.upper[1])
+			Build.part(group, "Skin", Vector3.new(sx + CELL, CH, 0.2), CFrame.new(O + Vector3.new(cx + CELL / 2, y + CH / 2, side[2] + side[3] * 0.1)), style.upper[2], style.upper[1], { MaterialVariant = style.upperVariant or "" })
 		end
-		Build.part(group, "Skin", Vector3.new(0.2, CH, sz), CFrame.new(O + Vector3.new(exp.x0 * CELL + 0.1, y + CH / 2, cz)), style.upper[2], style.upper[1])
+		Build.part(group, "Skin", Vector3.new(0.2, CH, sz), CFrame.new(O + Vector3.new(exp.x0 * CELL + 0.1, y + CH / 2, cz)), style.upper[2], style.upper[1], { MaterialVariant = style.upperVariant or "" })
 		-- a dim lamp at the far end, and a lot of nothing
 		local lamp = Build.ball(group, "Bulb", 0.5, CFrame.new(O + Vector3.new(exp.x0 * CELL + 3, y + CH - 2, cz)), Color3.fromRGB(255, 200, 150), M.Neon, { CanCollide = false })
 		Build.light(lamp, "PointLight", { Brightness = 0.7, Range = 16, Color = Color3.fromRGB(255, 190, 140), Shadows = false })
@@ -908,7 +936,7 @@ local function buildExpansions(map, folder, rng)
 		-- the top of the wall stays when the cap opens
 		Build.part(folder, "CapTop", Vector3.new(CELL, LH - CH - TOP_INSET, sz), CFrame.new(O + Vector3.new(capX * CELL + CELL / 2, y + CH + (LH - CH - TOP_INSET) / 2, cz)), Color3.fromRGB(66, 66, 64), M.Concrete)
 		-- the cap's room-facing skin
-		Build.part(capGroup, "CapSkin", Vector3.new(0.2, CH, sz), CFrame.new(O + Vector3.new((capX + 1) * CELL + 0.1, y + CH / 2, cz)), style.upper[2], style.upper[1])
+		Build.part(capGroup, "CapSkin", Vector3.new(0.2, CH, sz), CFrame.new(O + Vector3.new((capX + 1) * CELL + 0.1, y + CH / 2, cz)), style.upper[2], style.upper[1], { MaterialVariant = style.upperVariant or "" })
 		map.Expansions[name] = { group = group, cap = capGroup, def = exp }
 	end
 end
@@ -1235,6 +1263,8 @@ function MapBuilder.build(seed: number, parent: Instance)
 	furniture.Name = "Furniture"
 	furniture.Parent = root
 	Furnisher.furnishAll(map, furniture, rng:Derive("furnish"))
+	-- services and hardware (switches, outlets, grilles, hinges...) around the furniture
+	Architecture.dress(map, rng:Derive("architecture"))
 
 	root.Parent = parent
 	return map

@@ -25,6 +25,13 @@
 
 	Lights far from the camera are disabled locally (light LOD) so the building
 	stays fast on phones and consoles; their glowing tubes still read from afar.
+
+	A fixture can own several lights (VisualStandards.Fixtures): the shaped main
+	light (SurfaceLight / SpotLight thrown down from the diffuser or shade) and
+	the "Light" point light as fill. Each takes its "Ratio" of the fixture's
+	brightness; tints, overrides, flicker and blackouts apply to all of them.
+	The graphics quality tier sets the LOD distance, and on low quality only the
+	fill stays on (at its "Solo" share) to halve the light count.
 ]]
 
 local RunService = game:GetService("RunService")
@@ -37,16 +44,19 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
 local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
+local VisualStandards = require(ReplicatedStorage.Shared.VisualStandards)
 
 local LightController = {}
 
-local LOD_DISTANCE = 95
+local LOD_DISTANCE = 95 -- updated from the quality tier
+local useMain = true
 local EMERGENCY_COLOR = Color3.fromRGB(255, 176, 120)
 local ALARM_COLOR = Color3.fromRGB(255, 64, 52)
 local DARK = Color3.fromRGB(38, 38, 36)
 local ADAPT_COLOR = Color3.fromRGB(168, 184, 222)
 
-type Info = { model: Model, light: PointLight?, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, floor: string }
+type LightEntry = { light: Light, ratio: number, solo: number, main: boolean }
+type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string }
 type Beacon = { model: Model, rotor: BasePart, beams: { SpotLight }, glow: PointLight?, dome: BasePart?, phase: number }
 
 local fixtures: { [Model]: Info } = {}
@@ -72,9 +82,20 @@ local function register(model: Instance)
 	end
 	local lamps = {}
 	local light = nil
+	local lights = {}
 	for _, d in model:GetDescendants() do
-		if d:IsA("PointLight") then
-			light = d
+		if d:IsA("Light") then
+			if d:IsA("PointLight") and (light == nil or d.Name == "Light") then
+				light = d
+			end
+			local ratio = d:GetAttribute("Ratio")
+			local solo = d:GetAttribute("Solo")
+			table.insert(lights, {
+				light = d,
+				ratio = if type(ratio) == "number" then ratio else 1,
+				solo = if type(solo) == "number" then solo elseif type(ratio) == "number" then ratio else 1,
+				main = d:GetAttribute("Main") == true,
+			})
 		elseif d:IsA("BasePart") and (d.Name == "Tube" or d.Name == "Tube2" or d.Name == "Bulb") then
 			table.insert(lamps, d)
 		end
@@ -83,10 +104,12 @@ local function register(model: Instance)
 	fixtures[model] = {
 		model = model,
 		light = light,
+		lights = lights,
 		lamps = lamps,
 		flickerUntil = 0,
 		seed = model:GetAttribute("Seed") or random:NextInteger(1, 100000),
 		lit = false,
+		level = 0,
 		floor = if type(room) == "string" then room:sub(1, 1) else "",
 	}
 end
@@ -189,12 +212,19 @@ local function evaluate(info: Info, camPos: Vector3, now: number)
 		end
 	end
 	local dist = (m:GetPivot().Position - camPos).Magnitude
-	local light = info.light
-	if light then
-		light.Enabled = lit and dist < LOD_DISTANCE
-		light.Color = color
-		light.Brightness = brightness
+	local inRange = lit and dist < LOD_DISTANCE
+	for _, entry in info.lights do
+		local l = entry.light
+		if entry.main then
+			l.Enabled = inRange and useMain
+			l.Brightness = brightness * entry.ratio
+		else
+			l.Enabled = inRange
+			l.Brightness = brightness * (if useMain then entry.ratio else entry.solo)
+		end
+		l.Color = color
 	end
+	info.level = if lit then brightness / math.max(baseBrightness, 0.01) else 0
 	for _, lamp in info.lamps do
 		lamp.Color = if lit then color else DARK
 		lamp.Material = if lit then Enum.Material.Neon else Enum.Material.Glass
@@ -254,10 +284,10 @@ local function measureDarkness(camPos: Vector3): number
 	end
 	local litNear = 0
 	for _, info in fixtures do
-		if info.lit and info.light then
+		if info.lit and #info.lights > 0 then
 			local d = (info.model:GetPivot().Position - camPos).Magnitude
 			if d < 26 then
-				litNear += (1 - d / 26) * (info.light.Brightness / 1.05)
+				litNear += (1 - d / 26) * info.level
 			end
 		end
 	end
@@ -399,6 +429,10 @@ function LightController:Start()
 		if doFar then
 			farAcc = 0
 			updateSigns(camPos)
+			local access = Registry.AccessibilityController
+			local tier = VisualStandards.tier(if access then access:Quality() else 2)
+			LOD_DISTANCE = tier.lightLod
+			useMain = tier.secondary
 		end
 		for model, info in fixtures do
 			if not model.Parent then

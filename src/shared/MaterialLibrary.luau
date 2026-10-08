@@ -9,9 +9,16 @@
 
 	  * Most textures REPLACE a built-in material everywhere (plaster, carpet,
 	    ceramic tiles, concrete, wood planks, brick, marble, metal).
-	  * Two are named variants the map applies to chosen surfaces:
+	  * Named variants the map applies to chosen surfaces:
 	      DLA_Wallpaper     upper walls of reception, archive, gallery, quiet room
 	      DLA_CeilingTile   suspended ceilings (offices, corridors, wet rooms)
+	      DLA_PeelingPaint  failing paint: basement, closets, industrial rooms
+	      DLA_WetConcrete   damp slabs: basement corridor, boiler, cold storage
+	      DLA_Hardware      bare steel / brass: hinges, handles, plates, rails
+	  * Visual Overhaul V2 adds three replacements: aged wood (doors, trims,
+	    furniture), worn fabric (upholstery, boards) and rust (pipes, valves).
+	    Their ids are 0 until uploaded (Config/AssetIds), and until then those
+	    parts keep Roblox's own materials.
 	    A part whose MaterialVariant names a variant that does not exist just
 	    renders its base material, so the map can always set them.
 ]]
@@ -23,6 +30,9 @@ local MaterialLibrary = {}
 
 MaterialLibrary.Wallpaper = "DLA_Wallpaper"
 MaterialLibrary.CeilingTile = "DLA_CeilingTile"
+MaterialLibrary.PeelingPaint = "DLA_PeelingPaint"
+MaterialLibrary.WetConcrete = "DLA_WetConcrete"
+MaterialLibrary.Hardware = "DLA_Hardware"
 
 -- Built-in material (by name) -> custom variant that replaces it.
 local REPLACES = {
@@ -34,6 +44,9 @@ local REPLACES = {
 	Brick = "DLA_Brick",
 	Marble = "DLA_Marble",
 	Metal = "DLA_Metal",
+	Wood = "DLA_Wood",
+	Fabric = "DLA_Fabric",
+	CorrodedMetal = "DLA_Rust",
 }
 
 --[[

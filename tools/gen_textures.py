@@ -10,7 +10,7 @@ MaterialVariant's colour map by the part's Color: the map carries detail (wear,
 stains, grain), the map's tint is set per room style in Layout.Styles.
 
 Usage:
-    python3 tools/gen_textures.py [size]      (default size 1024)
+    python3 tools/gen_textures.py [size] [name ...]   (default size 1024, all)
 """
 
 import os
@@ -391,9 +391,171 @@ def metal_worn(n):
     save("metal_worn", col, h, rough, 1.6, metal)
 
 
+# --- Visual Overhaul V2 -----------------------------------------------------
+
+def wood_aged(n):
+    """Furniture and joinery wood (doors, trims, desks): straight grain along
+    the tile's X, darker latewood lines, worn varnish (glossy where untouched,
+    matte where hands rubbed it), small dents and a few water rings."""
+    x, y = grid(n)
+    warp = spectral(n, 2.6, 201, stretch=(0.2, 1.0))
+    width = spectral(n, 2.0, 209, stretch=(0.1, 1.0))
+    lines = (y * 14 + warp * 0.5 + width * 0.6) % 1.0
+    # growth ring: soft rise into a dark latewood band, sharp fall (real profile)
+    late = smoothstep(0.35, 0.8, lines) * (1 - smoothstep(0.82, 0.9, lines))
+    late *= 0.6 + 0.4 * spectral(n, 1.2, 210, stretch=(0.08, 1.0))
+    pores = (band(n, 120, 260, 202) > 0.78).astype(float) * smoothstep(0.3, 0.7, spectral(n, 1.0, 203, stretch=(0.05, 1.0)))
+    tone = spectral(n, 2.2, 204, stretch=(0.15, 1.0))
+    wear = smoothstep(0.55, 0.85, spectral(n, 2.6, 205))
+    dents = smoothstep(0.86, 0.9, band(n, 20, 40, 206))
+    ring_c = spectral(n, 2.8, 207)
+    rings = np.exp(-((band(n, 4, 7, 208) - 0.72) / 0.01) ** 2) * smoothstep(0.6, 0.8, ring_c)
+    base = rgb(214, 196, 172) * np.ones((n, n, 1))
+    col = base * (0.86 + 0.14 * tone)[..., None]
+    col = mix(col, rgb(150, 116, 84), late * 0.45)
+    col = mix(col, rgb(96, 74, 54), pores * 0.5)
+    col = mix(col, rgb(226, 214, 196), wear * 0.16)
+    col = mix(col, rgb(110, 92, 74), rings * 0.5 + dents * 0.25)
+    h = 0.6 - late * 0.2 - pores * 0.3 - dents * 0.5 + tone * 0.1
+    rough = 0.32 + 0.38 * wear + 0.2 * pores + 0.1 * dents
+    save("wood_aged", col, h, rough, 1.8)
+
+
+def paint_peeling(n):
+    """Wall paint failing on damp plaster: large curled flakes with a lit edge
+    and a shadow under them, bare grey plaster and old pink primer beneath,
+    damp bloom spreading up from below."""
+    x, y = grid(n)
+    field = spectral(n, 2.3, 211) * 0.7 + band(n, 5, 12, 212) * 0.3
+    bare = smoothstep(0.63, 0.66, field)
+    primer = smoothstep(0.58, 0.61, field) * (1 - bare)
+    edge = np.exp(-((field - 0.645) / 0.008) ** 2)
+    # light comes from the top: flakes cast a thin shadow below their edge
+    shadow = np.clip(np.roll(edge, 3, axis=0) - edge, 0, 1)
+    grain = spectral(n, 0.9, 213)
+    damp = smoothstep(0.45, 0.9, spectral(n, 2.6, 214, stretch=(0.3, 1.0)))
+    mould = smoothstep(0.82, 0.9, spectral(n, 1.6, 215)) * damp
+    crack = cracks(n, 216, freq=(5, 12))
+    base = rgb(226, 224, 210) * np.ones((n, n, 1))
+    col = base * (0.94 + 0.06 * grain)[..., None]
+    col = mix(col, rgb(196, 168, 156), primer * 0.85)
+    col = mix(col, rgb(150, 148, 140), bare)
+    col = mix(col, rgb(248, 246, 236), edge * 0.5)
+    col = mix(col, rgb(80, 76, 70), shadow * 0.6)
+    col = mix(col, rgb(170, 160, 132), damp * 0.22)
+    col = mix(col, rgb(70, 74, 60), mould * 0.45)
+    col = mix(col, rgb(90, 86, 80), crack * 0.5)
+    h = 0.6 - bare * 0.35 - primer * 0.15 + edge * 0.35 - crack * 0.7 + grain * 0.15
+    rough = 0.82 + 0.1 * bare - 0.12 * damp + 0.05 * grain
+    save("paint_peeling", col, h, rough, 2.6)
+
+
+def concrete_wet(n):
+    """Damp basement slab: dark wet patches with almost mirror-like puddles in
+    the low spots, white efflorescence rings where water dried, oil drips."""
+    mottle = spectral(n, 2.4, 221)
+    fine = spectral(n, 0.8, 222)
+    low = band(n, 3, 9, 223) * 0.75 + spectral(n, 2.0, 228) * 0.25
+    wet = smoothstep(0.5, 0.75, low)
+    puddle = smoothstep(0.8, 0.83, low)
+    salt = np.exp(-((low - 0.48) / 0.01) ** 2) * smoothstep(0.65, 0.85, spectral(n, 1.8, 224))
+    oil = smoothstep(0.82, 0.92, spectral(n, 2.6, 225)) * (1 - puddle)
+    pits = (band(n, 90, 200, 226) > 0.82).astype(float)
+    crack = cracks(n, 227, freq=(3, 9))
+    base = rgb(206, 204, 198) * np.ones((n, n, 1))
+    col = base * (0.84 + 0.1 * mottle + 0.06 * fine)[..., None]
+    col = mix(col, rgb(118, 116, 110), wet * 0.6)
+    col = mix(col, rgb(92, 92, 88), puddle * 0.5)
+    col = mix(col, rgb(226, 224, 216), salt * 0.3)
+    col = mix(col, rgb(60, 56, 52), oil * 0.4 + crack * 0.5)
+    col = mix(col, rgb(130, 126, 118), pits * 0.5)
+    h = fine * 0.3 + mottle * 0.2 - pits * 0.5 - crack * 0.8 - puddle * 0.1
+    rough = 0.9 - wet * 0.45 - puddle * 0.4 - oil * 0.2 + salt * 0.1
+    save("concrete_wet", col, h, np.clip(rough, 0.04, 1), 2.2)
+
+
+def metal_rusted(n):
+    """Exposed iron (pipes, valves, old brackets): scaly rust in two tones,
+    pitting, flaking scale, streaks running down, a little paint left."""
+    x, y = grid(n)
+    scale = spectral(n, 1.6, 231)
+    blotch = spectral(n, 2.4, 232)
+    pits = (band(n, 70, 180, 233) > 0.78).astype(float)
+    flake = smoothstep(0.7, 0.73, band(n, 8, 20, 234))
+    streak = smoothstep(0.55, 0.9, spectral(n, 2.0, 235, stretch=(1.0, 0.06)))
+    paint = smoothstep(0.78, 0.8, spectral(n, 2.2, 236))
+    base = rgb(150, 92, 58) * np.ones((n, n, 1))
+    col = base * (0.75 + 0.35 * scale)[..., None]
+    col = mix(col, rgb(96, 50, 30), blotch * 0.55)
+    col = mix(col, rgb(196, 120, 64), smoothstep(0.65, 0.9, scale) * 0.4)
+    col = mix(col, rgb(54, 36, 28), pits * 0.7 + flake * 0.35)
+    col = mix(col, rgb(110, 64, 40), streak * 0.3)
+    col = mix(col, rgb(84, 96, 92), paint * 0.8)
+    h = scale * 0.4 - pits * 0.6 + flake * 0.3 + paint * 0.2
+    rough = 0.88 + 0.08 * scale - paint * 0.35
+    metal = paint * 0.0 + (1 - smoothstep(0.2, 0.5, scale)) * 0.25 * (1 - paint)
+    save("metal_rusted", col, h, np.clip(rough, 0, 1), 2.0, metal)
+
+
+def metal_bare(n):
+    """Hardware steel (hinges, handles, rails, kick plates): brushed along X,
+    worn bright where touched, dull tarnish and fingerprints elsewhere."""
+    x, y = grid(n)
+    brush = spectral(n, 0.7, 241, stretch=(0.02, 1.0))
+    tarnish = band(n, 4, 12, 242) * 0.6 + spectral(n, 1.6, 248) * 0.4
+    touch = smoothstep(0.5, 0.8, spectral(n, 2.8, 243))
+    prints = smoothstep(0.83, 0.86, band(n, 14, 30, 244)) * smoothstep(0.5, 0.7, spectral(n, 2.0, 245))
+    scratches = (np.abs(band(n, 60, 160, 246) - 0.5) < 0.005).astype(float) * smoothstep(0.55, 0.8, spectral(n, 2.0, 247))
+    base = rgb(196, 196, 194) * np.ones((n, n, 1))
+    col = base * (0.8 + 0.22 * brush)[..., None]
+    col = mix(col, rgb(126, 122, 112), smoothstep(0.5, 0.9, tarnish) * 0.5 * (1 - touch))
+    col = mix(col, rgb(226, 226, 224), touch * 0.3 + scratches * 0.5)
+    col = mix(col, rgb(150, 148, 144), prints * 0.4)
+    h = brush * 0.25 - scratches * 0.3
+    rough = 0.38 + 0.25 * tarnish * (1 - touch) - 0.12 * touch + 0.15 * prints
+    metal = 0.9 - 0.4 * smoothstep(0.6, 0.95, tarnish) * (1 - touch)
+    save("metal_bare", col, h, np.clip(rough, 0, 1), 0.8, metal)
+
+
+def fabric_worn(n):
+    """Upholstery (chairs, sofa, notice boards, curtains): 2/2 twill weave,
+    pilling, shiny worn patches, a few dark stains."""
+    x, y = grid(n)
+    k = 96  # threads per tile
+    u = (x * k) % 1.0
+    v = (y * k) % 1.0
+    iu = np.floor(x * k).astype(int)
+    iv = np.floor(y * k).astype(int)
+    over = ((iu + iv) // 2 % 2).astype(float)  # twill diagonal
+    warp = np.sin(u * np.pi) ** 0.6
+    weft = np.sin(v * np.pi) ** 0.6
+    weave = over * warp + (1 - over) * weft
+    fuzz = spectral(n, 0.6, 251)
+    pill = (band(n, 100, 220, 252) > 0.83).astype(float)
+    worn = smoothstep(0.55, 0.85, spectral(n, 2.6, 253))
+    stain_in, stain_rim = tide_marks(n, 254, threshold=0.66)
+    base = rgb(220, 216, 208) * np.ones((n, n, 1))
+    col = base * (0.78 + 0.18 * weave + 0.06 * fuzz)[..., None]
+    col = mix(col, rgb(236, 232, 224), pill * 0.35)
+    col = mix(col, rgb(196, 192, 186), worn * 0.25)
+    col = mix(col, rgb(150, 140, 120), stain_in * 0.25 + stain_rim * 0.3)
+    h = weave * 0.6 + fuzz * 0.15 + pill * 0.2 - worn * 0.15
+    rough = 0.94 - worn * 0.22 - stain_in * 0.05
+    save("fabric_worn", col, h, rough, 1.6)
+
+
+V2 = (wood_aged, paint_peeling, concrete_wet, metal_rusted, metal_bare, fabric_worn)
+
+
+ALL = (plaster_aged, wallpaper_damask, carpet_worn, tiles_worn, ceiling_tile, concrete_grimy, wood_planks_worn, brick_grimy, marble_stained, metal_worn) + V2
+
+
 def main():
-    for fn in (plaster_aged, wallpaper_damask, carpet_worn, tiles_worn, ceiling_tile, concrete_grimy, wood_planks_worn, brick_grimy, marble_stained, metal_worn):
-        fn(SIZE)
+    # optional names after the size: only those textures (e.g. "1024 wood_aged")
+    only = set(sys.argv[2:])
+    for fn in ALL:
+        if not only or fn.__name__ in only:
+            fn(SIZE)
 
 
 if __name__ == "__main__":

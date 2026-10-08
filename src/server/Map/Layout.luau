@@ -172,6 +172,7 @@ Layout.Styles = {
 	},
 	industrial = {
 		floor = { Enum.Material.Concrete, Color3.fromRGB(78, 78, 76) },
+		floorVariant = "DLA_WetConcrete", -- MaterialLibrary.WetConcrete
 		lower = { Enum.Material.Concrete, Color3.fromRGB(84, 84, 82), 1 },
 		upper = { Enum.Material.Brick, Color3.fromRGB(88, 76, 68) },
 		ceiling = { Enum.Material.Concrete, Color3.fromRGB(64, 64, 64) },
@@ -180,8 +181,11 @@ Layout.Styles = {
 	},
 	basement = {
 		floor = { Enum.Material.Concrete, Color3.fromRGB(66, 66, 64) },
+		floorVariant = "DLA_WetConcrete", -- MaterialLibrary.WetConcrete
 		lower = { Enum.Material.Concrete, Color3.fromRGB(58, 60, 58), 3 },
-		upper = { Enum.Material.Concrete, Color3.fromRGB(78, 80, 78) },
+		-- painted block wall above a bare concrete dado; the paint is failing
+		upper = { Enum.Material.Plaster, Color3.fromRGB(104, 108, 100) },
+		upperVariant = "DLA_PeelingPaint", -- MaterialLibrary.PeelingPaint
 		ceiling = { Enum.Material.Concrete, Color3.fromRGB(52, 52, 52) },
 		light = "cage",
 		lightColor = Color3.fromRGB(255, 206, 150),
@@ -233,6 +237,7 @@ Layout.Styles = {
 		floor = { Enum.Material.Concrete, Color3.fromRGB(80, 80, 78) },
 		lower = { Enum.Material.Concrete, Color3.fromRGB(70, 74, 70), 4 },
 		upper = { Enum.Material.Plaster, Color3.fromRGB(96, 102, 96) },
+		upperVariant = "DLA_PeelingPaint", -- MaterialLibrary.PeelingPaint
 		ceiling = { Enum.Material.Concrete, Color3.fromRGB(62, 62, 62) },
 		light = "cage",
 		lightColor = Color3.fromRGB(230, 240, 226),

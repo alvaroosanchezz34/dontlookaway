@@ -688,7 +688,7 @@ end
 function Props.scatterPapers(parent, cf: CFrame, rng, count: number?)
 	for i = 1, count or rng:Int(2, 5) do
 		-- each sheet a little higher than the last so overlapping sheets never flicker
-		D(parent, "LoosePaper", Vector3.new(0.85, 0.02, 1.1), cf * CFrame.new(rng:Number(-1.6, 1.6), 0.02 + i * 0.007, rng:Number(-1.6, 1.6)) * CFrame.Angles(0, math.rad(rng:Number(0, 360)), 0), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic, { CanQuery = false })
+		D(parent, "LoosePaper", Vector3.new(0.85, 0.02, 1.1), cf * CFrame.new(rng:Number(-1.6, 1.6), 0.02 + i * 0.015, rng:Number(-1.6, 1.6)) * CFrame.Angles(0, math.rad(rng:Number(0, 360)), 0), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic, { CanQuery = false })
 	end
 end
 

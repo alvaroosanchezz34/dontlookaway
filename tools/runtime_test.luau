@@ -177,8 +177,112 @@ for _, seed in { 1, 42, 1337, 99991, 123456 } do
 			local found = map:roomAt(pos)
 			check(found == room, "roomAt " .. id)
 		end
+		-- Visual Overhaul V2: architecture pass + shaped fixture lights
+		local detail = map.Root:FindFirstChild("Detail")
+		check(detail ~= nil, "detail folder built")
+		if detail then
+			local n, groups, solid = 0, 0, 0
+			for _, d in detail:GetDescendants() do
+				if d:IsA("BasePart") then
+					n += 1
+					if d.CanCollide or d.CanQuery or d.CanTouch or d.CastShadow then
+						solid += 1
+					end
+				elseif d:IsA("Folder") and d:HasTag("DetailGroup") then
+					groups += 1
+					check(typeof(d:GetAttribute("Center")) == "Vector3", "detail group center " .. d.Name)
+				end
+			end
+			check(n > 800, "architecture detail placed (" .. n .. " parts)")
+			check(groups >= 25, "detail grouped per room (" .. groups .. ")")
+			check(solid == 0, "detail is pure decoration (" .. solid .. " solid/queryable parts)")
+			-- nothing intersects furniture
+			local furnitureBoxes = {}
+			for _, d in map.Root.Furniture:GetDescendants() do
+				if d:IsA("BasePart") and d.Transparency < 1 then
+					table.insert(furnitureBoxes, GeometryValidator.boxFrom(d.CFrame, d.Size))
+				end
+			end
+			local hits = 0
+			for _, d in detail:GetDescendants() do
+				if d:IsA("BasePart") and d.Name ~= "CeilingStain" then
+					local box = GeometryValidator.boxFrom(d.CFrame, d.Size)
+					for _, fb in furnitureBoxes do
+						if box.max.X > fb.min.X and box.min.X < fb.max.X and box.max.Y > fb.min.Y and box.min.Y < fb.max.Y and box.max.Z > fb.min.Z and box.min.Z < fb.max.Z then
+							if GeometryValidator.penetration(box, fb) > 0.01 then
+								hits += 1
+								if hits <= 3 then
+									print("    detail in furniture: " .. d:GetFullName())
+								end
+							end
+						end
+					end
+				end
+			end
+			check(hits == 0, string.format("seed %d: detail clear of furniture (%d hits)", seed, hits))
+		end
+		for id, room in map.Rooms do
+			local before = room.wallSpotsBeforeDetail or 0
+			check(#room.wallSpots >= math.min(before, 3), string.format("%s keeps anomaly wall spots (%d of %d)", id, #room.wallSpots, before))
+		end
+		local hardware, offsetsOk = 0, true
+		for _, rec in map.Doors do
+			if rec.model and rec.model:HasTag("Door") then
+				for _, d in rec.model:GetChildren() do
+					if d:IsA("BasePart") and d ~= rec.model.PrimaryPart then
+						if typeof(d:GetAttribute("Offset")) ~= "CFrame" then
+							offsetsOk = false
+						end
+						if d.Name == "KickPlate" then
+							hardware += 1
+						end
+					end
+				end
+			end
+		end
+		check(hardware >= 60, "kick plates on the doors (" .. hardware .. ")")
+		check(offsetsOk, "every door part moves with the panel (Offset)")
+		local shaped, ratiosOk = 0, true
+		for _, room in map.Rooms do
+			for _, f in room.fixtures do
+				for _, l in f:GetDescendants() do
+					if l:IsA("Light") then
+						if type(l:GetAttribute("Ratio")) ~= "number" then
+							ratiosOk = false
+						end
+						if l:GetAttribute("Main") then
+							shaped += 1
+						end
+					end
+				end
+			end
+		end
+		check(ratiosOk, "every fixture light has its brightness share")
+		check(shaped >= 60, "shaped main lights on troffers and pendants (" .. shaped .. ")")
 		print(string.format("  seed %d: %d parts, %d lights, %d rooms, %d doors, %.2fs, rooms w/o free floor: %s", seed, parts, lights, rooms, doors, os.clock() - t0, table.concat(spotless, ",")))
 	end
+end
+
+do
+	-- the same seed builds the same detail, part for part
+	local function signature(seed)
+		local holder = Instance.new("Folder")
+		holder.Parent = workspace
+		local map = MapBuilder.build(seed, holder)
+		local n, sum = 0, 0
+		for _, d in map.Root.Detail:GetDescendants() do
+			if d:IsA("BasePart") then
+				n += 1
+				local p = d.CFrame.Position
+				sum += p.X * 0.37 + p.Y * 0.11 + p.Z * 0.53
+			end
+		end
+		holder:Destroy()
+		return n, math.floor(sum * 100)
+	end
+	local n1, s1 = signature(4242)
+	local n2, s2 = signature(4242)
+	check(n1 == n2 and s1 == s2, string.format("architecture deterministic (%d/%d parts, %d/%d)", n1, n2, s1, s2))
 end
 
 ------------------------------------------------------------------------------------
@@ -195,9 +299,24 @@ do
 	local MeshMeta = requireModule(RS.Shared.Config.ObserverMeshMeta)
 	local MaterialService = game:GetService("MaterialService")
 	-- the variants are written into the place by Rojo (tools/sync_assets.py)
-	check(MaterialLibrary.count() == 10, "ten custom textures in MaterialService, got " .. MaterialLibrary.count())
+	-- Visual Overhaul V2 textures are generated in the repo and wait for upload
+	-- (0 ids): until then their parts render the built-in material.
+	local PENDING = { wood_aged = true, fabric_worn = true, metal_rusted = true, paint_peeling = true, concrete_wet = true, metal_bare = true }
+	local uploaded = 0
 	for key, entry in AssetIds.Materials do
-		check(entry.color > 0, "texture uploaded: " .. key)
+		if entry.color > 0 then
+			uploaded += 1
+		else
+			check(PENDING[key] == true, "texture uploaded: " .. key)
+		end
+	end
+	check(MaterialLibrary.count() == uploaded, string.format("%d custom textures in MaterialService, got %d", uploaded, MaterialLibrary.count()))
+	check(uploaded >= 10, "the ten original textures stay uploaded")
+	local fs = require("@lune/fs")
+	for key in PENDING do
+		for _, map in { "color", "normal", "roughness" } do
+			check(fs.isFile(string.format("assets/textures/%s/%s_%s.png", key, key, map)), string.format("generated %s %s map", key, map))
+		end
 	end
 	local plaster = MaterialService:FindFirstChild("DLA_Plaster")
 	check(plaster ~= nil and plaster:IsA("MaterialVariant") and plaster.BaseMaterial == Enum.Material.Plaster, "plaster variant present")
