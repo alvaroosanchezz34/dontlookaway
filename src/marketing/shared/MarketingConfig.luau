@@ -28,6 +28,7 @@ MarketingConfig.AllowStudioTestPlayers = true
 
 -- Panel
 MarketingConfig.ToggleKey = Enum.KeyCode.F7
+MarketingConfig.AltToggleKeys = { Enum.KeyCode.F6 } -- plus the 🎬 button, bottom right
 MarketingConfig.DefaultFormat = "SOCIAL_VERTICAL"
 MarketingConfig.DefaultCamera = "AUTO" -- AUTO = each shot's own preset
 

@@ -76,7 +76,7 @@ Ya están autorizados sin añadir nada:
    - Empieza una ronda: F8 → *Start round*.
    - Graba en **ARRIVAL**: luces encendidas y sin Observer.
    - Sin ronda (lobby o baseplate), las escenas usan un decorado virtual delante de la cámara. Las escenas en negro (04 y 07) no necesitan mapa.
-4. Pulsa **F7**, elige **Scene01_Door** y pulsa **▶ PLAY**.
+4. Pulsa **F7** (o **F6**, o el botón **🎬** abajo a la derecha), elige **Scene01_Door** y pulsa **▶ PLAY**.
    - El panel se oculta mientras graba y vuelve al terminar.
    - **■ STOP** limpia la escena en cualquier momento.
 

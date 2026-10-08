@@ -12,13 +12,20 @@ local MarketingAccess = {}
 
 function MarketingAccess.currentEnv()
 	local RunService = game:GetService("RunService")
-	return {
+	local env = {
 		studio = RunService:IsStudio(),
-		privateServerId = game.PrivateServerId,
-		privateServerOwnerId = game.PrivateServerOwnerId,
+		privateServerId = "",
+		privateServerOwnerId = 0,
 		creatorType = game.CreatorType,
 		creatorId = game.CreatorId,
 	}
+	-- private-server fields can only be read on the server; on the client the
+	-- server's grant (player attribute) is what matters
+	if RunService:IsServer() then
+		env.privateServerId = game.PrivateServerId
+		env.privateServerOwnerId = game.PrivateServerOwnerId
+	end
+	return env
 end
 
 -- Is this server one where Marketing Studio may exist at all?

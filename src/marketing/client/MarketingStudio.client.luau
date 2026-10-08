@@ -18,7 +18,10 @@ end
 local Config = require(shared:WaitForChild("MarketingConfig"))
 local Access = require(shared:WaitForChild("MarketingAccess"))
 
-if not Access.environmentAllowed(Config, Access.currentEnv()) then
+-- the client can only check Studio itself; a private server is vouched for by
+-- the server's grant below
+local env = Access.currentEnv()
+if Config.Enabled ~= true or (env.studio and not Access.environmentAllowed(Config, env)) or (not env.studio and Config.AllowInPrivateServers ~= true) then
 	return
 end
 

@@ -40,6 +40,7 @@ local formatButton: TextButton? = nil
 local cameraButton: TextButton? = nil
 local controller: any = nil
 local mounted = false
+local openerButton: TextButton? = nil
 
 local function label(parent: Instance, text: string, size: number, color: Color3?): TextLabel
 	local l = Instance.new("TextLabel")
@@ -111,6 +112,9 @@ local function refresh()
 		local on = if key == "TimeScale" then state.options.TimeScale < 1 else state.options[key] == true
 		b.BackgroundColor3 = if on then C.active else C.button
 	end
+	if openerButton then
+		openerButton.Visible = not state.playing
+	end
 	if status then
 		local where = if state.building then "in the building" else "no building here: virtual set (start a round for real locations)"
 		if state.playing then
@@ -166,7 +170,7 @@ function Panel.mount(ctrl: any, config: any)
 
 	local title = label(w, "MARKETING STUDIO", 20, C.line)
 	title.LayoutOrder = 1
-	local hint = label(w, "Developer only · " .. config.ToggleKey.Name .. " to show/hide · the panel hides itself while recording", 12, C.dim)
+	local hint = label(w, "Developer only · " .. config.ToggleKey.Name .. " or the 🎬 button to show/hide · hides itself while recording", 12, C.dim)
 	hint.LayoutOrder = 2
 
 	local scenes = row(w, 3, 120)
@@ -264,11 +268,48 @@ function Panel.mount(ctrl: any, config: any)
 
 	g.Parent = playerGui
 
-	UserInputService.InputBegan:Connect(function(input, processed)
-		if input.KeyCode == config.ToggleKey and not processed then
-			Panel.setVisible(not Panel.isVisible())
+	-- toggle: the keys work even when the game has already handled the input
+	-- (it captures the keyboard for its own controls); never while typing
+	local keys = { config.ToggleKey }
+	for _, k in config.AltToggleKeys or {} do
+		table.insert(keys, k)
+	end
+	local lastToggle = 0
+	local function toggle()
+		if os.clock() - lastToggle < 0.2 then
+			return
+		end
+		lastToggle = os.clock()
+		Panel.setVisible(not Panel.isVisible())
+	end
+	UserInputService.InputBegan:Connect(function(input)
+		if table.find(keys, input.KeyCode) and not UserInputService:GetFocusedTextBox() then
+			toggle()
 		end
 	end)
+	-- a small on-screen button too (Studio can keep some function keys for itself);
+	-- it hides while a scene plays so it never appears in a recording
+	local opener = Instance.new("TextButton")
+	opener.Name = "Opener"
+	opener.AnchorPoint = Vector2.new(1, 1)
+	opener.Position = UDim2.new(1, -16, 1, -16)
+	opener.Size = UDim2.fromOffset(46, 46)
+	opener.BackgroundColor3 = C.bg
+	opener.BackgroundTransparency = 0.2
+	opener.BorderSizePixel = 0
+	opener.Text = "🎬"
+	opener.TextSize = 24
+	opener.Font = Enum.Font.GothamBold
+	opener.TextColor3 = C.text
+	local openerCorner = Instance.new("UICorner")
+	openerCorner.CornerRadius = UDim.new(0.5, 0)
+	openerCorner.Parent = opener
+	local openerStroke = Instance.new("UIStroke")
+	openerStroke.Color = C.line
+	openerStroke.Parent = opener
+	opener.Parent = g
+	opener.Activated:Connect(toggle)
+	openerButton = opener
 	controller.Changed:Connect(function(state)
 		if not state.playing and window and not window.Visible and controller.GetOption("HidePanelWhilePlaying") then
 			-- a scene just ended: bring the panel back
