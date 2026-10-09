@@ -23,16 +23,16 @@ local at = Build.at
 local M = Enum.Material
 
 local C = {
-	woodDark = Color3.fromRGB(56, 42, 32),
-	wood = Color3.fromRGB(88, 66, 48),
-	woodLight = Color3.fromRGB(122, 96, 70),
-	metal = Color3.fromRGB(92, 94, 96),
-	metalDark = Color3.fromRGB(52, 54, 56),
+	woodDark = Color3.fromRGB(92, 68, 50),
+	wood = Color3.fromRGB(128, 96, 70),
+	woodLight = Color3.fromRGB(164, 128, 94),
+	metal = Color3.fromRGB(138, 140, 142),
+	metalDark = Color3.fromRGB(84, 86, 88),
 	rust = Color3.fromRGB(96, 62, 44),
 	beige = Color3.fromRGB(150, 140, 120),
 	cream = Color3.fromRGB(176, 168, 148),
 	black = Color3.fromRGB(22, 22, 24),
-	fabric = Color3.fromRGB(64, 62, 60),
+	fabric = Color3.fromRGB(104, 100, 96),
 	paper = Color3.fromRGB(196, 190, 172),
 	cardboard = Color3.fromRGB(128, 100, 70),
 	green = Color3.fromRGB(46, 60, 40),
@@ -953,8 +953,8 @@ end
 function Props.wheelchair(parent, cf: CFrame, rng)
 	local m = model(parent, "Wheelchair", cf)
 	local frameCol = C.metal
-	P(m, "Seat", Vector3.new(1.8, 0.2, 1.8), at(cf, 0, 1.8, 0), Color3.fromRGB(40, 40, 44), M.Fabric)
-	P(m, "Back", Vector3.new(1.8, 1.8, 0.15), at(cf, 0, 2.8, 0.9, -10, 0, 0), Color3.fromRGB(40, 40, 44), M.Fabric)
+	P(m, "Seat", Vector3.new(1.8, 0.2, 1.8), at(cf, 0, 1.8, 0), Color3.fromRGB(96, 96, 104), M.Fabric)
+	P(m, "Back", Vector3.new(1.8, 1.8, 0.15), at(cf, 0, 2.8, 0.9, -10, 0, 0), Color3.fromRGB(96, 96, 104), M.Fabric)
 	for _, x in { -1.05, 1.05 } do
 		Build.cylinder(m, "Wheel", 0.15, 2.6, at(cf, x, 1.3, 0.2), frameCol, M.Metal, { CanCollide = false })
 	end
@@ -1272,7 +1272,7 @@ end
 
 function Props.symbolCabinet(parent, cf: CFrame)
 	local m = model(parent, "SymbolCabinet", cf)
-	local wood = Color3.fromRGB(52, 40, 32)
+	local wood = Color3.fromRGB(104, 78, 58)
 	P(m, "Body", Vector3.new(5, 4, 2.2), at(cf, 0, 2, 0), wood, M.Wood)
 	P(m, "Top", Vector3.new(5.3, 0.3, 2.4), at(cf, 0, 4.15, 0), wood:Lerp(C.black, 0.2), M.Wood)
 	local drawer = P(m, "Drawer", Vector3.new(4.4, 1.2, 0.1), at(cf, 0, 1.2, -1.12), wood:Lerp(C.black, 0.1), M.Wood, { CanCollide = false })

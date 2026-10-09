@@ -31,8 +31,8 @@ local M = Enum.Material
 
 local WALL_COLOR = Color3.fromRGB(78, 66, 58)
 local STRUCT_COLOR = Color3.fromRGB(60, 60, 60)
-local TRIM_COLOR = Color3.fromRGB(52, 40, 30)
-local CORNICE_COLOR = Color3.fromRGB(150, 146, 136)
+local TRIM_COLOR = Color3.fromRGB(100, 74, 52) -- dark stained wood (~4% albedo with DLA_Wood)
+local CORNICE_COLOR = Color3.fromRGB(198, 192, 180)
 
 local DIRS = {
 	{ dx = 1, dz = 0 },
@@ -514,7 +514,7 @@ local function makeDoorModel(map, floor, folder, x: number, z: number, ch: strin
 	local angle = math.rad(92) * hingeSide * swingSign
 	local openCF = hinge * CFrame.Angles(0, angle, 0) * CFrame.new(-hingeSide * panelW / 2, panelH / 2 + 0.05, 0)
 
-	local woodCol = Build.vary(rng:Pick({ Color3.fromRGB(72, 54, 40), Color3.fromRGB(96, 80, 62), Color3.fromRGB(64, 58, 52) }), rng, 0.04)
+	local woodCol = Build.vary(rng:Pick({ Color3.fromRGB(112, 82, 60), Color3.fromRGB(134, 108, 84), Color3.fromRGB(106, 94, 84) }), rng, 0.04)
 	local mat = M.Wood
 	if ch == "P" then
 		woodCol = Color3.fromRGB(70, 72, 70)
@@ -752,17 +752,54 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 		Build.detail(fixture, "Housing", Vector3.new(1.6, 0.35, 4.2), CFrame.new(O + Vector3.new(0, -0.18, 0)), Color3.fromRGB(170, 170, 164), M.Metal)
 		lampPart = Build.detail(fixture, "Tube", Vector3.new(0.35, 0.2, 3.8), CFrame.new(O + Vector3.new(0.35, -0.42, 0)), color, M.Neon)
 		Build.detail(fixture, "Tube2", Vector3.new(0.35, 0.2, 3.8), CFrame.new(O + Vector3.new(-0.35, -0.42, 0)), color, M.Neon)
+		-- prismatic diffuser under the tubes and the steel lips that hold it
+		Build.detail(fixture, "Diffuser", Vector3.new(1.5, 0.04, 4.1), CFrame.new(O + Vector3.new(0, -0.56, 0)), Color3.fromRGB(236, 236, 230), M.Glass, { Transparency = 0.35, CanQuery = false })
+		for _, sx in { -0.79, 0.79 } do
+			Build.detail(fixture, "Lip", Vector3.new(0.08, 0.26, 4.2), CFrame.new(O + Vector3.new(sx, -0.46, 0)), Color3.fromRGB(176, 176, 170), M.Metal, { CanQuery = false })
+		end
 		if opts.hanging then
 			fixture:PivotTo(CFrame.new(O) * CFrame.Angles(0, 0, math.rad(rng:Number(-12, 12))) * CFrame.new(0, -0.6, 0))
 		end
 	elseif styleName == "pendant" then
-		Build.detail(fixture, "Cord", Vector3.new(0.08, 3, 0.08), CFrame.new(O + Vector3.new(0, -1.5, 0)), Props.Colors.black, M.Rubber)
-		Build.detail(fixture, "Shade", Vector3.new(1.8, 0.8, 1.8), CFrame.new(O + Vector3.new(0, -3.2, 0)), Color3.fromRGB(60, 50, 40), M.Metal)
-		lampPart = Build.ball(fixture, "Bulb", 0.6, CFrame.new(O + Vector3.new(0, -3.6, 0)), color, M.Neon, { CanCollide = false, CastShadow = false })
+		-- enamel school-house pendant: ceiling rose, braided cord, bell shade with
+		-- a white reflector inside and the bulb hanging just below the rim
+		local up = CFrame.Angles(0, 0, math.rad(90)) -- cylinder axis (local X) vertical
+		local brass = Color3.fromRGB(150, 122, 72)
+		local enamel = Color3.fromRGB(46, 58, 52)
+		Build.cylinder(fixture, "Canopy", 0.2, 0.75, CFrame.new(O + Vector3.new(0, -0.11, 0)) * up, brass, M.Metal, { CanCollide = false, CastShadow = false, CanQuery = false, MaterialVariant = "DLA_Hardware" })
+		Build.cylinder(fixture, "Cord", 2.45, 0.08, CFrame.new(O + Vector3.new(0, -1.42, 0)) * up, Props.Colors.black, M.Fabric, { CanCollide = false, CastShadow = false, CanQuery = false })
+		Build.cylinder(fixture, "CordGrip", 0.3, 0.16, CFrame.new(O + Vector3.new(0, -2.75, 0)) * up, brass, M.Metal, { CanCollide = false, CastShadow = false, CanQuery = false, MaterialVariant = "DLA_Hardware" })
+		Build.cylinder(fixture, "ShadeTop", 0.28, 0.55, CFrame.new(O + Vector3.new(0, -2.98, 0)) * up, enamel, M.Metal, { CanCollide = false, CastShadow = false, CanQuery = false })
+		Build.cylinder(fixture, "ShadeNeck", 0.3, 1.2, CFrame.new(O + Vector3.new(0, -3.25, 0)) * up, enamel, M.Metal, { CanCollide = false, CastShadow = false, CanQuery = false })
+		-- the bell rim hosts the main light: its Left face (local -X) points down
+		Build.cylinder(fixture, "Shade", 0.34, 2.1, CFrame.new(O + Vector3.new(0, -3.55, 0)) * up, enamel, M.Metal, { CanCollide = false, CastShadow = false, CanQuery = false })
+		Build.cylinder(fixture, "Reflector", 0.03, 1.96, CFrame.new(O + Vector3.new(0, -3.74, 0)) * up, Color3.fromRGB(232, 228, 214), M.SmoothPlastic, { CanCollide = false, CastShadow = false, CanQuery = false })
+		lampPart = Build.ball(fixture, "Bulb", 0.5, CFrame.new(O + Vector3.new(0, -3.92, 0)), color, M.Neon, { CanCollide = false, CastShadow = false, CanQuery = false })
 	elseif styleName == "cage" then
 		Build.detail(fixture, "Mount", Vector3.new(0.8, 0.4, 0.8), CFrame.new(O + Vector3.new(0, -0.2, 0)), Props.Colors.metalDark, M.Metal)
 		Build.detail(fixture, "Cage", Vector3.new(0.9, 0.9, 0.9), CFrame.new(O + Vector3.new(0, -0.85, 0)), Props.Colors.metalDark, M.DiamondPlate, { Transparency = 0.5 })
 		lampPart = Build.ball(fixture, "Bulb", 0.55, CFrame.new(O + Vector3.new(0, -0.85, 0)), color, M.Neon, { CanCollide = false, CastShadow = false })
+	elseif styleName == "sconce" then
+		-- wall sconce: brass back plate, a curved arm, a frosted tulip shade
+		-- opening upward with the bulb inside; `position` is on the wall face
+		local wall = opts.wallCf or CFrame.new(O)
+		local brass = Color3.fromRGB(150, 122, 72)
+		local flat = { CanCollide = false, CastShadow = false, CanQuery = false, MaterialVariant = "DLA_Hardware" }
+		Build.cylinder(fixture, "BackPlate", 0.08, 0.7, wall * CFrame.new(0, 0, -0.05) * CFrame.Angles(0, math.rad(90), 0), brass, M.Metal, flat)
+		Build.cylinder(fixture, "Arm", 0.6, 0.09, wall * CFrame.new(0, -0.05, -0.38) * CFrame.Angles(0, math.rad(90), 0), brass, M.Metal, flat)
+		Build.cylinder(fixture, "Elbow", 0.4, 0.09, wall * CFrame.new(0, 0.12, -0.68) * CFrame.Angles(0, 0, math.rad(90)), brass, M.Metal, flat)
+		Build.cylinder(fixture, "Cup", 0.12, 0.3, wall * CFrame.new(0, 0.34, -0.68) * CFrame.Angles(0, 0, math.rad(90)), brass, M.Metal, flat)
+		Build.cylinder(fixture, "Tulip", 0.6, 0.62, wall * CFrame.new(0, 0.7, -0.68) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(240, 226, 200), M.Glass, { CanCollide = false, CastShadow = false, CanQuery = false, Transparency = 0.25 })
+		lampPart = Build.ball(fixture, "Bulb", 0.3, wall * CFrame.new(0, 0.62, -0.68), color, M.Neon, { CanCollide = false, CastShadow = false, CanQuery = false })
+		-- pure decoration, like the rest of the wall detail
+		for _, d in fixture:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.CanCollide = false
+				d.CanQuery = false
+				d.CanTouch = false
+				d.CastShadow = false
+			end
+		end
 	else -- bare bulb
 		Build.detail(fixture, "Cord", Vector3.new(0.06, 2, 0.06), CFrame.new(O + Vector3.new(0, -1, 0)), Props.Colors.black, M.Rubber)
 		lampPart = Build.ball(fixture, "Bulb", 0.5, CFrame.new(O + Vector3.new(0, -2.2, 0)), color, M.Neon, { CanCollide = false, CastShadow = false })
@@ -805,9 +842,12 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 	local roll = rng:Number()
 	local mode = "on"
 	if opts.circuit ~= "EMERGENCY" then
-		if roll < 0.16 then
+		-- the building is old, not abandoned: most lamps work. Rooms that set
+		-- the tone for newcomers (reception, vestibule) never have a dead lamp.
+		local reliable = opts.reliable == true
+		if roll < (if reliable then 0 else 0.08) then
 			mode = "dead"
-		elseif roll < 0.3 then
+		elseif roll < (if reliable then 0.05 else 0.2) then
 			mode = "flicker"
 		end
 	end
@@ -851,12 +891,14 @@ local function buildRoomLights(map, floor, folder, rng)
 				end
 			else
 				local placed = 0
+				local reliable = room.kind == "reception" or room.kind == "vestibule"
 				for _, c in room.cells do
 					if c.x % 4 == 2 and c.z % 4 == 2 then
 						local pos = Layout.cellToWorld(floor.y, c.x, c.z)
 						addFixture(map, room, folder, Vector3.new(pos.X, ceilY, pos.Z), style.light, style.lightColor, rng, {
 							shadows = placed == 0,
 							hanging = rng:Chance(0.08),
+							reliable = reliable,
 						})
 						placed += 1
 					end
@@ -1005,7 +1047,7 @@ local function buildExterior(map, folder, rng)
 		local side = if i == 1 then -1 else 1
 		local door = Build.model(folder, "EntranceDoor" .. i)
 		local closed = CFrame.new(center + Vector3.new(0, 4.85, 0))
-		local panel = Build.part(door, "Panel", Vector3.new(3.8, 9.7, 0.3), closed, Color3.fromRGB(40, 36, 32), M.Wood)
+		local panel = Build.part(door, "Panel", Vector3.new(3.8, 9.7, 0.3), closed, Color3.fromRGB(96, 78, 60), M.Wood)
 		local glass = Build.detail(door, "Glass", Vector3.new(2.4, 4, 0.34), closed * CFrame.new(0, 1.8, 0), Color3.fromRGB(40, 50, 56), M.Glass, { Transparency = 0.4 })
 		local handle = Build.detail(door, "Handle", Vector3.new(0.2, 2, 0.4), closed * CFrame.new(-side * 1.4, -0.6, 0), Props.Colors.metal, M.Metal)
 		for _, d in { glass, handle } do
@@ -1263,6 +1305,10 @@ function MapBuilder.build(seed: number, parent: Instance)
 	furniture.Name = "Furniture"
 	furniture.Parent = root
 	Furnisher.furnishAll(map, furniture, rng:Derive("furnish"))
+	-- the architecture pass places wall lights too, with the same fixture rules
+	map.addFixture = function(room, folder, position, styleName, color, frng, opts)
+		return addFixture(map, room, folder, position, styleName, color, frng, opts)
+	end
 	-- services and hardware (switches, outlets, grilles, hinges...) around the furniture
 	Architecture.dress(map, rng:Derive("architecture"))
 

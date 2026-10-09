@@ -518,7 +518,7 @@ function RoundService:_startRound(players: { Player }, chosenDifficulty: string)
 	for i, door in map.EntranceDoors do
 		Registry.DoorService:SetOpen(door, false, { slam = true, silent = i > 1 })
 	end
-	Registry.LightingService:ApplyPreset("POWERED", 2)
+	Registry.LightingService:ApplyPreset("NORMAL", 2)
 	exploringStartedAt = os.clock()
 	Registry.HorrorDirector:BeginRound(seed)
 	Registry.GuidanceService:BeginRound()

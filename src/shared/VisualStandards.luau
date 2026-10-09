@@ -76,19 +76,23 @@ function VisualStandards.get(name: string): (EnumItem, Color3, string?)
 end
 
 VisualStandards.Fixtures = {
-	-- 2-tube troffer: a wide cone from the diffuser face onto the floor
+	-- 2-tube troffer: a wide cone from the diffuser onto the floor, and a fill
+	-- that reaches the walls (calibrated with tools/light_study)
 	fluoro = {
-		main = { class = "SurfaceLight", host = "Housing", face = Enum.NormalId.Bottom, angle = 115, range = 19, ratio = 1.15 },
-		fill = { range = 14, ratio = 0.42, solo = 1 },
+		main = { class = "SurfaceLight", host = "Housing", face = Enum.NormalId.Bottom, angle = 120, range = 22, ratio = 1.2 },
+		fill = { range = 17, ratio = 0.5, solo = 1.1 },
 	},
-	-- shaded pendant: a pool of warm light under the shade, a dim glow above
+	-- enamel pendant: a pool of warm light under the bell (the bell's local -X
+	-- face points down), the fill lights the ceiling and the upper walls
 	pendant = {
-		main = { class = "SpotLight", host = "Shade", face = Enum.NormalId.Bottom, angle = 100, range = 20, ratio = 1.5 },
-		fill = { range = 11, ratio = 0.35, solo = 1 },
+		main = { class = "SpotLight", host = "Shade", face = Enum.NormalId.Left, angle = 115, range = 24, ratio = 1.15 },
+		fill = { range = 18, ratio = 0.5, solo = 1.1 },
 	},
 	-- caged / bare bulbs light everything around them: the point light is the source
 	cage = { fill = { range = 20, ratio = 1, solo = 1 } },
 	bulb = { fill = { range = 18, ratio = 1, solo = 1 } },
+	-- wall sconce: a soft warm glow on the wall around it (no shadows: cheap)
+	sconce = { fill = { range = 15, ratio = 1, solo = 1 } },
 }
 
 VisualStandards.Quality = {

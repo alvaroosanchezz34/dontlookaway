@@ -59,20 +59,32 @@ LightingService.Presets = {
 		atmosphere = { Density = 0.4, Haze = 2.1, Glare = 0, Color = Color3.fromRGB(70, 78, 92), Decay = Color3.fromRGB(36, 40, 50) },
 	},
 	-- main power lost: moonlight, emergency lighting, flashlight
-	DARK = {
+	EMERGENCY = {
 		Ambient = Color3.fromRGB(24, 26, 33),
 		OutdoorAmbient = Color3.fromRGB(34, 39, 50),
 		ExposureCompensation = 0.4,
 		cc = { Brightness = 0.01, Contrast = 0.14, Saturation = -0.3, TintColor = Color3.fromRGB(228, 236, 248) },
 		atmosphere = { Density = 0.36, Haze = 1.7, Glare = 0, Color = Color3.fromRGB(58, 63, 74), Decay = Color3.fromRGB(28, 31, 38) },
 	},
-	-- the building at work: warm practical lights, still a little dirty
-	POWERED = {
-		Ambient = Color3.fromRGB(30, 29, 28),
-		OutdoorAmbient = Color3.fromRGB(30, 33, 40),
-		ExposureCompensation = 0.12,
-		cc = { Brightness = 0.0, Contrast = 0.13, Saturation = -0.2, TintColor = Color3.fromRGB(246, 242, 234) },
-		atmosphere = { Density = 0.33, Haze = 1.5, Glare = 0, Color = Color3.fromRGB(66, 66, 70), Decay = Color3.fromRGB(32, 32, 36) },
+	-- NORMAL: the building with power and no event. The reference for play.
+	-- The fixtures do the lighting (VisualStandards.Fixtures) on surfaces with
+	-- real albedo (Layout.Styles); ambient only keeps the shadow side readable,
+	-- the grade only nudges the colour: low contrast so corners keep detail.
+	NORMAL = {
+		Ambient = Color3.fromRGB(44, 42, 40),
+		OutdoorAmbient = Color3.fromRGB(34, 38, 46),
+		ExposureCompensation = 0.1,
+		cc = { Brightness = 0.0, Contrast = 0.05, Saturation = -0.12, TintColor = Color3.fromRGB(250, 246, 238) },
+		atmosphere = { Density = 0.24, Haze = 1.0, Glare = 0, Color = Color3.fromRGB(78, 76, 76), Decay = Color3.fromRGB(40, 40, 44) },
+	},
+	-- scripted moments (cinematics, the Observer's reveal): the same building,
+	-- harder and colder, for a few seconds at a time
+	CINEMATIC = {
+		Ambient = Color3.fromRGB(26, 26, 30),
+		OutdoorAmbient = Color3.fromRGB(30, 34, 44),
+		ExposureCompensation = 0.05,
+		cc = { Brightness = -0.01, Contrast = 0.18, Saturation = -0.32, TintColor = Color3.fromRGB(232, 236, 248) },
+		atmosphere = { Density = 0.32, Haze = 1.6, Glare = 0, Color = Color3.fromRGB(58, 62, 72), Decay = Color3.fromRGB(28, 30, 36) },
 	},
 	-- a total blackout: the darkest the game ever gets, still never black
 	BLACKOUT = {
@@ -98,12 +110,29 @@ LightingService.Presets = {
 	},
 }
 
+-- Old names still used by callers and admin tools.
+LightingService.Aliases = { POWERED = "NORMAL", DARK = "EMERGENCY" }
+
+-- Global Lighting properties, the single source (default.project.json carries
+-- the same values so edit mode in Studio matches play).
+LightingService.Base = {
+	GlobalShadows = true,
+	Brightness = 0.6,
+	ClockTime = 0.4,
+	GeographicLatitude = 30,
+	EnvironmentDiffuseScale = 0.45,
+	EnvironmentSpecularScale = 1,
+	ShadowSoftness = 0.15,
+	FogEnd = 100000,
+}
+
 local current = "LOBBY"
 local blackoutToken = 0
 local blackoutLevel = 0
 local blackoutEndsAt = 0
 
 function LightingService:ApplyPreset(name: string, duration: number?)
+	name = self.Aliases[name] or name
 	local preset = self.Presets[name]
 	if not preset then
 		return
@@ -136,9 +165,9 @@ function LightingService:InteriorPreset(): string
 		return "ESCAPE"
 	end
 	if workspace:GetAttribute("Power") ~= true or blackoutLevel >= 3 then
-		return "DARK"
+		return "EMERGENCY"
 	end
-	return "POWERED"
+	return "NORMAL"
 end
 
 function LightingService:SetPower(on: boolean, keepPreset: boolean?)
@@ -222,19 +251,9 @@ end
 
 function LightingService:Init()
 	-- Technology (Future) can't be written by scripts; it is set in default.project.json.
-	local props = {
-		GlobalShadows = true,
-		Brightness = 0.6,
-		ClockTime = 0.4,
-		GeographicLatitude = 30,
-		-- full specular: the 2022 materials (tile, marble, metal, wet floors) catch
-		-- the lights; crisp contact shadows read as real space
-		EnvironmentDiffuseScale = 0.45,
-		EnvironmentSpecularScale = 1,
-		ShadowSoftness = 0.15,
-		FogEnd = 100000,
-	}
-	for prop, value in props do
+	-- full specular: the 2022 materials (tile, marble, metal, wet floors) catch
+	-- the lights; crisp contact shadows read as real space
+	for prop, value in self.Base do
 		local ok, err = pcall(function()
 			(Lighting :: any)[prop] = value
 		end)

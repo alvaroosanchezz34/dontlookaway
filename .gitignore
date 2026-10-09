@@ -4,3 +4,4 @@
 *.rbxlx.lock
 /build/
 sourcemap.json
+tools/__pycache__/

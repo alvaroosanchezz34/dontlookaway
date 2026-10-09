@@ -45,7 +45,7 @@ local PROUD = VisualStandards.Proud
 local SKIN = 0.2 -- wall finish thickness (MapBuilder skins)
 local MIN_WALL_SPOTS = 3
 local M = Enum.Material
-local TRIM_COLOR = Color3.fromRGB(52, 40, 30) -- MapBuilder door casings
+local TRIM_COLOR = Color3.fromRGB(100, 74, 52) -- MapBuilder door casings
 
 local DIRS = { { dx = 1, dz = 0 }, { dx = -1, dz = 0 }, { dx = 0, dz = 1 }, { dx = 0, dz = -1 } }
 
@@ -53,6 +53,9 @@ local DIRS = { { dx = 1, dz = 0 }, { dx = -1, dz = 0 }, { dx = 0, dz = 1 }, { dx
 local NO_DETAIL = { secret = true, closet = true }
 local OUTLET_KINDS = { office = true, mail = true, reception = true, breakroom = true, security = true, conference = true, openoffice = true, infirmary = true, server = true, archive = true, quiet = true, gallery = true, corridor = true, storage = true, maintenance = true, utility = true, dock = true, restroom = true }
 local CONDUIT_STYLES = { basement = true, industrial = true, stairs = true }
+-- old, panelled rooms get wall sconces: warm light on the wallpaper
+local SCONCE_STYLES = { reception = true, gallery = true, archive = true, quiet = true }
+local SCONCE_COLOR = Color3.fromRGB(255, 204, 150)
 
 Architecture.Stats = {}
 
@@ -457,6 +460,50 @@ local function conduit(ctx, room, segments)
 	end
 end
 
+-- Wall sconces along the long walls, at a steady rhythm, never over furniture
+-- or a painting (clearance) and never on an anomaly wall spot it cannot spare.
+local function sconces(ctx, room, segments)
+	if not SCONCE_STYLES[room.style] or not ctx.map.addFixture then
+		return
+	end
+	local placed = 0
+	local budget = math.clamp(math.floor(#room.cells / 24), 2, 8)
+	local list = table.clone(segments)
+	table.sort(list, function(a, b)
+		if a.length ~= b.length then
+			return a.length > b.length
+		end
+		return a.base.X + a.base.Z * 0.001 < b.base.X + b.base.Z * 0.001
+	end)
+	for _, seg in list do
+		if placed >= budget then
+			break
+		end
+		if seg.length >= CELL * 3 then
+			local slots = math.max(1, math.floor(seg.length / 14))
+			for i = 1, slots do
+				if placed >= budget then
+					break
+				end
+				local along = -seg.length / 2 + (i - 0.5) * seg.length / slots
+				local h = 8.4
+				local wallCf = seg.cf * CFrame.new(along, h, -(SKIN + PROUD))
+				local body = wallCf * CFrame.new(0, 0.3, -0.5)
+				if ctx.clear(body, Vector3.new(1.2, 1.8, 1.2), 0.1) and claimWall(room, (seg.cf * CFrame.new(along, 0, 0)).Position, seg.normal) then
+					local folder = roomFolder(ctx, room)
+					ctx.map.addFixture(room, folder, wallCf.Position, "sconce", SCONCE_COLOR, ctx.rng, {
+						wallCf = wallCf,
+						brightness = 0.8,
+						reliable = room.kind == "reception",
+					})
+					placed += 1
+					count("Sconce")
+				end
+			end
+		end
+	end
+end
+
 ------------------------------------------------------------------------------------
 -- ceilings
 ------------------------------------------------------------------------------------
@@ -612,6 +659,7 @@ function Architecture.dress(map, rng)
 	for _, room in sortedRooms(map) do
 		if not NO_DETAIL[room.kind] then
 			local segments = wallRuns(room)
+			sconces(ctx, room, segments)
 			outlets(ctx, room, segments)
 			conduit(ctx, room, segments)
 			ceilingDetail(ctx, room)

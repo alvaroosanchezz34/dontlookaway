@@ -75,23 +75,24 @@
       "$className": "Lighting",
       "$properties": {
         "Technology": "Future",
-        "Brightness": 0.4,
+        "Brightness": 0.6,
         "Ambient": [
-          0.02,
-          0.02,
-          0.025
+          0.1725,
+          0.1647,
+          0.1569
         ],
         "OutdoorAmbient": [
-          0.05,
-          0.055,
-          0.065
+          0.1333,
+          0.149,
+          0.1804
         ],
-        "ClockTime": 0.5,
+        "ClockTime": 0.4,
         "GlobalShadows": true,
         "EnvironmentDiffuseScale": 0.45,
         "EnvironmentSpecularScale": 1,
         "ShadowSoftness": 0.15,
-        "ExposureCompensation": 0
+        "ExposureCompensation": 0.1,
+        "GeographicLatitude": 30
       }
     },
     "MaterialService": {
