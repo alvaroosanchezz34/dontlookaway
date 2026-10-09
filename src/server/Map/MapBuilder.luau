@@ -874,6 +874,10 @@ local function buildRoomLights(map, floor, folder, rng)
 				if floor.level < 1 then
 					local mid = Layout.Origin + Vector3.new((sw.x0 + 2) * CELL, floor.y + LH / 2 + 7, (sw.z0 + 1) * CELL)
 					addFixture(map, room, folder, mid, "cage", style.lightColor, rng, { circuit = "MAIN", range = 18 })
+				else
+					-- top floor: the far end of the landing over the open shaft
+					local far = Layout.Origin + Vector3.new((sw.x0 + 2) * CELL, ceilY, (sw.z0 + 1) * CELL)
+					addFixture(map, room, folder, far, "cage", style.lightColor, rng, { circuit = "MAIN", range = 20 })
 				end
 			elseif room.kind == "corridor" then
 				-- a line of fixtures down the middle of the corridor, every 16 studs
