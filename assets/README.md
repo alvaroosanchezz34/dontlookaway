@@ -20,12 +20,12 @@ con los materiales de Roblox y el Observer de piezas.
 | `textures/brick_grimy` | ladrillo con hollín | fachada y zonas industriales |
 | `textures/marble_stained` | mármol con vetas y manchas | recepción |
 | `textures/metal_worn` | metal pintado con óxido | metal en general |
-| `textures/wood_aged` *(V2, pendiente de subir)* | madera de carpintería con veta, barniz gastado, golpes | **sustituye a Wood**: puertas, marcos, zócalos, muebles |
-| `textures/fabric_worn` *(V2, pendiente)* | tapicería de sarga con bolitas y manchas | **sustituye a Fabric**: sillas, sofás, tablones |
-| `textures/metal_rusted` *(V2, pendiente)* | hierro con óxido en escamas, picaduras | **sustituye a CorrodedMetal**: tuberías, válvulas |
-| `textures/paint_peeling` *(V2, pendiente)* | pintura que se levanta sobre yeso húmedo, moho | paredes del sótano y escaleras (`DLA_PeelingPaint`) |
-| `textures/concrete_wet` *(V2, pendiente)* | losa húmeda con charcos y salitre | suelos del sótano y zonas industriales (`DLA_WetConcrete`) |
-| `textures/metal_bare` *(V2, pendiente)* | acero cepillado / latón gastado | bisagras, manillas, placas, aspersores (`DLA_Hardware`) |
+| `textures/wood_aged` *(V2)* | madera de carpintería con veta, barniz gastado, golpes | **sustituye a Wood**: puertas, marcos, zócalos, muebles |
+| `textures/fabric_worn` *(V2)* | tapicería de sarga con bolitas y manchas | **sustituye a Fabric**: sillas, sofás, tablones |
+| `textures/metal_rusted` *(V2)* | hierro con óxido en escamas, picaduras | **sustituye a CorrodedMetal**: tuberías, válvulas |
+| `textures/paint_peeling` *(V2)* | pintura que se levanta sobre yeso húmedo, moho | paredes del sótano y escaleras (`DLA_PeelingPaint`) |
+| `textures/concrete_wet` *(V2)* | losa húmeda con charcos y salitre | suelos del sótano y zonas industriales (`DLA_WetConcrete`) |
+| `textures/metal_bare` *(V2)* | acero cepillado / latón gastado | bisagras, manillas, placas, aspersores (`DLA_Hardware`) |
 | `observer/*.obj` | 12 mallas del Observer | el Observer y sus cinemáticas |
 | `observer/observer_skin_*` | piel PBR (color, relieve, rugosidad) | el Observer |
 | `audio/dla_ambience.ogg` | 23 ambientes en bucle (zumbidos, lluvia, viento, ventilación, alarma, respiración del Observer, música de tensión) | todo el edificio |
@@ -34,12 +34,7 @@ con los materiales de Roblox y el Observer de piezas.
 
 Cada textura tiene `_color`, `_normal` y `_roughness` (y `metal_worn`, `metal_rusted` y `metal_bare` además `_metalness`).
 
-**Las 6 texturas V2 (Visual Overhaul V2) están generadas en el repositorio pero NO subidas**:
-sus IDs están a `0` en `AssetIds.Materials`, así que esas piezas se ven con el material
-de Roblox (o con la textura vieja que ya sustituye a ese material) hasta que las subas.
-Son 20 imágenes: las `.png` de `wood_aged`, `fabric_worn`, `metal_rusted`,
-`paint_peeling`, `concrete_wet` y `metal_bare`. Súbelas igual que las demás y
-pásame los IDs (o pégalos) y ejecuta `python3 tools/sync_assets.py`.
+Las 6 texturas V2 (Visual Overhaul V2) están subidas y conectadas (`AssetIds.Materials`).
 
 ## Cómo subirlo (una vez)
 

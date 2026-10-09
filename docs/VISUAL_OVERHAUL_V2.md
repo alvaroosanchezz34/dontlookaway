@@ -34,7 +34,7 @@ Problemas encontrados, por prioridad:
 3. **Un solo metal y la madera por defecto de Roblox.** Toda la madera
    (1.412 piezas) usaba la textura de Roblox. Todo el metal, manillas incluidas,
    usaba la textura de metal pintado y desconchado. → **6 texturas PBR nuevas
-   generadas; pendientes de subir**
+   generadas, subidas y conectadas**
 4. **Muebles hechos de bloques.** Escritorios con laterales macizos, sillas con
    respaldo de una sola pieza, mesas sin faldón, archivadores y taquillas sin
    herrajes. → **rehechas las 7 piezas más repetidas**
@@ -89,9 +89,8 @@ externas.
 
 - Se revisaron en una hoja de contacto y se corrigió una costura al hacer
   mosaico, en `paint_peeling`.
-- **No están subidas a Roblox:** sus IDs están a `0` (ver `assets/README.md`).
-- Mientras tanto, las piezas que las usan se ven con el material de Roblox.
-- `tools/sync_assets.py` las conecta en cuanto tengan IDs.
+- Subidas a Roblox y conectadas: IDs en `AssetIds.Materials`, variantes escritas por
+  `tools/sync_assets.py` en `src/materials/` (16 en total, 11 sustituyen a un material base).
 
 ### Arquitectura (`src/server/Map/Architecture.luau`)
 
@@ -206,8 +205,8 @@ servidor.
 ## 4. Pruebas manuales en Studio
 
 1. **Sincronizar.** `rojo serve` y conectar. En el Output debe salir
-   `[MaterialLibrary] 10 custom textures active`; serán 16 cuando subas las
-   nuevas.
+   `[MaterialLibrary] 16 custom textures active` (antes eran 10; incluye las 6
+   nuevas).
 2. **Iluminación de oficinas y pasillos.**
    - Empieza una ronda (F8 → Start round) y entra en una oficina con luz.
    - Bajo cada fluorescente tiene que haber un charco de luz en el suelo, con
@@ -257,7 +256,7 @@ servidor.
       volver todo a la normalidad al terminar.
     - `Scene_DoorAjarToEye`: la luz se cuela por la rendija y el plano se
       cierra sobre el ojo.
-13. **Texturas V2.** Cuando subas las 20 imágenes y ejecutes `sync_assets.py`:
+13. **Texturas V2** (ya subidas):
     - madera de puertas, marcos y muebles con veta;
     - herrajes metálicos brillantes;
     - tuberías oxidadas;
@@ -268,7 +267,6 @@ servidor.
 - **No es fotorrealismo.** El juego sigue siendo un mapa de piezas de Roblox
   con texturas PBR. Esta pasada sube la credibilidad del espacio con detalle
   funcional, luz con forma y materiales, pero no lo convierte en una fotografía.
-- **Las 6 texturas nuevas no se ven hasta que se suban.**
 - **No se ha comprobado visualmente en Roblox.** Las cifras y pruebas de arriba
   son de geometría y de lógica, no de imagen.
 - **No hay mallas nuevas.** Los muebles se han mejorado con piezas; mallas

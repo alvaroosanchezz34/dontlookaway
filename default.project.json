@@ -105,7 +105,10 @@
         "WoodPlanksName": "DLA_WoodPlanks",
         "BrickName": "DLA_Brick",
         "MarbleName": "DLA_Marble",
-        "MetalName": "DLA_Metal"
+        "MetalName": "DLA_Metal",
+        "WoodName": "DLA_Wood",
+        "FabricName": "DLA_Fabric",
+        "CorrodedMetalName": "DLA_Rust"
       },
       "$path": "src/materials"
     },

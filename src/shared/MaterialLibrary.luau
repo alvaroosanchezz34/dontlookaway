@@ -17,8 +17,8 @@
 	      DLA_Hardware      bare steel / brass: hinges, handles, plates, rails
 	  * Visual Overhaul V2 adds three replacements: aged wood (doors, trims,
 	    furniture), worn fabric (upholstery, boards) and rust (pipes, valves).
-	    Their ids are 0 until uploaded (Config/AssetIds), and until then those
-	    parts keep Roblox's own materials.
+	    A texture whose id is 0 (Config/AssetIds) is simply not used and its
+	    parts keep Roblox's own material.
 	    A part whose MaterialVariant names a variant that does not exist just
 	    renders its base material, so the map can always set them.
 ]]

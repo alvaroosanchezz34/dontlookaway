@@ -301,6 +301,7 @@ do
 	-- the variants are written into the place by Rojo (tools/sync_assets.py)
 	-- Visual Overhaul V2 textures are generated in the repo and wait for upload
 	-- (0 ids): until then their parts render the built-in material.
+	local fs = require("@lune/fs")
 	local PENDING = { wood_aged = true, fabric_worn = true, metal_rusted = true, paint_peeling = true, concrete_wet = true, metal_bare = true }
 	local uploaded = 0
 	for key, entry in AssetIds.Materials do
@@ -311,8 +312,15 @@ do
 		end
 	end
 	check(MaterialLibrary.count() == uploaded, string.format("%d custom textures in MaterialService, got %d", uploaded, MaterialLibrary.count()))
-	check(uploaded >= 10, "the ten original textures stay uploaded")
-	local fs = require("@lune/fs")
+	check(uploaded == 16, "all sixteen textures uploaded (" .. uploaded .. ")")
+	for _, name in { "DLA_Wood", "DLA_Fabric", "DLA_Rust", "DLA_PeelingPaint", "DLA_WetConcrete", "DLA_Hardware" } do
+		local v = MaterialService:FindFirstChild(name)
+		check(v ~= nil and v:IsA("MaterialVariant"), "V2 variant in MaterialService: " .. name)
+		-- Lune cannot read the map properties; check what sync_assets wrote
+		local file = string.format("src/materials/%s.model.json", name)
+		local src = if fs.isFile(file) then fs.readFile(file) else ""
+		check(string.find(src, "ColorMap", 1, true) ~= nil and string.find(src, "NormalMap", 1, true) ~= nil and string.find(src, "RoughnessMap", 1, true) ~= nil, "V2 variant with its maps: " .. name)
+	end
 	for key in PENDING do
 		for _, map in { "color", "normal", "roughness" } do
 			check(fs.isFile(string.format("assets/textures/%s/%s_%s.png", key, key, map)), string.format("generated %s %s map", key, map))
