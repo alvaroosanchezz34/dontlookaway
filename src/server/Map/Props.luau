@@ -799,25 +799,115 @@ end
 ------------------------------------------------------------------------------------
 
 function Props.receptionDesk(parent, cf: CFrame, rng)
+	-- a built-in front desk: frame-and-panel front on a recessed plinth, a
+	-- polished stone counter with a rounded nose on corbels, a brass name
+	-- plate, side returns and a working side with shelves, ledger and lamp
 	local m = model(parent, "ReceptionDesk", cf)
 	local wood = Build.vary(C.woodDark, rng)
-	P(m, "Front", Vector3.new(12, 4.2, 0.6), at(cf, 0, 2.1, -1.5), wood, M.Wood)
-	P(m, "Counter", Vector3.new(12.4, 0.3, 1.6), at(cf, 0, 4.35, -1.3), Build.vary(Color3.fromRGB(70, 66, 60), rng), M.Marble)
+	local stone = Build.vary(Color3.fromRGB(206, 200, 188), rng)
+	local frame = wood:Lerp(C.black, 0.18)
+	local brass = Color3.fromRGB(150, 122, 72)
+	P(m, "Front", Vector3.new(12, 3.9, 0.6), at(cf, 0, 2.25, -1.5), wood, M.Wood)
+	D(m, "Plinth", Vector3.new(11.7, 0.3, 0.5), at(cf, 0, 0.15, -1.45), frame:Lerp(C.black, 0.3), M.Wood)
+	-- four bays of raised panels between stiles on the public face
+	for i = 0, 4 do
+		D(m, "Stile", Vector3.new(0.34, 3.3, 0.08), at(cf, -5.83 + i * 2.915, 2.1, -1.84), frame, M.Wood)
+	end
+	for i = 0, 3 do
+		D(m, "Panel", Vector3.new(2.3, 2.6, 0.05), at(cf, -4.37 + i * 2.915, 2.0, -1.825), wood:Lerp(Color3.new(1, 1, 1), 0.05), M.Wood)
+	end
+	D(m, "Rail", Vector3.new(11.7, 0.3, 0.08), at(cf, 0, 3.75, -1.84), frame, M.Wood)
+	-- the counter: stone slab, bullnose, a moulding under it and four corbels
+	P(m, "Counter", Vector3.new(12.4, 0.3, 1.6), at(cf, 0, 4.35, -1.3), stone, M.Marble)
+	Build.cylinder(m, "CounterNose", 12.4, 0.3, at(cf, 0, 4.35, -2.1), stone, M.Marble, { CanCollide = false, CastShadow = false })
+	D(m, "CounterMould", Vector3.new(12, 0.16, 0.14), at(cf, 0, 4.12, -1.88), frame, M.Wood)
+	for _, x in { -5.4, -1.8, 1.8, 5.4 } do
+		D(m, "Corbel", Vector3.new(0.26, 0.42, 0.26), at(cf, x, 3.86, -1.93), frame, M.Wood)
+	end
+	-- brass name plate across the middle panels
+	local plate = D(m, "NamePlate", Vector3.new(3.4, 0.5, 0.04), at(cf, 0, 3.32, -1.9), brass, M.Metal, { MaterialVariant = "DLA_Hardware" })
+	local gui = Build.surfaceGui(plate, Enum.NormalId.Front, 60)
+	Build.text(gui, { Name = "Label", Size = UDim2.fromScale(0.9, 0.7), Position = UDim2.fromScale(0.05, 0.15), Text = "RECEPTION", Font = Enum.Font.Garamond, TextColor3 = Color3.fromRGB(40, 32, 18) })
+	-- the working side
 	P(m, "Work", Vector3.new(11.4, 0.25, 2.2), at(cf, 0, 3, 0), wood, M.Wood)
+	D(m, "WorkEdge", Vector3.new(11.4, 0.3, 0.08), at(cf, 0, 2.99, 1.14), frame, M.Wood)
+	D(m, "Shelf", Vector3.new(11, 0.12, 1.5), at(cf, 0, 1.2, 0.1), frame, M.Wood)
+	for i = 0, 5 do
+		local x = -4.6 + i * 1.65
+		D(m, "Binder", Vector3.new(0.32, 0.95, 1.1), at(cf, x, 1.74, 0.15, 0, 0, if i % 3 == 2 then 9 else 0), Color3.fromRGB(70 + i * 9, 60 + (i % 2) * 20, 52), M.Cardboard)
+	end
 	P(m, "SideL", Vector3.new(0.6, 4.2, 3.6), at(cf, -6, 2.1, 0), wood, M.Wood)
 	P(m, "SideR", Vector3.new(0.6, 4.2, 3.6), at(cf, 6, 2.1, 0), wood, M.Wood)
-	D(m, "Brand", Vector3.new(5, 0.6, 0.05), at(cf, 0, 3, -1.83), Color3.fromRGB(120, 100, 60), M.Metal)
+	for _, sx in { -1, 1 } do
+		D(m, "SideCap", Vector3.new(0.7, 0.1, 3.7), at(cf, sx * 6, 4.25, 0), frame, M.Wood)
+		D(m, "SidePanel", Vector3.new(0.05, 2.6, 2.6), at(cf, sx * 6.32, 2.1, 0.1), wood:Lerp(Color3.new(1, 1, 1), 0.05), M.Wood)
+	end
 	Props.crt(m, at(cf, -3, 3.12, 0.3, 0, 180, 0), rng)
 	Props.phone(m, at(cf, 2, 3.12, 0, 0, 160, 0), rng)
 	Props.paperStack(m, at(cf, 4, 3.12, 0.2), rng)
-	local bell = Build.ball(m, "Bell", 0.5, at(cf, 1, 4.6, -1.3), Color3.fromRGB(150, 130, 70), M.Metal, { CanCollide = false })
+	-- the visitors' ledger lies open on the counter, a pen across it
+	D(m, "LedgerCover", Vector3.new(1.9, 0.06, 1.25), at(cf, -1.4, 4.53, -1.2, 0, 8, 0), Color3.fromRGB(82, 30, 26), M.Fabric)
+	D(m, "LedgerPages", Vector3.new(1.8, 0.05, 1.15), at(cf, -1.4, 4.585, -1.2, 0, 8, 0), C.paper, M.SmoothPlastic)
+	D(m, "Pen", Vector3.new(0.06, 0.06, 0.7), at(cf, -0.9, 4.64, -1.25, 0, 35, 0), C.black, M.Plastic)
+	local bell = Build.ball(m, "Bell", 0.5, at(cf, 1, 4.6, -1.3), brass, M.Metal, { CanCollide = false })
 	bell.CastShadow = false
+	D(m, "BellBase", Vector3.new(0.55, 0.06, 0.55), at(cf, 1, 4.53, -1.3), C.black, M.Wood)
+	-- banker's lamp on the working side: brass base, green glass shade; it
+	-- glows when the building has power (LightController: PoweredLight)
+	D(m, "LampBase", Vector3.new(0.8, 0.1, 0.5), at(cf, 5.1, 3.17, -0.3), brass, M.Metal, { MaterialVariant = "DLA_Hardware" })
+	D(m, "LampStem", Vector3.new(0.08, 0.75, 0.08), at(cf, 5.1, 3.55, -0.3), brass, M.Metal, { MaterialVariant = "DLA_Hardware" })
+	local shade = Build.cylinder(m, "LampShade", 1.0, 0.36, at(cf, 5.1, 3.98, -0.3), Color3.fromRGB(40, 110, 70), M.Glass, { CanCollide = false, CastShadow = false, Transparency = 0.15 })
+	local glow = Instance.new("PointLight")
+	glow.Name = "DeskGlow"
+	glow.Range = 9
+	glow.Brightness = 0.7
+	glow.Color = Color3.fromRGB(255, 214, 160)
+	glow.Shadows = false
+	glow:SetAttribute("PoweredLight", true)
+	glow.Parent = shade
 	m:SetAttribute("SurfaceHeight", 3.12)
 	local spot = Instance.new("Attachment")
 	spot.Name = "ItemSpot"
 	spot.Parent = m:FindFirstChild("Work")
 	spot.WorldCFrame = at(cf, rng:Number(-4, 4), 3.15, 0.2)
 	spot:AddTag("ItemSpot")
+	return m
+end
+
+-- Bentwood coat stand by the door: four splayed feet, a turned pole, hooks
+-- and one coat that somebody never came back for.
+function Props.coatStand(parent, cf: CFrame, rng)
+	local m = model(parent, "CoatStand", cf)
+	local wood = Build.vary(C.woodDark, rng)
+	for i = 0, 3 do
+		local a = i * 90 + 45
+		D(m, "Foot", Vector3.new(0.14, 0.12, 0.85), cf * CFrame.Angles(0, math.rad(a), 0) * CFrame.new(0, 0.18, -0.38) * CFrame.Angles(math.rad(-14), 0, 0), wood, M.Wood)
+	end
+	P(m, "Pole", Vector3.new(0.18, 6.2, 0.18), at(cf, 0, 3.2, 0), wood, M.Wood)
+	Build.ball(m, "Finial", 0.32, at(cf, 0, 6.38, 0), wood, M.Wood, { CanCollide = false, CastShadow = false })
+	for i = 0, 3 do
+		D(m, "Hook", Vector3.new(0.07, 0.07, 0.5), cf * CFrame.Angles(0, math.rad(i * 90), 0) * CFrame.new(0, 5.85, -0.25) * CFrame.Angles(math.rad(25), 0, 0), wood, M.Wood)
+	end
+	if rng:Chance(0.7) then
+		local coat = Build.vary(rng:Pick({ Color3.fromRGB(70, 66, 58), Color3.fromRGB(86, 70, 56), Color3.fromRGB(52, 56, 62) }), rng, 0.05)
+		D(m, "Coat", Vector3.new(1.1, 3.2, 0.5), at(cf, 0, 4.15, -0.42, 4, 0, 0), coat, M.Fabric)
+		D(m, "Collar", Vector3.new(1.0, 0.35, 0.55), at(cf, 0, 5.75, -0.38), coat:Lerp(C.black, 0.15), M.Fabric)
+	end
+	tagModel(m, "Movable")
+	return m
+end
+
+-- Umbrella stand by the entrance: a glazed stoneware pot and two umbrellas.
+function Props.umbrellaStand(parent, cf: CFrame, rng)
+	local m = model(parent, "UmbrellaStand", cf)
+	local glaze = Build.vary(Color3.fromRGB(70, 92, 84), rng, 0.05)
+	P(m, "Pot", Vector3.new(1.0, 1.9, 1.0), at(cf, 0, 0.95, 0), glaze, M.SmoothPlastic, { Reflectance = 0.06 })
+	D(m, "Rim", Vector3.new(1.08, 0.12, 1.08), at(cf, 0, 1.92, 0), glaze:Lerp(C.black, 0.2), M.SmoothPlastic)
+	for i, tilt in { -9, 7 } do
+		local col = if i == 1 then Color3.fromRGB(40, 40, 46) else Color3.fromRGB(96, 34, 30)
+		D(m, "Umbrella", Vector3.new(0.28 - i * 0.03, 2.9 - i * 0.2, 0.28 - i * 0.03), at(cf, (i - 1.5) * 0.34, 2.3 - i * 0.1, (i - 1.5) * 0.12, 0, 0, tilt), col, M.Fabric)
+		D(m, "UmbrellaHandle", Vector3.new(0.08, 0.35, 0.3), at(cf, (i - 1.5) * 0.3 + tilt * -0.026, 3.85, 0.1, 0, 0, tilt), C.woodDark, M.Wood)
+	end
 	return m
 end
 
@@ -1122,10 +1212,24 @@ function Props.window(parent, cf: CFrame, rng, boarded: boolean?)
 	-- cf: centre of the window opening on the interior face, LookVector into the room
 	local m = model(parent, "Window", cf)
 	P(m, "Glass", Vector3.new(3.8, 6, 0.1), at(cf, 0, 0, 1.6), Color3.fromRGB(60, 70, 80), M.Glass, { Transparency = 0.55, Reflectance = 0.1, CanCollide = true })
-	local frameCol = Color3.fromRGB(70, 62, 52)
-	D(m, "SillIn", Vector3.new(4, 0.25, 0.8), at(cf, 0, -3.05, -0.3), frameCol, M.Wood)
-	D(m, "MullionV", Vector3.new(0.15, 6, 0.15), at(cf, 0, 0, 1.5), frameCol, M.Wood)
-	D(m, "MullionH", Vector3.new(3.8, 0.15, 0.15), at(cf, 0, 0, 1.5), frameCol, M.Wood)
+	local frameCol = Color3.fromRGB(128, 108, 86)
+	local paint = Color3.fromRGB(196, 190, 176)
+	D(m, "SillIn", Vector3.new(4.6, 0.25, 0.8), at(cf, 0, -3.05, -0.3), frameCol, M.Wood)
+	-- apron under the stool, casing round the opening on the room face
+	D(m, "Apron", Vector3.new(4.4, 0.4, 0.12), at(cf, 0, -3.42, -0.26), frameCol, M.Wood)
+	for _, sx in { -1, 1 } do
+		D(m, "Casing", Vector3.new(0.4, 6.2, 0.12), at(cf, sx * 2.2, 0.1, -0.26), frameCol, M.Wood)
+	end
+	D(m, "CasingHead", Vector3.new(4.8, 0.45, 0.12), at(cf, 0, 3.22, -0.26), frameCol, M.Wood)
+	-- the sash: painted frame, meeting rail and glazing bars
+	for _, sx in { -1, 1 } do
+		D(m, "Stile", Vector3.new(0.22, 5.9, 0.16), at(cf, sx * 1.79, 0, 1.5), paint, M.Wood)
+	end
+	D(m, "SashTop", Vector3.new(3.6, 0.22, 0.16), at(cf, 0, 2.84, 1.5), paint, M.Wood)
+	D(m, "SashBottom", Vector3.new(3.6, 0.3, 0.16), at(cf, 0, -2.8, 1.5), paint, M.Wood)
+	D(m, "MullionV", Vector3.new(0.1, 5.5, 0.14), at(cf, 0, 0, 1.5), paint, M.Wood)
+	D(m, "MullionH", Vector3.new(3.4, 0.2, 0.15), at(cf, 0, 0, 1.5), paint, M.Wood)
+	D(m, "Latch", Vector3.new(0.3, 0.1, 0.12), at(cf, 0.45, 0.16, 1.37), C.metal, M.Metal, { MaterialVariant = "DLA_Hardware" })
 	local boards = model(m, "Boards", cf)
 	if boarded ~= false then
 		local count = rng:Int(3, 5)

@@ -33,6 +33,7 @@ TEX = {  # linear mean of the colour maps (assets/textures/*_color.png)
     ("Concrete", ""): 0.52, ("Concrete", "DLA_WetConcrete"): 0.44, ("WoodPlanks", ""): 0.35,
     ("Wood", ""): 0.44, ("Brick", ""): 0.40, ("Marble", ""): 0.67, ("Metal", ""): 0.66,
     ("Metal", "DLA_Hardware"): 0.47, ("Fabric", ""): 0.58, ("CorrodedMetal", ""): 0.11,
+    ("Marble", "DLA_MarbleTiles"): 0.371, ("Plaster", "DLA_WallpaperAged"): 0.591,
 }
 EMERGENCY_COLOR = (255, 176, 120)
 ALARM_COLOR = (255, 64, 52)

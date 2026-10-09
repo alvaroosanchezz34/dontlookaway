@@ -41,6 +41,9 @@ DEFS = {
     "paint_peeling": ("DLA_PeelingPaint", "Plaster", 8, False),
     "concrete_wet": ("DLA_WetConcrete", "Concrete", 12, False),
     "metal_bare": ("DLA_Hardware", "Metal", 3, False),
+    # Resident Evil quality pass
+    "marble_tiles": ("DLA_MarbleTiles", "Marble", 12, False),
+    "wallpaper_aged": ("DLA_WallpaperAged", "Plaster", 8, False),
 }
 
 MAPS = {"color": "ColorMap", "normal": "NormalMap", "roughness": "RoughnessMap", "metalness": "MetalnessMap"}

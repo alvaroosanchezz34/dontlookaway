@@ -29,6 +29,19 @@ AssetIds.Materials = {
 	paint_peeling = { color = 116270559871217, normal = 87421342975585, roughness = 87659593332346 },
 	concrete_wet = { color = 93950900784312, normal = 130761991482119, roughness = 136331701139032 },
 	metal_bare = { color = 87273549425457, normal = 136473853505774, roughness = 135320353577138, metalness = 89051210628311 },
+	-- Resident Evil quality pass (0 until uploaded)
+	marble_tiles = { color = 0, normal = 0, roughness = 0 },
+	wallpaper_aged = { color = 0, normal = 0, roughness = 0 },
+}
+
+-- Grime decals (assets/decals/<name>.png, RGBA). 0 = not uploaded: the map
+-- simply places none of that kind. Placed with logic by Map/Architecture.
+AssetIds.Decals = {
+	damp_rising = 0,
+	water_streak = 0,
+	grime_smudge = 0,
+	ceiling_stain = 0,
+	floor_dirt = 0,
 }
 
 -- THE OBSERVER (assets/observer/*.obj and observer_skin_*.png).

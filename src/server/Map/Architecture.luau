@@ -36,6 +36,7 @@ local Layout = require(script.Parent.Layout)
 local Build = require(script.Parent.Build)
 local GeometryValidator = require(script.Parent.GeometryValidator)
 local VisualStandards = require(ReplicatedStorage.Shared.VisualStandards)
+local AssetIds = require(ReplicatedStorage.Shared.Config.AssetIds)
 
 local Architecture = {}
 
@@ -56,6 +57,9 @@ local CONDUIT_STYLES = { basement = true, industrial = true, stairs = true }
 -- old, panelled rooms get wall sconces: warm light on the wallpaper
 local SCONCE_STYLES = { reception = true, gallery = true, archive = true, quiet = true }
 local SCONCE_COLOR = Color3.fromRGB(255, 204, 150)
+-- damp rooms (rising damp on the walls), service rooms (dirt along the walls)
+local DAMP_STYLES = { basement = true, stairs = true, restroom = true, cold = true }
+local DIRT_KINDS = { corridor = true, storage = true, maintenance = true, utility = true, dock = true, boiler = true, closets = true, stairs = true }
 
 Architecture.Stats = {}
 
@@ -77,6 +81,29 @@ local function decoCyl(parent: Instance, name: string, length: number, diameter:
 	local p = deco(parent, name, Vector3.new(length, diameter, diameter), cf, surface, color)
 	p.Shape = Enum.PartType.Cylinder
 	return p
+end
+
+-- A grime decal (assets/decals) on an invisible carrier part. Returns nil when
+-- that decal has not been uploaded (AssetIds.Decals id 0): nothing is placed.
+local function decal(parent: Instance, key: string, size: Vector3, cf: CFrame, face: EnumItem, transparency: number?): Part?
+	local ids = AssetIds.Decals or {}
+	local id = ids[key]
+	if type(id) ~= "number" or id <= 0 then
+		return nil
+	end
+	local carrier = Build.part(parent, "Decal_" .. key, size, cf, Color3.new(), M.SmoothPlastic)
+	carrier.Transparency = 1
+	carrier.CanCollide = false
+	carrier.CanQuery = false
+	carrier.CanTouch = false
+	carrier.CastShadow = false
+	local d = Instance.new("Decal")
+	d.Name = key
+	d.Texture = "rbxassetid://" .. id
+	d.Face = face
+	d.Transparency = transparency or 0
+	d.Parent = carrier
+	return carrier
 end
 
 ------------------------------------------------------------------------------------
@@ -283,9 +310,59 @@ local function doorHardware(ctx, rec)
 		local key = deco(model, "Keyhole", Vector3.new(0.06, 0.16, 0.02), closed * CFrame.new(hx, hy - 0.6, faceZ + face * (0.035 + PROUD)), "rubber", Color3.fromRGB(8, 8, 8))
 		attachToDoor(panel, key)
 		-- kick plate along the bottom of this face
-		local kick = deco(model, "KickPlate", Vector3.new(w - 0.34, 0.85, 0.03), closed * CFrame.new(0, -h / 2 + 0.52, faceZ + face * (0.015 + PROUD)), "hardware", Color3.fromRGB(132, 130, 124))
+		-- (0.7 tall: it stops below the lower panel's moulding)
+		local kick = deco(model, "KickPlate", Vector3.new(w - 0.34, 0.7, 0.03), closed * CFrame.new(0, -h / 2 + 0.45, faceZ + face * (0.015 + PROUD)), "hardware", Color3.fromRGB(132, 130, 124))
 		attachToDoor(panel, kick)
+		-- dirt where the hand pushes the door: on the lock stile, clear of the panels
+		local stileX = math.sign(hx) * (w / 2 - 0.3)
+		local smudge = decal(model, "grime_smudge", Vector3.new(0.52, 1.6, 0.02), closed * CFrame.new(stileX, hy - 0.1, faceZ + face * 0.012) * (if face > 0 then CFrame.Angles(0, math.pi, 0) else CFrame.new()), Enum.NormalId.Front, 0.35)
+		if smudge then
+			attachToDoor(panel, smudge)
+			count("DecalGrime")
+		end
 		count("DoorHardwareSet")
+	end
+end
+
+-- Wooden doors: the two flat insets become fielded panels with a bolection
+-- moulding around each, on both faces. The insets are narrowed first so the
+-- lock stile (lever, escutcheon) stays clear of the mouldings.
+local function doorMouldings(ctx, rec)
+	local model = rec.model
+	if not (model and model:IsA("Model") and model:HasTag("Door")) then
+		return
+	end
+	local panel = model.PrimaryPart
+	if not panel or panel.Material ~= M.Wood then
+		return
+	end
+	local closed = panel.CFrame
+	local t = panel.Size.Z
+	local mould = panel.Color:Lerp(Color3.new(), 0.22)
+	for _, inset in model:GetChildren() do
+		if inset:IsA("BasePart") and inset.Name == "Inset" then
+			local size = inset.Size
+			local narrow = math.max(0.8, size.X - 0.44)
+			inset.Size = Vector3.new(narrow, size.Y, size.Z)
+			local lc = closed:ToObjectSpace(inset.CFrame)
+			local cx, cy = lc.Position.X, lc.Position.Y
+			local hw, hh = narrow / 2, size.Y / 2
+			local bw = 0.12
+			for _, face in { -1, 1 } do
+				local z = face * (t / 2 + 0.035)
+				local strips = {
+					{ Vector3.new(narrow + bw * 2, bw, 0.07), CFrame.new(cx, cy + hh + bw / 2, z) },
+					{ Vector3.new(narrow + bw * 2, bw, 0.07), CFrame.new(cx, cy - hh - bw / 2, z) },
+					{ Vector3.new(bw, size.Y, 0.07), CFrame.new(cx - hw - bw / 2, cy, z) },
+					{ Vector3.new(bw, size.Y, 0.07), CFrame.new(cx + hw + bw / 2, cy, z) },
+				}
+				for _, st in strips do
+					local part = deco(model, "Moulding", st[1], closed * st[2], "agedWood", mould)
+					attachToDoor(panel, part)
+				end
+			end
+			count("DoorPanel")
+		end
 	end
 end
 
@@ -323,6 +400,10 @@ local function doorSwitches(ctx, rec)
 				if ctx.clear(plateCf, size + Vector3.new(0, 0, 0.2), 0.05) and claimWall(room, base, normal) then
 					local folder = roomFolder(ctx, room)
 					deco(folder, "SwitchPlate", size, plateCf, "plastic", Color3.fromRGB(196, 190, 172))
+					-- years of hands: a smudge around the plate
+					if decal(folder, "grime_smudge", Vector3.new(1.5, 1.7, 0.02), plateCf * CFrame.new(0, -0.05, 0.035), Enum.NormalId.Front, 0.25) then
+						count("DecalGrime")
+					end
 					deco(folder, "Switch", Vector3.new(0.12, 0.24, 0.09), plateCf * CFrame.new(0, 0, -0.06) * CFrame.Angles(math.rad(if ctx.rng:Chance(0.5) then 12 else -12), 0, 0), "plastic", Color3.fromRGB(210, 204, 188))
 					count("Switch")
 				end
@@ -406,7 +487,10 @@ local function outlets(ctx, room, segments)
 				end
 				local along = -seg.length / 2 + i * CELL * 3 - CELL * 1.5 + ctx.rng:Number(-0.8, 0.8)
 				local base = seg.cf * CFrame.new(along, 1.15, 0)
-				local cf = base * CFrame.new(0, 0, -(SKIN + PROUD + 0.025))
+				-- on frame-and-panel wainscot the outlet is mounted on the panelling
+				local style = Layout.Styles[room.style]
+				local panelled = style.lower[1] == M.Wood and style.lower[3] >= 3 and style.lower[3] <= 7
+				local cf = base * CFrame.new(0, 0, -(SKIN + PROUD + 0.025 + (if panelled then 0.085 else 0)))
 				local size = Vector3.new(0.42, 0.68, 0.05)
 				if ctx.clear(cf, size + Vector3.new(0.1, 0.1, 0.3), 0.04) and claimWall(room, base.Position, seg.normal) then
 					local folder = roomFolder(ctx, room)
@@ -456,6 +540,94 @@ local function conduit(ctx, room, segments)
 				end
 				count("ConduitRun")
 			end
+		end
+	end
+end
+
+-- Frame-and-panel wainscot on wooden dados: stiles every bay and a raised
+-- field in each bay, proud of the dado finish. Behind furniture it is skipped
+-- (hidden there anyway).
+local function wainscot(ctx, room, segments)
+	local style = Layout.Styles[room.style]
+	local lowerH = style.lower[3]
+	if style.lower[1] ~= M.Wood or lowerH < 3 or lowerH > 7 then
+		return
+	end
+	local col = style.lower[2]
+	local stileCol = col:Lerp(Color3.new(), 0.18)
+	local folder = nil
+	local y0, y1 = 0.5, lowerH - 0.08 -- between the baseboard and the dado rail
+	local fieldH = y1 - y0
+	for _, seg in segments do
+		-- the panelling stops 0.5 short of each end of the run, clear of the
+		-- door casings and the corners
+		local x0, x1 = -seg.length / 2 + 0.5, seg.length / 2 - 0.5
+		local span = x1 - x0
+		if span >= 1.6 then
+			local bays = math.max(1, math.floor(span / 3.2 + 0.5))
+			local bayW = span / bays
+			for i = 0, bays do
+				local cf = seg.cf * CFrame.new(x0 + i * bayW, y0 + fieldH / 2, -(SKIN + 0.04))
+				local size = Vector3.new(0.3, fieldH, 0.08)
+				if ctx.clear(cf, size, 0.01) then
+					folder = folder or roomFolder(ctx, room)
+					deco(folder, "Stile", size, cf, "agedWood", stileCol)
+				end
+			end
+			for i = 0, bays - 1 do
+				local cf = seg.cf * CFrame.new(x0 + (i + 0.5) * bayW, y0 + fieldH / 2, -(SKIN + 0.025))
+				local size = Vector3.new(bayW - 0.7, fieldH - 0.6, 0.05)
+				if size.X > 0.6 and size.Y > 0.6 and ctx.clear(cf, size, 0.01) then
+					folder = folder or roomFolder(ctx, room)
+					deco(folder, "RaisedPanel", size, cf, "agedWood", col:Lerp(Color3.new(1, 1, 1), 0.04))
+					count("WainscotPanel")
+				end
+			end
+		end
+	end
+end
+
+-- Damp, water and dirt where they happen (decals; none until uploaded).
+local function wallDecals(ctx, room, segments)
+	local folder = nil
+	if DAMP_STYLES[room.style] then
+		for _, seg in segments do
+			if seg.length >= CELL * 2 and ctx.rng:Chance(0.55) then
+				local w = math.min(seg.length - 1, ctx.rng:Number(6, 12))
+				local along = ctx.rng:Number(-(seg.length - w) / 2, (seg.length - w) / 2)
+				local hgt = ctx.rng:Number(2.4, 3.6)
+				local cf = seg.cf * CFrame.new(along, hgt / 2, -(SKIN + PROUD))
+				folder = folder or roomFolder(ctx, room)
+				if decal(folder, "damp_rising", Vector3.new(w, hgt, 0.02), cf, Enum.NormalId.Front, 0.1) then
+					count("DecalDamp")
+				end
+			end
+		end
+	end
+	if DIRT_KINDS[room.kind] then
+		for _, seg in segments do
+			if seg.length >= CELL * 2 then
+				-- a symmetric band centred on the foot of the wall: the half under
+				-- the wall is hidden, the visible half fades out into the room
+				local w = seg.length - 0.6
+				local cf = seg.cf * CFrame.new(0, 0.07, 0)
+				folder = folder or roomFolder(ctx, room)
+				if decal(folder, "floor_dirt", Vector3.new(w, 0.02, 3.2), cf, Enum.NormalId.Top, 0.15) then
+					count("DecalDirt")
+				end
+			end
+		end
+	end
+	-- rain runs down under every window
+	for _, win in room.windows do
+		-- the window pivot is the centre of the opening on the room face
+		local cf = win:GetPivot()
+		local hgt = Layout.WindowSill - 0.6
+		local centreY = 0.3 + hgt / 2 - (Layout.WindowSill + Layout.WindowTop) / 2
+		local spot = cf * CFrame.new(ctx.rng:Number(-0.6, 0.6), centreY, -(SKIN + PROUD))
+		folder = folder or roomFolder(ctx, room)
+		if decal(folder, "water_streak", Vector3.new(2.4, hgt, 0.02), spot, Enum.NormalId.Front, 0.15) then
+			count("DecalStreak")
 		end
 	end
 end
@@ -580,13 +752,19 @@ local function ceilingDetail(ctx, room)
 			end
 			if free(pos, 2.6) and ctx.clear(under(pos, 0.05), Vector3.new(3.4, 0.1, 3.4), 0.02) then
 				local cf = under(pos, 0)
+				-- the ring-stain decal when uploaded, otherwise overlapping translucent discs
+				local useDecal = decal(folder, "ceiling_stain", Vector3.new(3.4, 0.02, 3.4), cf * CFrame.new(0, -PROUD, 0) * CFrame.Angles(0, ctx.rng:Number(0, math.pi), 0), Enum.NormalId.Bottom, 0.1) ~= nil
 				for k = 1, ctx.rng:Int(2, 3) do
 					local dia = ctx.rng:Number(1.1, 2.4)
 					local o = ctx.rng:Number(0, 1.5 - dia / 2)
 					local a = ctx.rng:Number(0, math.pi * 2)
-					local stain = deco(folder, "CeilingStain", Vector3.new(0.02, dia, dia * ctx.rng:Number(0.7, 1)), cf * CFrame.new(math.cos(a) * o, -PROUD - k * 0.016, math.sin(a) * o) * CFrame.Angles(0, ctx.rng:Number(0, math.pi), math.rad(90)), "grime", Color3.fromRGB(96, 76, 50))
-					stain.Shape = Enum.PartType.Cylinder
-					stain.Transparency = 0.62
+					local spin = ctx.rng:Number(0, math.pi)
+					local squash = ctx.rng:Number(0.7, 1)
+					if not useDecal then
+						local stain = deco(folder, "CeilingStain", Vector3.new(0.02, dia, dia * squash), cf * CFrame.new(math.cos(a) * o, -PROUD - k * 0.016, math.sin(a) * o) * CFrame.Angles(0, spin, math.rad(90)), "grime", Color3.fromRGB(96, 76, 50))
+						stain.Shape = Enum.PartType.Cylinder
+						stain.Transparency = 0.62
+					end
 				end
 				table.insert(taken, pos)
 				stains -= 1
@@ -653,14 +831,17 @@ function Architecture.dress(map, rng)
 		return a.id < b.id
 	end)
 	for _, rec in doors do
+		doorMouldings(ctx, rec)
 		doorHardware(ctx, rec)
 		doorSwitches(ctx, rec)
 	end
 	for _, room in sortedRooms(map) do
 		if not NO_DETAIL[room.kind] then
 			local segments = wallRuns(room)
+			wainscot(ctx, room, segments)
 			sconces(ctx, room, segments)
 			outlets(ctx, room, segments)
+			wallDecals(ctx, room, segments)
 			conduit(ctx, room, segments)
 			ceilingDetail(ctx, room)
 		end

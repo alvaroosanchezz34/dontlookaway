@@ -146,10 +146,12 @@ Layout.Styles = {
 		lightColor = Color3.fromRGB(226, 232, 220),
 	},
 	reception = {
-		floor = { Enum.Material.Marble, Color3.fromRGB(158, 170, 162) },
+		-- checkerboard marble tiles (DLA_MarbleTiles); colour for 24 per cent albedo on that map
+		floor = { Enum.Material.Marble, Color3.fromRGB(199, 214, 204) },
+		floorVariant = "DLA_MarbleTiles", -- MaterialLibrary.MarbleTiles
 		lower = { Enum.Material.Wood, Color3.fromRGB(152, 114, 88), 5 },
 		upper = { Enum.Material.Plaster, Color3.fromRGB(218, 201, 174) },
-		upperVariant = "DLA_Wallpaper", -- MaterialLibrary.Wallpaper
+		upperVariant = "DLA_WallpaperAged", -- MaterialLibrary.WallpaperAged
 		ceiling = { Enum.Material.Plaster, Color3.fromRGB(229, 219, 201) },
 		light = "pendant",
 		lightColor = Color3.fromRGB(255, 220, 178),
@@ -194,7 +196,7 @@ Layout.Styles = {
 		floor = { Enum.Material.WoodPlanks, Color3.fromRGB(203, 162, 126) },
 		lower = { Enum.Material.Wood, Color3.fromRGB(140, 108, 86), 4 },
 		upper = { Enum.Material.Plaster, Color3.fromRGB(197, 180, 155) },
-		upperVariant = "DLA_Wallpaper", -- MaterialLibrary.Wallpaper
+		upperVariant = "DLA_WallpaperAged", -- MaterialLibrary.WallpaperAged
 		ceiling = { Enum.Material.Plaster, Color3.fromRGB(206, 197, 184) },
 		light = "bulb",
 		lightColor = Color3.fromRGB(255, 210, 160),

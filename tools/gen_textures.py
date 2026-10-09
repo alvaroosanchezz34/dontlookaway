@@ -547,7 +547,90 @@ def fabric_worn(n):
 V2 = (wood_aged, paint_peeling, concrete_wet, metal_rusted, metal_bare, fabric_worn)
 
 
-ALL = (plaster_aged, wallpaper_damask, carpet_worn, tiles_worn, ceiling_tile, concrete_grimy, wood_planks_worn, brick_grimy, marble_stained, metal_worn) + V2
+# --- Resident Evil quality pass -------------------------------------------
+
+def marble_tiles(n):
+    """Old checkerboard marble floor, 4 x 4 tiles per texture tile (two stones
+    alternating): every tile its own tone and vein direction, soft polish
+    wear, bevelled grout joints. No drawn cracks: a single hairline at most."""
+    x, y = grid(n)
+    k = 4
+    ix = np.floor(x * k).astype(int)
+    iy = np.floor(y * k).astype(int)
+    fx = (x * k) % 1.0
+    fy = (y * k) % 1.0
+    rng = np.random.default_rng(301)
+    checker = ((ix + iy) % 2).astype(float)
+    tone = rng.uniform(0.9, 1.06, size=(k, k))[iy % k, ix % k]
+    angle = rng.uniform(0, np.pi, size=(k, k))[iy % k, ix % k]
+    # veins: the classic marble construction, sin(direction . p + turbulence),
+    # sharpened into thin, long, roughly parallel veins, one direction per tile
+    turb = spectral(n, 1.7, 302) * 0.7 + spectral(n, 2.4, 303) * 0.3
+    phase = (x * np.cos(angle) + y * np.sin(angle)) * 7.0 + turb * 4.5
+    veins = (1 - np.abs(np.sin(np.pi * phase))) ** 14
+    veins += 0.5 * (1 - np.abs(np.sin(np.pi * (phase * 2.3 + 0.37)))) ** 30
+    veins *= smoothstep(0.25, 0.7, spectral(n, 2.2, 304))
+    veins = np.clip(veins, 0, 1)
+    cloud = spectral(n, 2.4, 305)
+    edge = np.minimum(np.minimum(fx, 1 - fx), np.minimum(fy, 1 - fy))
+    joint = 1 - smoothstep(0.004, 0.012, edge)
+    bevel = 1 - smoothstep(0.012, 0.03, edge)
+    wear = smoothstep(0.5, 0.85, spectral(n, 2.8, 306))
+    light_stone = rgb(236, 232, 222)
+    dark_stone = rgb(104, 110, 104)  # dark green-grey serpentine
+    base = mix(light_stone * np.ones((n, n, 1)), dark_stone * np.ones((n, n, 1)), checker)
+    col = base * (tone * (0.93 + 0.07 * cloud))[..., None]
+    vein_col = mix(rgb(150, 146, 136) * np.ones((n, n, 1)), rgb(196, 192, 182) * np.ones((n, n, 1)), checker)
+    col = mix(col, vein_col, veins * 0.45)
+    col = mix(col, rgb(84, 80, 72), joint * 0.85)
+    col *= (1 - 0.06 * wear)[..., None]
+    h = 0.8 - bevel * 0.4 - joint * 0.5
+    rough = 0.18 + 0.32 * wear + 0.5 * joint + 0.05 * cloud
+    save("marble_tiles", col, h, np.clip(rough, 0, 1), 2.0)
+
+
+def wallpaper_aged(n):
+    """Aged wallpaper with a large repeat: 4 roll strips per tile, each its own
+    batch tone, lifting seams, a quiet pin-stripe + small motif, sun fading
+    and a few tea-coloured stains. Low contrast so the repeat does not read."""
+    x, y = grid(n)
+    strips = 4
+    si = np.floor(x * strips).astype(int)
+    sx = (x * strips) % 1.0
+    rng = np.random.default_rng(311)
+    batch = rng.uniform(0.95, 1.04, size=strips)[si]
+    # pin stripes: pairs of thin lines, 6 per strip
+    st = (sx * 6) % 1.0
+    pins = np.exp(-((st - 0.08) / 0.012) ** 2) + np.exp(-((st - 0.16) / 0.012) ** 2)
+    # small motif between stripe pairs, staggered every other row
+    my = (y * 16 + (np.floor(sx * 6) % 2) * 0.5) % 1.0
+    mx = (st - 0.58) / 0.12
+    motif = np.exp(-(mx ** 2 + ((my - 0.5) / 0.09) ** 2) * 2.2) * (1 - np.exp(-(mx ** 2 + ((my - 0.5) / 0.05) ** 2) * 8) * 0.6)
+    seam = np.exp(-(np.minimum(sx, 1 - sx) / 0.006) ** 2)
+    lift = np.exp(-(np.minimum(sx, 1 - sx) / 0.02) ** 2) * smoothstep(0.6, 0.9, spectral(n, 2.4, 312, stretch=(1.0, 0.3)))
+    fade = spectral(n, 3.0, 313)
+    # a couple of large, soft water stains (no hard outlines)
+    blot = band(n, 1, 3, 314) * 0.7 + spectral(n, 2.6, 316) * 0.3
+    stain_in = smoothstep(0.8, 0.92, blot)
+    stain_rim = np.exp(-((blot - 0.81) / 0.02) ** 2) * 0.4
+    grain = spectral(n, 0.8, 315)
+    base = rgb(228, 216, 190) * np.ones((n, n, 1))
+    col = base * (batch * (0.95 + 0.06 * fade) * (0.97 + 0.03 * grain))[..., None]
+    col = mix(col, rgb(170, 150, 120), np.clip(pins, 0, 1) * 0.28)
+    col = mix(col, rgb(160, 138, 108), np.clip(motif, 0, 1) * 0.3)
+    col = mix(col, rgb(150, 136, 112), seam * 0.5)
+    col = mix(col, rgb(240, 232, 212), lift * 0.25)
+    col = mix(col, rgb(204, 182, 136), stain_in * 0.18)
+    col = mix(col, rgb(170, 140, 96), stain_rim * 0.14)
+    h = 0.5 + 0.1 * grain - seam * 0.4 + lift * 0.3 + motif * 0.05
+    rough = 0.86 - 0.05 * motif + 0.06 * grain
+    save("wallpaper_aged", col, h, rough, 1.4)
+
+
+RE = (marble_tiles, wallpaper_aged)
+
+
+ALL = (plaster_aged, wallpaper_damask, carpet_worn, tiles_worn, ceiling_tile, concrete_grimy, wood_planks_worn, brick_grimy, marble_stained, metal_worn) + V2 + RE
 
 
 def main():

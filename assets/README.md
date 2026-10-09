@@ -26,6 +26,9 @@ con los materiales de Roblox y el Observer de piezas.
 | `textures/paint_peeling` *(V2)* | pintura que se levanta sobre yeso húmedo, moho | paredes del sótano y escaleras (`DLA_PeelingPaint`) |
 | `textures/concrete_wet` *(V2)* | losa húmeda con charcos y salitre | suelos del sótano y zonas industriales (`DLA_WetConcrete`) |
 | `textures/metal_bare` *(V2)* | acero cepillado / latón gastado | bisagras, manillas, placas, aspersores (`DLA_Hardware`) |
+| `textures/marble_tiles` *(pendiente de subir)* | baldosa de mármol en damero, juntas biseladas, vetas finas | suelo de recepción y vestíbulo (`DLA_MarbleTiles`) |
+| `textures/wallpaper_aged` *(pendiente de subir)* | papel pintado envejecido de rapport grande, juntas de rollo | paredes de recepción y archivo (`DLA_WallpaperAged`) |
+| `decals/*.png` *(pendientes de subir)* | 5 calcomanías RGBA: humedad, churretes, mugre, mancha de techo, suciedad de suelo | colocadas con lógica por `Map/Architecture` |
 | `observer/*.obj` | 12 mallas del Observer | el Observer y sus cinemáticas |
 | `observer/observer_skin_*` | piel PBR (color, relieve, rugosidad) | el Observer |
 | `audio/dla_ambience.ogg` | 23 ambientes en bucle (zumbidos, lluvia, viento, ventilación, alarma, respiración del Observer, música de tensión) | todo el edificio |
@@ -35,6 +38,15 @@ con los materiales de Roblox y el Observer de piezas.
 Cada textura tiene `_color`, `_normal` y `_roughness` (y `metal_worn`, `metal_rusted` y `metal_bare` además `_metalness`).
 
 Las 6 texturas V2 (Visual Overhaul V2) están subidas y conectadas (`AssetIds.Materials`).
+
+**Pendientes de subir (pase de calidad Resident Evil):** 6 imágenes de textura
+(`marble_tiles` y `wallpaper_aged`: color, normal, roughness) y 5 calcomanías
+(`assets/decals/`: `damp_rising`, `water_streak`, `grime_smudge`, `ceiling_stain`,
+`floor_dirt`). Mientras su ID sea `0`:
+- el suelo de recepción y su papel pintado usan el material base de Roblox;
+- no se coloca ninguna calcomanía (el mapa funciona igual).
+Las calcomanías se suben igual que las imágenes (Bulk Import) y su ID va en
+`AssetIds.Decals`. No hace falta `sync_assets.py` para ellas; para las 2 texturas, sí.
 
 ## Cómo subirlo (una vez)
 
@@ -86,6 +98,7 @@ Si solo subes una parte, se usa esa parte y el resto sigue como antes.
 ```bash
 python3 tools/gen_textures.py 1024   # texturas (numpy + Pillow)
 python3 tools/gen_textures.py 1024 wood_aged metal_bare   # solo algunas
+python3 tools/gen_decals.py          # calcomanías (assets/decals)
 python3 tools/gen_observer.py        # mallas, piel y src/shared/Config/ObserverMeshMeta.luau
 python3 tools/gen_audio.py           # audio (numpy + ffmpeg) y src/shared/Config/AudioSheets.luau
 ```

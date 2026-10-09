@@ -15,6 +15,8 @@
 	      DLA_PeelingPaint  failing paint: basement, closets, industrial rooms
 	      DLA_WetConcrete   damp slabs: basement corridor, boiler, cold storage
 	      DLA_Hardware      bare steel / brass: hinges, handles, plates, rails
+	      DLA_MarbleTiles   checkerboard marble floor: reception, vestibule
+	      DLA_WallpaperAged large-repeat aged wallpaper: reception, archive
 	  * Visual Overhaul V2 adds three replacements: aged wood (doors, trims,
 	    furniture), worn fabric (upholstery, boards) and rust (pipes, valves).
 	    A texture whose id is 0 (Config/AssetIds) is simply not used and its
@@ -33,6 +35,8 @@ MaterialLibrary.CeilingTile = "DLA_CeilingTile"
 MaterialLibrary.PeelingPaint = "DLA_PeelingPaint"
 MaterialLibrary.WetConcrete = "DLA_WetConcrete"
 MaterialLibrary.Hardware = "DLA_Hardware"
+MaterialLibrary.MarbleTiles = "DLA_MarbleTiles"
+MaterialLibrary.WallpaperAged = "DLA_WallpaperAged"
 
 -- Built-in material (by name) -> custom variant that replaces it.
 local REPLACES = {

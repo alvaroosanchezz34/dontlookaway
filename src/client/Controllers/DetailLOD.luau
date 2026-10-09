@@ -17,7 +17,8 @@ local Registry = require(script.Parent.Parent.Registry)
 
 local DetailLOD = {}
 
-type Group = { folder: Instance, parts: { BasePart }, hidden: boolean }
+-- parts and decals (a decal does not follow its carrier part's modifier)
+type Group = { folder: Instance, parts: { Instance }, hidden: boolean }
 
 local groups: { [Instance]: Group } = {}
 
@@ -26,7 +27,7 @@ local function setHidden(g: Group, hidden: boolean)
 	local value = if hidden then 1 else 0
 	for _, p in g.parts do
 		pcall(function()
-			p.LocalTransparencyModifier = value
+			(p :: any).LocalTransparencyModifier = value
 		end)
 	end
 end
@@ -37,17 +38,17 @@ local function register(folder: Instance)
 	end
 	local g: Group = { folder = folder, parts = {}, hidden = false }
 	for _, d in folder:GetDescendants() do
-		if d:IsA("BasePart") then
+		if d:IsA("BasePart") or d:IsA("Decal") then
 			table.insert(g.parts, d)
 		end
 	end
 	-- streamed in later
 	folder.DescendantAdded:Connect(function(d)
-		if d:IsA("BasePart") then
+		if d:IsA("BasePart") or d:IsA("Decal") then
 			table.insert(g.parts, d)
 			if g.hidden then
 				pcall(function()
-					d.LocalTransparencyModifier = 1
+					(d :: any).LocalTransparencyModifier = 1
 				end)
 			end
 		end

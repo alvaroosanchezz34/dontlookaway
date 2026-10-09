@@ -894,6 +894,9 @@ function KINDS.breakroom(ctx)
 	ctx:placeAgainstWall(Props.fridge, 2.4, false, 1, nil, true)
 	ctx:placeAgainstWall(Props.vendingMachine, 2.6, false, 1, nil, true)
 	ctx:placeAgainstWall(Props.sofa, 2.6, true, 1)
+	-- by the way in: somewhere to leave a coat and an umbrella
+	ctx:placeAgainstWall(Props.coatStand, 1.3, false, 1)
+	ctx:placeAgainstWall(Props.umbrellaStand, 1.1, false, 1)
 	ctx:placeCenter(function(f, cf, r)
 		local t = Props.roundTable(f, cf, r)
 		for i = 0, r:Int(1, 3) do

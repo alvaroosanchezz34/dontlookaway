@@ -285,6 +285,97 @@ do
 	check(n1 == n2 and s1 == s2, string.format("architecture deterministic (%d/%d parts, %d/%d)", n1, n2, s1, s2))
 end
 
+section("resident evil quality pass")
+do
+	local RS = game:GetService("ReplicatedStorage")
+	local AssetIds = requireModule(RS.Shared.Config.AssetIds)
+	local LightingService = requireModule(Server.Services.LightingService)
+	-- lighting profiles: NORMAL is the reference; old names still resolve
+	for _, name in { "NORMAL", "EMERGENCY", "BLACKOUT", "CINEMATIC" } do
+		check(LightingService.Presets[name] ~= nil, "lighting profile " .. name)
+	end
+	check(LightingService.Aliases.POWERED == "NORMAL" and LightingService.Aliases.DARK == "EMERGENCY", "old preset names alias the new profiles")
+	local normal, blackout = LightingService.Presets.NORMAL, LightingService.Presets.BLACKOUT
+	check(normal.cc.Contrast <= 0.08, "NORMAL grade keeps the shadows (contrast " .. normal.cc.Contrast .. ")")
+	check(normal.Ambient.R > blackout.Ambient.R and normal.ExposureCompensation ~= blackout.ExposureCompensation, "blackout differs from normal")
+	-- surfaces have real albedo: colour (linear) x texture mean of the main surfaces
+	local Layout = requireModule(Server.Map.Layout)
+	local function lin(c: number): number
+		return if c <= 0.04045 then c / 12.92 else ((c + 0.055) / 1.055) ^ 2.4
+	end
+	for name, style in Layout.Styles do
+		if name ~= "secret" then
+			local c = style.ceiling[2]
+			local y = 0.2126 * lin(c.R) + 0.7152 * lin(c.G) + 0.0722 * lin(c.B)
+			check(y > 0.18, string.format("%s ceiling is not near-black (linear %.2f)", name, y))
+		end
+	end
+
+	-- decals: with ids set they are placed with logic, with 0 none are
+	local saved = table.clone(AssetIds.Decals)
+	for k in AssetIds.Decals do
+		AssetIds.Decals[k] = 1
+	end
+	local holder = Instance.new("Folder")
+	holder.Parent = workspace
+	local map = MapBuilder.build(4242, holder)
+	local kinds = {}
+	for _, d in map.Root:GetDescendants() do
+		if d:IsA("Decal") then
+			kinds[d.Name] = (kinds[d.Name] or 0) + 1
+			local carrier = d.Parent :: BasePart
+			check(carrier.Transparency == 1 and not carrier.CanCollide and not carrier.CanQuery and not carrier.CanTouch, "decal carrier is invisible decoration")
+		end
+	end
+	for _, k in { "damp_rising", "water_streak", "grime_smudge", "ceiling_stain", "floor_dirt" } do
+		check((kinds[k] or 0) > 0, string.format("decal %s placed (%d)", k, kinds[k] or 0))
+	end
+	-- reception renovation
+	local rec = map.Rooms.G_r
+	local desk, plate = nil, nil
+	for _, p in rec.props do
+		if p.Name == "ReceptionDesk" then
+			desk = p
+		end
+	end
+	check(desk ~= nil, "reception desk")
+	plate = desk and desk:FindFirstChild("NamePlate")
+	check(plate ~= nil and desk:FindFirstChild("CounterNose") ~= nil and desk:FindFirstChild("Stile") ~= nil, "desk has panels, nose and name plate")
+	local panels, sconces = 0, 0
+	local detail = map.Root.Detail:FindFirstChild("G_r")
+	for _, d in (if detail then detail:GetDescendants() else {}) do
+		if d.Name == "RaisedPanel" then
+			panels += 1
+		elseif d:IsA("Model") and d:GetAttribute("Room") == "G_r" and d:HasTag("Fixture") then
+			sconces += 1
+		end
+	end
+	check(panels >= 20, "reception wainscot panels (" .. panels .. ")")
+	check(sconces >= 2, "reception wall sconces (" .. sconces .. ")")
+	local dead = 0
+	for _, f in rec.fixtures do
+		if f:GetAttribute("Mode") == "dead" then
+			dead += 1
+		end
+	end
+	check(dead == 0, "no dead lamp in the reception")
+	holder:Destroy()
+	for k, v in saved do
+		AssetIds.Decals[k] = v
+	end
+	local holder2 = Instance.new("Folder")
+	holder2.Parent = workspace
+	local plain = MapBuilder.build(4242, holder2)
+	local n = 0
+	for _, d in plain.Root:GetDescendants() do
+		if d:IsA("Decal") and string.sub(d.Parent.Name, 1, 6) == "Decal_" then
+			n += 1
+		end
+	end
+	check(n == 0, "no decal placed while not uploaded (" .. n .. ")")
+	holder2:Destroy()
+end
+
 ------------------------------------------------------------------------------------
 -- 3. Objective planning is always solvable
 ------------------------------------------------------------------------------------
@@ -302,7 +393,8 @@ do
 	-- Visual Overhaul V2 textures are generated in the repo and wait for upload
 	-- (0 ids): until then their parts render the built-in material.
 	local fs = require("@lune/fs")
-	local PENDING = { wood_aged = true, fabric_worn = true, metal_rusted = true, paint_peeling = true, concrete_wet = true, metal_bare = true }
+	-- textures generated in the repo that wait for their upload (0 ids)
+	local PENDING = { marble_tiles = true, wallpaper_aged = true }
 	local uploaded = 0
 	for key, entry in AssetIds.Materials do
 		if entry.color > 0 then
@@ -321,7 +413,7 @@ do
 		local src = if fs.isFile(file) then fs.readFile(file) else ""
 		check(string.find(src, "ColorMap", 1, true) ~= nil and string.find(src, "NormalMap", 1, true) ~= nil and string.find(src, "RoughnessMap", 1, true) ~= nil, "V2 variant with its maps: " .. name)
 	end
-	for key in PENDING do
+	for _, key in { "wood_aged", "fabric_worn", "metal_rusted", "paint_peeling", "concrete_wet", "metal_bare", "marble_tiles", "wallpaper_aged" } do
 		for _, map in { "color", "normal", "roughness" } do
 			check(fs.isFile(string.format("assets/textures/%s/%s_%s.png", key, key, map)), string.format("generated %s %s map", key, map))
 		end
