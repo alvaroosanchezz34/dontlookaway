@@ -14,6 +14,7 @@ local Build = require(script.Parent.Build)
 local Props = require(script.Parent.Props)
 local VisualStandards = require(ReplicatedStorage.Shared.VisualStandards)
 local MaterialLibrary = require(ReplicatedStorage.Shared.MaterialLibrary)
+local PropMeshes = require(ReplicatedStorage.Shared.PropMeshes)
 local Furnisher = require(script.Parent.Furnisher)
 local Architecture = require(script.Parent.Architecture)
 local SeededRandom = require(ReplicatedStorage.Shared.Util.SeededRandom)
@@ -394,6 +395,12 @@ local function buildSkins(map, floor, folder, rng, capCells)
 				end
 				local p = Build.part(folder, name or "Skin", Vector3.new(len + extra, y1 - y0, t), cfBase * CFrame.new(0, (y0 + y1) / 2, -t / 2 - (if trim then 0.015 else 0)), col, mat)
 				p.CastShadow = false
+				-- mouldings: the Blender profile meshes (skirting, dado rail,
+				-- cornice) dress the run when loaded, back on the wall, at its foot
+				local runMesh = if name == "Baseboard" then "Baseboard" elseif name == "Rail" then "DadoRail" elseif name == "Cornice" then "Cornice" else nil
+				if runMesh then
+					PropMeshes.markRun(p, runMesh, p.CFrame * CFrame.new(0, -(y1 - y0) / 2, t / 2), len + extra)
+				end
 				-- upper wall finish (above the wainscot): wallpaper in the styles that use it
 				if not name and style.upperVariant and y0 >= lowerH - 0.01 then
 					p.MaterialVariant = style.upperVariant
@@ -472,13 +479,18 @@ local function makeDoorModel(map, floor, folder, x: number, z: number, ch: strin
 	local trim = TRIM_COLOR
 	for _, s in { -1, 1 } do
 		Build.part(folder, "Jamb", Vector3.new(0.3, DH, CELL), frameCF * CFrame.new(s * (CELL / 2 - 0.15), DH / 2, 0), trim, M.Wood, { CanCollide = true })
-		for _, face in { -1, 1 } do
-			Build.detail(folder, "Casing", Vector3.new(0.45, DH + 0.4, 0.3), frameCF * CFrame.new(s * (CELL / 2 + 0.1), (DH + 0.4) / 2, face * (CELL / 2 + 0.12)), trim, M.Wood)
-		end
 	end
 	Build.part(folder, "Head", Vector3.new(CELL, 0.3, CELL), frameCF * CFrame.new(0, DH - 0.15, 0), trim, M.Wood)
+	-- the surround on each face (legs + head casing); the DoorCasing mesh
+	-- (moulded legs, corner blocks with rosettes) dresses it when loaded
 	for _, face in { -1, 1 } do
-		Build.detail(folder, "Casing", Vector3.new(CELL + 0.6, 0.45, 0.3), frameCF * CFrame.new(0, DH + 0.2, face * (CELL / 2 + 0.12)), trim, M.Wood)
+		local surround = Build.model(folder, "Surround")
+		for _, s in { -1, 1 } do
+			Build.detail(surround, "Casing", Vector3.new(0.45, DH + 0.4, 0.3), frameCF * CFrame.new(s * (CELL / 2 + 0.1), (DH + 0.4) / 2, face * (CELL / 2 + 0.12)), trim, M.Wood)
+		end
+		Build.detail(surround, "Casing", Vector3.new(CELL + 0.6, 0.45, 0.3), frameCF * CFrame.new(0, DH + 0.2, face * (CELL / 2 + 0.12)), trim, M.Wood)
+		local origin = frameCF * CFrame.new(0, 0, face * CELL / 2) * (if face > 0 then CFrame.Angles(0, math.pi, 0) else CFrame.new())
+		PropMeshes.mark(surround, "DoorCasing", origin, { Casing = true })
 	end
 	Build.detail(folder, "Threshold", Vector3.new(CELL - 0.6, 0.08, CELL), frameCF * CFrame.new(0, 0.04, 0), Color3.fromRGB(70, 56, 42), M.Wood)
 
@@ -775,6 +787,8 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 		Build.cylinder(fixture, "Shade", 0.34, 2.1, CFrame.new(O + Vector3.new(0, -3.55, 0)) * up, enamel, M.Metal, { CanCollide = false, CastShadow = false, CanQuery = false })
 		Build.cylinder(fixture, "Reflector", 0.03, 1.96, CFrame.new(O + Vector3.new(0, -3.74, 0)) * up, Color3.fromRGB(232, 228, 214), M.SmoothPlastic, { CanCollide = false, CastShadow = false, CanQuery = false })
 		lampPart = Build.ball(fixture, "Bulb", 0.5, CFrame.new(O + Vector3.new(0, -3.92, 0)), color, M.Neon, { CanCollide = false, CastShadow = false, CanQuery = false })
+		-- the lathed PendantLamp mesh replaces everything but the glowing bulb
+		PropMeshes.mark(fixture, "PendantLamp", CFrame.new(O), { Canopy = true, Cord = true, CordGrip = true, ShadeTop = true, ShadeNeck = true, Shade = true, Reflector = true })
 	elseif styleName == "cage" then
 		Build.detail(fixture, "Mount", Vector3.new(0.8, 0.4, 0.8), CFrame.new(O + Vector3.new(0, -0.2, 0)), Props.Colors.metalDark, M.Metal)
 		Build.detail(fixture, "Cage", Vector3.new(0.9, 0.9, 0.9), CFrame.new(O + Vector3.new(0, -0.85, 0)), Props.Colors.metalDark, M.DiamondPlate, { Transparency = 0.5 })
@@ -791,6 +805,7 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 		Build.cylinder(fixture, "Cup", 0.12, 0.3, wall * CFrame.new(0, 0.34, -0.68) * CFrame.Angles(0, 0, math.rad(90)), brass, M.Metal, flat)
 		Build.cylinder(fixture, "Tulip", 0.6, 0.62, wall * CFrame.new(0, 0.7, -0.68) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(240, 226, 200), M.Glass, { CanCollide = false, CastShadow = false, CanQuery = false, Transparency = 0.25 })
 		lampPart = Build.ball(fixture, "Bulb", 0.3, wall * CFrame.new(0, 0.62, -0.68), color, M.Neon, { CanCollide = false, CastShadow = false, CanQuery = false })
+		PropMeshes.mark(fixture, "WallSconce", wall, { BackPlate = true, Arm = true, Elbow = true, Cup = true })
 		-- pure decoration, like the rest of the wall detail
 		for _, d in fixture:GetDescendants() do
 			if d:IsA("BasePart") then

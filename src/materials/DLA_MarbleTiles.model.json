@@ -2,7 +2,7 @@
   "ClassName": "MaterialVariant",
   "Properties": {
     "BaseMaterial": "Marble",
-    "StudsPerTile": 12,
+    "StudsPerTile": 6,
     "ColorMap": "rbxassetid://102713667505903",
     "NormalMap": "rbxassetid://114206299565786",
     "RoughnessMap": "rbxassetid://80738122032377"

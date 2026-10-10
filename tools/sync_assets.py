@@ -5,6 +5,7 @@ so Rojo places them in the game instead:
 
     src/materials/<Variant>.model.json     -> MaterialService (one per texture)
     src/shared/ObserverSkin.model.json     -> ReplicatedStorage.Shared.ObserverSkin
+    src/shared/PropSkins/<Prop>.model.json -> ReplicatedStorage.Shared.PropSkins (hero prop meshes)
     default.project.json                   -> MaterialService base-material overrides
 
 Source of truth: src/shared/Config/AssetIds.luau. Run after changing any id:
@@ -20,6 +21,7 @@ ROOT = os.path.join(os.path.dirname(__file__), "..")
 IDS = os.path.join(ROOT, "src", "shared", "Config", "AssetIds.luau")
 MATERIALS = os.path.join(ROOT, "src", "materials")
 SKIN = os.path.join(ROOT, "src", "shared", "ObserverSkin.model.json")
+PROP_SKINS = os.path.join(ROOT, "src", "shared", "PropSkins")
 PROJECT = os.path.join(ROOT, "default.project.json")
 
 # texture key -> (variant name, base material, studs per tile, overrides the base material?)
@@ -42,7 +44,7 @@ DEFS = {
     "concrete_wet": ("DLA_WetConcrete", "Concrete", 12, False),
     "metal_bare": ("DLA_Hardware", "Metal", 3, False),
     # Resident Evil quality pass
-    "marble_tiles": ("DLA_MarbleTiles", "Marble", 12, False),
+    "marble_tiles": ("DLA_MarbleTiles", "Marble", 6, False),  # 1.5-stud tiles (~55 cm at character scale)
     "wallpaper_aged": ("DLA_WallpaperAged", "Plaster", 8, False),
 }
 
@@ -95,6 +97,24 @@ def main():
     elif os.path.exists(SKIN):
         os.remove(SKIN)
 
+    # hero prop meshes: one SurfaceAppearance per mesh with its baked maps
+    os.makedirs(PROP_SKINS, exist_ok=True)
+    for f in os.listdir(PROP_SKINS):
+        if f.endswith(".model.json"):
+            os.remove(os.path.join(PROP_SKINS, f))
+    open(os.path.join(PROP_SKINS, ".gitkeep"), "w").close()
+    props_block = re.search(r"AssetIds\.PropMeshes\s*=\s*\{(.*?)\n\}", src, re.S)
+    prop_skins = 0
+    if props_block:
+        for name, body in re.findall(r"\t(\w+)\s*=\s*\{([^}]*)\}", props_block.group(1)):
+            ids = {k: int(v) for k, v in re.findall(r"(\w+)\s*=\s*(\d+)", body)}
+            if ids.get("color", 0) > 0:
+                props = {MAPS[k]: url(v) for k, v in ids.items() if k in MAPS and v > 0}
+                with open(os.path.join(PROP_SKINS, name + ".model.json"), "w", encoding="utf-8") as fh:
+                    json.dump({"ClassName": "SurfaceAppearance", "Properties": props}, fh, indent=2)
+                    fh.write("\n")
+                prop_skins += 1
+
     project = json.load(open(PROJECT, encoding="utf-8"))
     ms = project["tree"].setdefault("MaterialService", {"$className": "MaterialService"})
     ms["$path"] = "src/materials"
@@ -104,7 +124,7 @@ def main():
     with open(PROJECT, "w", encoding="utf-8") as fh:
         json.dump(project, fh, indent=2)
         fh.write("\n")
-    print("materials: %d variants, %d overrides; observer skin: %s" % (active, len(overrides), "yes" if skin.get("color", 0) > 0 else "no"))
+    print("materials: %d variants, %d overrides; observer skin: %s; prop skins: %d" % (active, len(overrides), "yes" if skin.get("color", 0) > 0 else "no", prop_skins))
 
 
 if __name__ == "__main__":

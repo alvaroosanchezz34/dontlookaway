@@ -37,6 +37,7 @@ local Build = require(script.Parent.Build)
 local GeometryValidator = require(script.Parent.GeometryValidator)
 local VisualStandards = require(ReplicatedStorage.Shared.VisualStandards)
 local AssetIds = require(ReplicatedStorage.Shared.Config.AssetIds)
+local PropMeshes = require(ReplicatedStorage.Shared.PropMeshes)
 
 local Architecture = {}
 
@@ -364,6 +365,9 @@ local function doorMouldings(ctx, rec)
 			count("DoorPanel")
 		end
 	end
+	-- the four-panel DoorLeaf mesh replaces the leaf, its insets and mouldings
+	-- and moves with the panel; the hardware stays as it is
+	PropMeshes.mark(model, "DoorLeaf", closed, { Panel = true, Inset = true, Moulding = true }, "Panel")
 end
 
 -- Switch beside the door, latch side, in every non-corridor room it opens into.

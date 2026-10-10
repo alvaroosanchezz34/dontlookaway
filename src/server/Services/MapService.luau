@@ -12,6 +12,7 @@ local Registry = require(script.Parent.Parent.Registry)
 local MapBuilder = require(script.Parent.Parent.Map.MapBuilder)
 local Lobby = require(script.Parent.Parent.Map.Lobby)
 local MaterialLibrary = require(ReplicatedStorage.Shared.MaterialLibrary)
+local PropMeshes = require(ReplicatedStorage.Shared.PropMeshes)
 
 local MapService = {}
 
@@ -49,6 +50,8 @@ function MapService:Rebuild(seed: number)
 	currentMap = result
 	-- custom textures (assets/textures) on every surface of the building
 	MaterialLibrary.dress(currentMap.Root)
+	-- hero prop meshes (assets/props) where they are loaded
+	PropMeshes.dress(currentMap.Root)
 	-- walls the anti-exploit clip check tests against
 	local walls = {}
 	for _, d in currentMap.Root.Structure:GetDescendants() do
@@ -83,6 +86,19 @@ end
 
 function MapService:Start()
 	MaterialLibrary.apply()
+	-- the Blender prop meshes load in the background; the map built meanwhile
+	-- is dressed as soon as they arrive, later maps when they are built
+	task.spawn(function()
+		local wanted = #PropMeshes.configured()
+		if wanted == 0 then
+			return
+		end
+		local n = PropMeshes.load()
+		print(string.format("[MapService] prop meshes: %d of %d loaded", n, wanted))
+		if currentMap and currentMap.Root and currentMap.Root.Parent then
+			PropMeshes.dress(currentMap.Root)
+		end
+	end)
 	lobby = Lobby.build(workspace)
 	MaterialLibrary.dress(lobby.Root)
 	workspace:SetAttribute("LobbyCamera", lobby.Camera)

@@ -81,6 +81,22 @@ for _, d in map.Root:GetDescendants() do
 				material = d.Material.Name,
 				variant = d.MaterialVariant,
 				transparency = d.Transparency,
+				-- a fixture's glowing part (LightController turns it to dark glass when unlit)
+				lamp = (function()
+					local m = d:FindFirstAncestorWhichIsA("Model")
+					if (d.Name == "Tube" or d.Name == "Tube2" or d.Name == "Bulb") and m and m:HasTag("Fixture") then
+						return { mode = m:GetAttribute("Mode"), circuit = m:GetAttribute("Circuit") }
+					end
+					return nil
+				end)(),
+				meshHide = d:GetAttribute("MeshHide") == true,
+				meshOf = (function()
+					if d:GetAttribute("MeshAsset") then
+						return d:GetAttribute("MeshAsset")
+					end
+					local parent = d.Parent
+					return if parent then parent:GetAttribute("MeshAsset") else nil
+				end)(),
 			})
 		end
 	elseif d:IsA("Light") then
@@ -142,6 +158,24 @@ for name, preset in LightingService.Presets do
 	}
 end
 
+-- hero prop meshes that would dress this room (tools/blender/render_room.py)
+local meshes = {}
+for _, d in map.Root:GetDescendants() do
+	local name = d:GetAttribute("MeshAsset")
+	local origin = d:GetAttribute("MeshOrigin")
+	if type(name) == "string" and typeof(origin) == "CFrame" and inside(origin.Position, Vector3.new(1, 1, 1)) then
+		local cf = origin
+		table.insert(meshes, {
+			name = name,
+			stretch = d:GetAttribute("MeshStretchX"),
+			pos = { cf.Position.X, cf.Position.Y, cf.Position.Z },
+			rx = { cf.RightVector.X, cf.RightVector.Y, cf.RightVector.Z },
+			ry = { cf.UpVector.X, cf.UpVector.Y, cf.UpVector.Z },
+			rz = { -cf.LookVector.X, -cf.LookVector.Y, -cf.LookVector.Z },
+		})
+	end
+end
+
 fs.writeFile(out, serde.encode("json", {
 	room = roomId,
 	seed = seed,
@@ -150,5 +184,6 @@ fs.writeFile(out, serde.encode("json", {
 	parts = parts,
 	lights = lights,
 	presets = presets,
+	meshes = meshes,
 }))
 print(string.format("%s seed %d: %d parts, %d lights -> %s", roomId, seed, #parts, #lights, out))

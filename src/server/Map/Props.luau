@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Build = require(script.Parent.Build)
 local Art = require(script.Parent.Art)
 local SeededRandom = require(ReplicatedStorage.Shared.Util.SeededRandom)
+local PropMeshes = require(ReplicatedStorage.Shared.PropMeshes)
 
 local P = Build.part
 local D = Build.detail
@@ -127,6 +128,7 @@ function Props.woodChair(parent, cf: CFrame, rng)
 		D(m, "Apron", Vector3.new(0.1, 0.3, 1.3), at(cf, sx, 1.62, 0), frame, M.Wood)
 		D(m, "Stretcher", Vector3.new(0.09, 0.09, 1.3), at(cf, sx, 0.5, 0), frame, M.Wood)
 	end
+	PropMeshes.mark(m, "WoodChair", cf, { Seat = true, Back = true, BackPost = true, Slat = true, Leg = true, Apron = true, Stretcher = true })
 	tagModel(m, "Chair", "Movable")
 	return m
 end
@@ -141,6 +143,7 @@ function Props.sofa(parent, cf: CFrame, rng)
 	for i = -1, 1, 2 do
 		D(m, "Cushion", Vector3.new(2.5, 0.45, 2), at(cf, i * 1.25, 1.8, -0.1, rng:Number(-3, 3), 0, 0), col:Lerp(C.black, 0.1), M.Fabric)
 	end
+	PropMeshes.mark(m, "Sofa", cf, { Base = true, Back = true, ArmL = true, ArmR = true, Cushion = true })
 	tagModel(m, "Movable")
 	return m
 end
@@ -246,6 +249,10 @@ function Props.desk(parent, cf: CFrame, rng, opts)
 	end
 	D(m, "Lock", Vector3.new(0.12, 0.12, 0.03), at(cf, 1.95, 2.72, -1.465), C.metal, M.Metal)
 	Build.cylinder(m, "Grommet", 0.03, 0.4, at(cf, -2.2, 3.315, 1.05, 0, 0, 90), C.black, M.Plastic, { CanCollide = false, CastShadow = false })
+	PropMeshes.mark(m, "OfficeDesk", cf, {
+		Top = true, SideL = true, Drawers = true, Plinth = true, Foot = true, Modesty = true,
+		DrawerFront = true, PullPlate = true, Handle = true, Lock = true, Grommet = true,
+	})
 	local top = at(cf, 0, 3.3, 0)
 	m:SetAttribute("SurfaceHeight", 3.3)
 	if opts.monitor ~= false and rng:Chance(0.7) then
@@ -294,6 +301,9 @@ function Props.table(parent, cf: CFrame, rng, width: number?, depth: number?)
 	spot.Parent = m:FindFirstChild("Top")
 	spot.WorldCFrame = at(cf, rng:Number(-w / 3, w / 3), 3.15, rng:Number(-d / 4, d / 4))
 	spot:AddTag("ItemSpot")
+	if w == 5 and d == 3 then
+		PropMeshes.mark(m, "Table", cf, { Top = true, Leg = true, LegLow = true, Glide = true, Apron = true })
+	end
 	tagModel(m, "Movable")
 	return m
 end
@@ -416,6 +426,9 @@ function Props.metalShelf(parent, cf: CFrame, rng, opts)
 			spot:AddTag("ItemSpot")
 		end
 	end
+	if width == 6 then
+		PropMeshes.mark(m, "MetalShelf", cf, { Post = true, Shelf = true, Lip = true, Brace = true, FootPlate = true })
+	end
 	return m
 end
 
@@ -447,8 +460,10 @@ function Props.filingCabinet(parent, cf: CFrame, rng)
 	P(m, "Body", Vector3.new(1.8, 4.4, 2.2), at(cf, 0, 2.2, 0), col, M.Metal)
 	D(m, "ToeKick", Vector3.new(1.62, 0.3, 0.04), at(cf, 0, 0.17, -1.12), C.black, M.Metal)
 	D(m, "LockCylinder", Vector3.new(0.14, 0.14, 0.05), at(cf, 0.62, 4.2, -1.12), C.metal, M.Metal)
+	local anyOpen = false
 	for i = 0, 2 do
 		local open = rng:Chance(0.12)
+		anyOpen = anyOpen or open
 		local z = if open then -1.6 else -1.12
 		local y = 0.75 + i * 1.4
 		D(m, "Drawer", Vector3.new(1.6, 1.25, 0.08), at(cf, 0, y + 0.05, z), col:Lerp(C.black, 0.08), M.Metal)
@@ -471,6 +486,10 @@ function Props.filingCabinet(parent, cf: CFrame, rng)
 	spot.Parent = m:FindFirstChild("Body")
 	spot.WorldCFrame = at(cf, 0, 4.45, 0)
 	spot:AddTag("ItemSpot")
+	-- the mesh has its drawers shut: a cabinet left open keeps the part-built drawers
+	if not anyOpen then
+		PropMeshes.mark(m, "FilingCabinet", cf, { Body = true, ToeKick = true, LockCylinder = true, Drawer = true, LabelHolder = true, Label = true, Handle = true })
+	end
 	tagModel(m, "Movable")
 	return m
 end
@@ -489,6 +508,7 @@ function Props.locker(parent, cf: CFrame, rng)
 		D(m, "Vent", Vector3.new(1, 0.08, 0.04), at(cf, 0, 5.6 + i * 0.22, -0.97), C.black, M.Metal)
 	end
 	D(m, "Handle", Vector3.new(0.12, 0.6, 0.12), at(cf, 0.65, 3.2, -1), C.metal, M.Metal)
+	PropMeshes.mark(m, "Locker", cf, { Body = true, Door = true, Plinth = true, HingePin = true, NumberPlate = true, Vent = true, Handle = true })
 	tagModel(m, "Locker")
 	return m
 end
@@ -536,6 +556,8 @@ function Props.painting(parent, wallCf: CFrame, rng, width: number?, height: num
 	local gui = Build.surfaceGui(canvas, Enum.NormalId.Front, 36)
 	gui.Name = "Art"
 	Art.painting(gui, rng, kind)
+	-- the gilt PictureFrame mesh, scaled to this painting; the canvas (and its art) stays
+	PropMeshes.markSized(m, "PictureFrame", base, { Frame = true }, Vector3.new(w + 0.5, h + 0.5, 0.33))
 	-- the paler rectangle left on the wall if the painting disappears
 	local patch = D(parent, "PaintingMark", Vector3.new(w + 0.5, h + 0.5, 0.04), at(wallCf, 0, 0, -0.03), Color3.fromRGB(150, 146, 132), M.Plaster)
 	D(patch, "Nail", Vector3.new(0.12, 0.12, 0.2), at(wallCf, 0, h / 2 + 0.6, -0.1), C.metalDark, M.Metal)
@@ -711,6 +733,9 @@ function Props.radiator(parent, cf: CFrame, rng)
 		D(m, "Fin", Vector3.new(0.25, 2.4, 0.6), at(cf, i * 0.38, 1.6, 0), col, M.Metal)
 	end
 	D(m, "Pipe", Vector3.new(3.6, 0.2, 0.2), at(cf, 0, 0.53, 0.03), col:Lerp(C.black, 0.2), M.Metal)
+	-- the cast-iron mesh stands on feet from the floor: a little forward, clear
+	-- of the skirting (how a radiator is really hung)
+	PropMeshes.mark(m, "Radiator", cf * CFrame.new(0, 0, -0.25), { Fin = true, Pipe = true })
 	return m
 end
 
@@ -866,6 +891,11 @@ function Props.receptionDesk(parent, cf: CFrame, rng)
 	glow:SetAttribute("PoweredLight", true)
 	glow.Parent = shade
 	m:SetAttribute("SurfaceHeight", 3.12)
+	PropMeshes.mark(m, "ReceptionDesk", cf, {
+		Front = true, Plinth = true, Stile = true, Panel = true, Rail = true, Counter = true, CounterNose = true,
+		CounterMould = true, Corbel = true, Work = true, WorkEdge = true, Shelf = true, SideL = true, SideR = true,
+		SideCap = true, SidePanel = true,
+	})
 	local spot = Instance.new("Attachment")
 	spot.Name = "ItemSpot"
 	spot.Parent = m:FindFirstChild("Work")

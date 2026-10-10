@@ -17,6 +17,30 @@ local Runtime = require(script.Parent.Parent.Runtime)
 
 local Sets = {}
 
+-- The game's Blender DoorLeaf mesh (ReplicatedStorage.PropMeshTemplates,
+-- loaded by the server) dresses a set's door when it is available: same
+-- asset as the playable building. The part-built leaf stays for the shape of
+-- the door and is hidden; the mesh follows it (Offset).
+local function dressLeaf(door: Model, leaf: BasePart)
+	local folder = game:GetService("ReplicatedStorage"):FindFirstChild("PropMeshTemplates")
+	local tpl = folder and folder:FindFirstChild("DoorLeaf")
+	if not (tpl and tpl:IsA("BasePart")) then
+		return
+	end
+	local mesh = tpl:Clone()
+	mesh.Name = "LeafMesh"
+	mesh.Size = Vector3.new(leaf.Size.X, leaf.Size.Y, math.max(leaf.Size.Z, 0.3))
+	mesh.CFrame = leaf.CFrame
+	mesh:SetAttribute("Offset", CFrame.new())
+	mesh.Parent = door
+	leaf.Transparency = 1
+	for _, d in door:GetChildren() do
+		if d:IsA("BasePart") and string.sub(d.Name, 1, 5) == "Panel" then
+			d.Transparency = 1
+		end
+	end
+end
+
 -- Far above the building and the Field Office: nothing of the game can be seen.
 Sets.Origin = CFrame.new(0, 1600, 0)
 
@@ -116,6 +140,7 @@ function Sets.doorway(origin: CFrame?)
 	door.PrimaryPart = leaf
 	door:SetAttribute("ClosedCFrame", leafCf)
 	door:SetAttribute("OpenCFrame", hinge * CFrame.Angles(0, math.rad(-78), 0) * CFrame.new(-DOOR_W / 2, 0, 0))
+	dressLeaf(door, leaf)
 	door.Parent = m
 
 	-- the hanging lamp: cord, metal shade, glowing bulb, hard down-light, dusty shaft
@@ -234,6 +259,7 @@ function Sets.room(origin: CFrame?)
 	door.PrimaryPart = leaf
 	door:SetAttribute("ClosedCFrame", leafCf)
 	door:SetAttribute("OpenCFrame", hinge * CFrame.Angles(0, math.rad(80), 0) * CFrame.new(0, 0, 2.2) * CFrame.Angles(0, math.rad(90), 0))
+	dressLeaf(door, leaf)
 	door.Parent = m
 	-- front wall (behind the usual camera)
 	part(m, "Front", Vector3.new(26, H, 1), o * CFrame.new(0, H / 2, 12.5), plaster, Enum.Material.Plaster)

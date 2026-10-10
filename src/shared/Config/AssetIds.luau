@@ -95,4 +95,29 @@ function AssetIds.url(id: number?): string?
 	return nil
 end
 
+-- Hero prop meshes (assets/props, built in Blender by tools/blender/build_assets.py).
+-- model: the Model asset Studio creates when the .obj is imported; color /
+-- normal / roughness / metalness: the baked maps (metalness only where the
+-- asset has metal). 0 = not uploaded: that prop keeps its part-built look.
+AssetIds.PropMeshes = {
+	ReceptionDesk = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	DoorLeaf = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	DoorCasing = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	PendantLamp = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	WallSconce = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	Radiator = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	WoodChair = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	Table = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	Sofa = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	FilingCabinet = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	-- straight moulding runs, stretched along each wall run by the game
+	Baseboard = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	DadoRail = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	Cornice = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	OfficeDesk = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	Locker = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	MetalShelf = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	PictureFrame = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+}
+
 return AssetIds

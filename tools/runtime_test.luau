@@ -383,6 +383,119 @@ do
 	end
 end
 
+section("hero prop meshes (Blender pipeline)")
+do
+	local RS = game:GetService("ReplicatedStorage")
+	local PropMeshes = requireModule(RS.Shared.PropMeshes)
+	local Meta = requireModule(RS.Shared.Config.PropMeshMeta)
+	local fs = require("@lune/fs")
+	local names = {}
+	for name, m in Meta do
+		table.insert(names, name)
+		check(m.size.X > 0 and m.size.Y > 0 and m.size.Z > 0, "mesh meta size " .. name)
+		check(m.triangles > 0 and m.triangles < 20000, string.format("%s under Roblox's triangle limit (%d)", name, m.triangles))
+		check(fs.isFile("assets/props/" .. name .. ".obj"), "mesh file " .. name)
+		for _, map in { "color", "normal", "roughness" } do
+			check(fs.isFile(string.format("assets/props/%s/%s_%s.png", name, name, map)), string.format("%s %s map", name, map))
+		end
+	end
+	check(#names >= 13, "thirteen hero meshes (" .. #names .. ")")
+	-- stand-in templates the exact size of each mesh, then dress a real map
+	for _, name in names do
+		local stand = Instance.new("Part")
+		PropMeshes.register(name, stand)
+	end
+	local holder = Instance.new("Folder")
+	holder.Parent = workspace
+	local map = MapBuilder.build(777, holder)
+	local dressed = PropMeshes.dress(map.Root)
+	check(dressed > 60, "props dressed with meshes (" .. dressed .. ")")
+	check(PropMeshes.dress(map.Root) == 0, "dressing twice does nothing")
+	local perName, misplaced = {}, 0
+	for _, d in map.Root:GetDescendants() do
+		local name = d:GetAttribute("MeshAsset")
+		if name and d:GetAttribute("MeshDressed") then
+			perName[name] = (perName[name] or 0) + 1
+			local mesh = d:FindFirstChild("Mesh_" .. name)
+			if d:IsA("BasePart") then
+				-- a run (skirting, rail, cornice): the mesh sits next to its part,
+				-- at the part's origin, stretched to the part's length
+				mesh = nil
+				local origin0 = d:GetAttribute("MeshOrigin")
+				for _, sib in d.Parent:GetChildren() do
+					if sib.Name == "Mesh_" .. name and (sib.CFrame.Position - (origin0 * CFrame.new(0, Meta[name].offset.Y, Meta[name].offset.Z)).Position).Magnitude < 0.05 then
+						mesh = sib
+					end
+				end
+			end
+			check(mesh ~= nil, "mesh placed in " .. d:GetFullName())
+			-- the mesh must sit where the parts it replaces were: its box inside
+			-- their bounding box grown by a small tolerance, in the holder frame
+			local origin = d:GetAttribute("MeshOrigin")
+			local lo, hi = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
+			local hidden = 0
+			local replaced = d:GetChildren()
+			table.insert(replaced, d)
+			for _, p in replaced do
+				if p:IsA("BasePart") and p:GetAttribute("MeshHide") then
+					hidden += 1
+					check(p.Transparency == 1, "replaced part hidden: " .. p.Name)
+					for _, sx in { -0.5, 0.5 } do
+						for _, sy in { -0.5, 0.5 } do
+							for _, sz in { -0.5, 0.5 } do
+								local w = origin:PointToObjectSpace((p.CFrame * CFrame.new(p.Size.X * sx, p.Size.Y * sy, p.Size.Z * sz)).Position)
+								lo = Vector3.new(math.min(lo.X, w.X), math.min(lo.Y, w.Y), math.min(lo.Z, w.Z))
+								hi = Vector3.new(math.max(hi.X, w.X), math.max(hi.Y, w.Y), math.max(hi.Z, w.Z))
+							end
+						end
+					end
+				end
+			end
+			if mesh and hidden > 0 then
+				local c = origin:PointToObjectSpace(mesh.CFrame.Position)
+				local half = mesh.Size / 2
+				local tol = 0.6
+				local inside = c.X - half.X >= lo.X - tol and c.X + half.X <= hi.X + tol and c.Y - half.Y >= lo.Y - tol and c.Y + half.Y <= hi.Y + tol and c.Z - half.Z >= lo.Z - tol and c.Z + half.Z <= hi.Z + tol
+				if not inside then
+					misplaced += 1
+					if misplaced <= 4 then
+						print(string.format("    %s mesh box %s +- %s outside parts %s..%s", name, tostring(c), tostring(half), tostring(lo), tostring(hi)))
+					end
+				end
+				if d:GetAttribute("MeshFollow") then
+					check(typeof(mesh:GetAttribute("Offset")) == "CFrame", "following mesh has an Offset: " .. name)
+				end
+			end
+		end
+	end
+	check(misplaced == 0, "every mesh sits on the parts it replaces (" .. misplaced .. " misplaced)")
+	for _, name in { "ReceptionDesk", "DoorLeaf", "DoorCasing", "PendantLamp", "WallSconce", "Baseboard", "DadoRail", "Cornice" } do
+		check((perName[name] or 0) > 0, string.format("%s used in the map (%d)", name, perName[name] or 0))
+	end
+	print("  dressed: " .. (function()
+		local t = {}
+		for k, v in perName do
+			table.insert(t, k .. "=" .. v)
+		end
+		table.sort(t)
+		return table.concat(t, " ")
+	end)())
+	-- the map still passes the geometry audit with meshes in it
+	local GeometryValidator = requireModule(Server.Map.GeometryValidator)
+	local report = GeometryValidator.run(map)
+	check(#report.issues == 0, "geometry with meshes: " .. GeometryValidator.summary(report))
+	for i, issue in report.issues do
+		if i <= 4 then
+			print(string.format("    [%s] %s %s in %s: %s", issue.severity, issue.kind, issue.name, tostring(issue.room), issue.detail))
+		end
+	end
+	holder:Destroy()
+	local tf = RS:FindFirstChild("PropMeshTemplates")
+	if tf then
+		tf:Destroy()
+	end
+end
+
 ------------------------------------------------------------------------------------
 -- 3. Objective planning is always solvable
 ------------------------------------------------------------------------------------
