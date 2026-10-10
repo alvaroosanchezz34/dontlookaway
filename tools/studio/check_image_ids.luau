@@ -42,8 +42,12 @@ if MC then
 	add(MC.TitleImage)
 end
 
+print(string.format("[DLA] checking %d ids (about 1 s each, wait for the DLA_FIX line)...", #ids))
 local fixes, images, decals, failed = {}, 0, 0, 0
-for _, id in ids do
+for i, id in ids do
+	if i % 10 == 0 then
+		print(string.format("[DLA] %d / %d", i, #ids))
+	end
 	local ok, info = pcall(function()
 		return MPS:GetProductInfo(id, Enum.InfoType.Asset)
 	end)
