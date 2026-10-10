@@ -101,15 +101,15 @@ end
 -- normal / roughness / metalness: the baked maps (metalness only where the
 -- asset has metal). 0 = not uploaded: that prop keeps its part-built look.
 AssetIds.PropMeshes = {
-	ReceptionDesk = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	ReceptionDesk = { model = 0, color = 92051710467099, normal = 135917501043251, roughness = 127460344302125, metalness = 76948320918167 },
 	DoorLeaf = { model = 0, color = 104062476287579, normal = 120960280836656, roughness = 96048437020898, metalness = 77932948132183 },
 	DoorCasing = { model = 0, color = 138598134035304, normal = 129608139841909, roughness = 111332877987299, metalness = 129975978837316 },
 	PendantLamp = { model = 0, color = 83434750708109, normal = 131546531198702, roughness = 86934838737715, metalness = 140732292484386 },
-	WallSconce = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	Radiator = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	WoodChair = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	Table = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	Sofa = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	WallSconce = { model = 0, color = 88573547340557, normal = 107774529579166, roughness = 114933356004910, metalness = 114221885468261 },
+	Radiator = { model = 0, color = 87180322446828, normal = 120878797937066, roughness = 90626110944015, metalness = 114896784496641 },
+	WoodChair = { model = 0, color = 92651621853376, normal = 109985697937881, roughness = 101672710930583, metalness = 105390360524293 },
+	Table = { model = 0, color = 84114741983577, normal = 112152697018232, roughness = 112655672473362, metalness = 93696796537457 },
+	Sofa = { model = 0, color = 114480243610196, normal = 122131034169960, roughness = 78461176427681, metalness = 131531179639000 },
 	FilingCabinet = { model = 0, color = 106213708444862, normal = 96404383273179, roughness = 74315654038322, metalness = 75367646242035 },
 	-- straight moulding runs, stretched along each wall run by the game
 	Baseboard = { model = 0, color = 128558740339034, normal = 86719071580844, roughness = 127366541657992, metalness = 136604908703833 },
