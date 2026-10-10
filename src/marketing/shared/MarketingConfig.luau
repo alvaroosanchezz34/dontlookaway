@@ -49,18 +49,18 @@ MarketingConfig.Defaults = {
 -- (made by tools/gen_eye.py, original). Upload them as images and paste the ids.
 -- While sclera/iris/pupil/socket are 0, the simple drawn eye is used instead.
 MarketingConfig.EyeImages = {
-	sclera = 125309156635474, -- eye_sclera.png
-	iris = 123562452057138, -- eye_iris.png
-	pupil = 117557984089460, -- eye_pupil.png
-	glint = 84615934958847, -- eye_glint.png
-	lidTop = 119064074922165, -- eye_lid_top.png
-	lidBottom = 110901365964487, -- eye_lid_bot.png
-	socket = 85762611587195, -- eye_socket.png
+	sclera = 81490550206424, -- eye_sclera.png
+	iris = 110058200459324, -- eye_iris.png
+	pupil = 82374008491175, -- eye_pupil.png
+	glint = 114668219837582, -- eye_glint.png
+	lidTop = 132182127508113, -- eye_lid_top.png
+	lidBottom = 116875239461724, -- eye_lid_bot.png
+	socket = 118177046543014, -- eye_socket.png
 }
 
 -- The scratched title image (assets/marketing/title_dla.png, made by
 -- tools/gen_title.py). 0 = use the text title instead.
-MarketingConfig.TitleImage = 94932983081889
+MarketingConfig.TitleImage = 99267522308423
 
 -- Text used by the teaser scenes (edit for the campaign).
 MarketingConfig.Text = {

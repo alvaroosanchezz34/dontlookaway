@@ -30,18 +30,18 @@ AssetIds.Materials = {
 	concrete_wet = { color = 93950900784312, normal = 130761991482119, roughness = 136331701139032 },
 	metal_bare = { color = 87273549425457, normal = 136473853505774, roughness = 135320353577138, metalness = 89051210628311 },
 	-- Resident Evil quality pass
-	marble_tiles = { color = 102713667505903, normal = 114206299565786, roughness = 80738122032377 },
-	wallpaper_aged = { color = 132370471943235, normal = 92405259001466, roughness = 112398628878277 },
+	marble_tiles = { color = 74839575547603, normal = 93970967544555, roughness = 72385493856472 },
+	wallpaper_aged = { color = 87202421286104, normal = 97851958795254, roughness = 79522098701101 },
 }
 
 -- Grime decals (assets/decals/<name>.png, RGBA). 0 = not uploaded: the map
 -- simply places none of that kind. Placed with logic by Map/Architecture.
 AssetIds.Decals = {
-	damp_rising = 121757629180857,
-	water_streak = 102882595051031,
-	grime_smudge = 122102076287989,
-	ceiling_stain = 102131332563277,
-	floor_dirt = 101435736606836,
+	damp_rising = 103315871345708,
+	water_streak = 115305141839321,
+	grime_smudge = 73208682390707,
+	ceiling_stain = 76389014025867,
+	floor_dirt = 127069746172008,
 }
 
 -- THE OBSERVER (assets/observer/*.obj and observer_skin_*.png).
@@ -101,24 +101,24 @@ end
 -- normal / roughness / metalness: the baked maps (metalness only where the
 -- asset has metal). 0 = not uploaded: that prop keeps its part-built look.
 AssetIds.PropMeshes = {
-	ReceptionDesk = { model = 0, color = 92051710467099, normal = 135917501043251, roughness = 127460344302125, metalness = 76948320918167 },
-	DoorLeaf = { model = 0, color = 104062476287579, normal = 120960280836656, roughness = 96048437020898, metalness = 77932948132183 },
-	DoorCasing = { model = 0, color = 138598134035304, normal = 129608139841909, roughness = 111332877987299, metalness = 129975978837316 },
-	PendantLamp = { model = 0, color = 83434750708109, normal = 131546531198702, roughness = 86934838737715, metalness = 140732292484386 },
-	WallSconce = { model = 0, color = 88573547340557, normal = 107774529579166, roughness = 114933356004910, metalness = 114221885468261 },
-	Radiator = { model = 0, color = 87180322446828, normal = 120878797937066, roughness = 90626110944015, metalness = 114896784496641 },
-	WoodChair = { model = 0, color = 92651621853376, normal = 109985697937881, roughness = 101672710930583, metalness = 105390360524293 },
-	Table = { model = 0, color = 84114741983577, normal = 112152697018232, roughness = 112655672473362, metalness = 93696796537457 },
-	Sofa = { model = 0, color = 114480243610196, normal = 122131034169960, roughness = 78461176427681, metalness = 131531179639000 },
-	FilingCabinet = { model = 0, color = 106213708444862, normal = 96404383273179, roughness = 74315654038322, metalness = 75367646242035 },
+	ReceptionDesk = { model = 0, color = 114222313287194, normal = 82610418339610, roughness = 112188978730105, metalness = 139814791761987 },
+	DoorLeaf = { model = 0, color = 79189358627502, normal = 92454912948897, roughness = 128433656276882, metalness = 139969862107459 },
+	DoorCasing = { model = 0, color = 108913246641839, normal = 109613756396768, roughness = 79613717763034, metalness = 97124229497761 },
+	PendantLamp = { model = 0, color = 116861872310432, normal = 139634317370024, roughness = 139664356100335, metalness = 95479866868555 },
+	WallSconce = { model = 0, color = 92391506430293, normal = 119928729061256, roughness = 126234013972029, metalness = 127331609653839 },
+	Radiator = { model = 0, color = 89900930686751, normal = 99004440450586, roughness = 134673546561957, metalness = 107680938154265 },
+	WoodChair = { model = 0, color = 90064388302518, normal = 111544594730908, roughness = 107847901985052, metalness = 105438640251598 },
+	Table = { model = 0, color = 79062173283458, normal = 113861904331436, roughness = 97341465106284, metalness = 90198332405032 },
+	Sofa = { model = 0, color = 140718731159384, normal = 107104492860013, roughness = 121707912095760, metalness = 128562411903005 },
+	FilingCabinet = { model = 0, color = 120114539052526, normal = 112143680385441, roughness = 105884144371792, metalness = 117149221906403 },
 	-- straight moulding runs, stretched along each wall run by the game
-	Baseboard = { model = 0, color = 128558740339034, normal = 86719071580844, roughness = 127366541657992, metalness = 136604908703833 },
-	DadoRail = { model = 0, color = 90202693012020, normal = 130758719228669, roughness = 73368476204656, metalness = 90570854585855 },
-	Cornice = { model = 0, color = 122736838630593, normal = 134966122923805, roughness = 111151954328900, metalness = 95730388826020 },
-	OfficeDesk = { model = 0, color = 104768173316177, normal = 128685634433235, roughness = 118926942007582, metalness = 74820686846275 },
-	Locker = { model = 0, color = 97530341105684, normal = 121339910452555, roughness = 110057888253692, metalness = 94745655721523 },
-	MetalShelf = { model = 0, color = 100370793355703, normal = 87655996407651, roughness = 98865717907655, metalness = 108804907718044 },
-	PictureFrame = { model = 0, color = 94038960090642, normal = 77593688495007, roughness = 81763571344709, metalness = 74617607872335 },
+	Baseboard = { model = 0, color = 93197634352945, normal = 108380710774519, roughness = 96796521179652, metalness = 74552364979599 },
+	DadoRail = { model = 0, color = 131080578574904, normal = 121516441862226, roughness = 98571459321863, metalness = 114702770575228 },
+	Cornice = { model = 0, color = 105484902543141, normal = 87325397536573, roughness = 75508562368909, metalness = 77540780854616 },
+	OfficeDesk = { model = 0, color = 120915687193748, normal = 79978020211574, roughness = 72822986026448, metalness = 76452372816317 },
+	Locker = { model = 0, color = 109821632173340, normal = 129536253905706, roughness = 111135245878649, metalness = 129793479451819 },
+	MetalShelf = { model = 0, color = 122634553164590, normal = 84031686981118, roughness = 72025530736841, metalness = 71450868896026 },
+	PictureFrame = { model = 0, color = 119340489082974, normal = 111772506498375, roughness = 88230220992636, metalness = 70455428277475 },
 }
 
 -- Mesh assets ("Malla") uploaded from assets/props/*.obj whose prop is not

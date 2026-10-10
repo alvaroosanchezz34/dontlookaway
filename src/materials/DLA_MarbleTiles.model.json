@@ -3,8 +3,8 @@
   "Properties": {
     "BaseMaterial": "Marble",
     "StudsPerTile": 6,
-    "ColorMap": "rbxassetid://102713667505903",
-    "NormalMap": "rbxassetid://114206299565786",
-    "RoughnessMap": "rbxassetid://80738122032377"
+    "ColorMap": "rbxassetid://74839575547603",
+    "NormalMap": "rbxassetid://93970967544555",
+    "RoughnessMap": "rbxassetid://72385493856472"
   }
 }
