@@ -574,6 +574,15 @@ for _, variant in { "behind", "side", "front", "dark", "door", "mirror", "mimic"
 	frames(4)
 	task.wait(0.3)
 	check(finished, "death cinematic " .. variant .. " reaches the black screen")
+	-- the face, at the impact: close, in front of the lens, centred, looking into it
+	local f = Registry.ScareController.LastFrame
+	check(f ~= nil and f.variant == variant, "death cinematic " .. variant .. " measured its impact frame")
+	if f then
+		check(f.inFront, "death cinematic " .. variant .. ": the face is in front of the camera")
+		check(math.abs(f.distance - 2) < 0.15, string.format("death cinematic %s: face %.2f studs from the lens", variant, f.distance))
+		check(f.centred > 0.995, string.format("death cinematic %s: face centred (%.3f)", variant, f.centred))
+		check(f.facing > 0.95, string.format("death cinematic %s: face turned to the camera (%.3f)", variant, f.facing))
+	end
 	check(not Registry.ScareController:IsActive(), "death cinematic " .. variant .. " cleans up")
 	local leftovers = 0
 	for _, d in workspace:GetChildren() do
@@ -583,6 +592,43 @@ for _, variant in { "behind", "side", "front", "dark", "door", "mirror", "mimic"
 	end
 	check(leftovers == 0, "no scare rig left behind after " .. variant)
 	Registry.CameraController:ClearOverride("Death")
+end
+-- the admin scare test: plays, gives the camera back, reports the frame
+do
+	Registry.CameraController:ClearOverride("Death")
+	local okTest = pcall(function()
+		fire("Effect", { name = "ScareTest", variant = "front" })
+	end)
+	check(okTest, "admin scare test starts")
+	local deadline = os.clock() + 5
+	while (Registry.ScareController:IsActive() or Registry.CameraController:IsRegistered("Death")) and os.clock() < deadline do
+		frames(2)
+		task.wait(0.05)
+	end
+	task.wait(0.8)
+	frames(3)
+	check(not Registry.ScareController:IsActive(), "admin scare test finishes")
+	check(not Registry.CameraController:IsRegistered("Death"), "admin scare test gives the camera back")
+	local f = Registry.ScareController.LastFrame
+	check(f ~= nil and f.facing > 0.95 and f.inFront, "admin scare test framed the face")
+end
+-- the mimic's lunge: its own face (a stand-in model with a head)
+do
+	local fake = Instance.new("Model")
+	local head = Instance.new("Part")
+	head.Name = "Head"
+	head.Position = Vector3.new(0, 5, -4)
+	head.Parent = fake
+	fake.Parent = workspace
+	local okLunge = pcall(function()
+		fire("Effect", { name = "Jumpscare", kind = "mimic", model = fake })
+	end)
+	check(okLunge, "mimic lunge scare")
+	frames(3)
+	task.wait(0.9)
+	frames(2)
+	check(not Registry.CameraController:IsRegistered("MimicLunge"), "mimic lunge gives the camera back")
+	fake:Destroy()
 end
 local okFlash = pcall(function()
 	Registry.ScareController:Flash("mimic")

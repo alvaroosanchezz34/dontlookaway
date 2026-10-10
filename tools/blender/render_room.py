@@ -340,9 +340,16 @@ def main():
     world.use_nodes = True
     world.node_tree.nodes["Background"].inputs["Color"].default_value = (*lin(preset["ambient"]), 1)
     scene.world = world
-    eye, target = camera_for(data)
     cam = bpy.data.cameras.new("Cam")
     cam.lens = 18
+    if data.get("camera"):
+        # an explicit camera (tools/observer_shot.luau): Roblox's vertical FOV
+        eye, target = data["camera"]["eye"], data["camera"]["target"]
+        cam.sensor_fit = "VERTICAL"
+        cam.angle_y = math.radians(data["camera"].get("fov", 70))
+        cam.clip_start = 0.05
+    else:
+        eye, target = camera_for(data)
     co = bpy.data.objects.new("Cam", cam)
     coll.objects.link(co)
     # Roblox axes: Y is up. Build the camera basis by hand (to_track_quat

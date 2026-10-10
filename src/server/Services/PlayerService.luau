@@ -339,6 +339,14 @@ function PlayerService:Init()
 	PhysicsService:CollisionGroupSetCollidable("Ghost", "Doors", false)
 	PhysicsService:CollisionGroupSetCollidable("Ghost", "Observer", false)
 	PhysicsService:CollisionGroupSetCollidable("Ghost", "Ghost", false)
+	-- The Mimic: solid to walls and players (it never walks through you), but
+	-- passes doors like The Observer (it opens them as it comes)
+	pcall(function()
+		PhysicsService:RegisterCollisionGroup("Mimic")
+	end)
+	PhysicsService:CollisionGroupSetCollidable("Mimic", "Doors", false)
+	PhysicsService:CollisionGroupSetCollidable("Mimic", "Ghost", false)
+	PhysicsService:CollisionGroupSetCollidable("Mimic", "Observer", false)
 	Net.on("LookUpdate", onLookUpdate)
 end
 

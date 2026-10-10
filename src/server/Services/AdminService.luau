@@ -181,15 +181,73 @@ COMMANDS.sighting = function(admin, userId)
 	return if Registry.ObserverService:Sighting(target) then "sighting placed" else "no valid sighting spot"
 end
 
+-- Same creation path as in a real round (ObserverService:SpawnMimic): it
+-- wears a teammate if there is one, else the target's own clothes.
 COMMANDS.mimic = function(admin, userId)
 	local target = findPlayer(userId) or admin
+	if not Registry.PlayerService:IsAlive(target) then
+		return "target is not alive in a round"
+	end
 	local other = nil
 	for _, p in Registry.PlayerService:GetAlive() do
 		if p ~= target then
 			other = p
 		end
 	end
-	return if Registry.ObserverService:Mimic(target, other) then "mimic placed" else "no valid mimic spot"
+	local ok, why = Registry.ObserverService:SpawnMimic(target, other)
+	return (if ok then "mimic placed: " else "mimic NOT placed: ") .. why .. " | use Mimic status to follow it"
+end
+
+-- What the mimic is, what it is doing and why (state history, route, anims).
+COMMANDS.mimicStatus = function()
+	local line = Registry.ObserverService:MimicStatus()
+	print("[Admin] " .. line)
+	return line
+end
+
+-- What The Observer is doing (mode, state, behaviour, path).
+COMMANDS.observerStatus = function()
+	local line = Registry.ObserverService:Status()
+	print("[Admin] " .. line)
+	return line
+end
+
+-- The Observer stands in front of you, watching, so you can look at it.
+COMMANDS.observerInspect = function(admin)
+	local _, why = Registry.ObserverService:Inspect(admin)
+	return why
+end
+
+-- Plays a death cinematic on your own screen without killing you, then
+-- gives control back; the client reports how the face was framed.
+local SCARE_VARIANTS = { behind = true, side = true, front = true, dark = true, door = true, mirror = true, mimic = true }
+COMMANDS.scareTest = function(admin, variant)
+	variant = if type(variant) == "string" and SCARE_VARIANTS[variant] then variant else "front"
+	Net.fire(admin, "Effect", { name = "ScareTest", variant = variant })
+	return "playing scare test: " .. variant
+end
+
+COMMANDS.scareReport = function(_, report)
+	if type(report) ~= "table" then
+		return "scare test finished (no frame measured)"
+	end
+	local ok = report.inFront == true and type(report.distance) == "number" and math.abs(report.distance - 2) < 0.3 and (tonumber(report.facing) or 0) > 0.9 and (tonumber(report.centred) or 0) > 0.98
+	return string.format(
+		"scare test %s %s: face %.2f studs, facing camera %.2f, centred %.3f, in front %s",
+		tostring(report.variant),
+		if ok then "OK" else "CHECK",
+		tonumber(report.distance) or -1,
+		tonumber(report.facing) or -1,
+		tonumber(report.centred) or -1,
+		tostring(report.inFront)
+	)
+end
+
+-- Removes both entities (and everything they hold).
+COMMANDS.despawnEntities = function()
+	Registry.ObserverService:DespawnMimic()
+	Registry.ObserverService:Vanish()
+	return "mimic and observer removed"
 end
 
 local PARANOIA = { micro = true, glimpse = true, shadow = true, silence = true }

@@ -53,6 +53,11 @@ function CameraController:ClearOverride(name: string)
 	overrides[name] = nil
 end
 
+-- Is an override with this name registered (tests, cleanup checks)?
+function CameraController:IsRegistered(name: string): boolean
+	return overrides[name] ~= nil
+end
+
 -- True only while an override is actually driving the camera. Overrides stay
 -- registered (the menu one lives forever) and return nil when they don't apply.
 function CameraController:HasOverride(): boolean

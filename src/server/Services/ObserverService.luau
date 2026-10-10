@@ -10,10 +10,11 @@
 	            can protect each other. Nobody can stare forever: after a few
 	            seconds of continuous staring the server makes that player BLINK,
 	            and during a blink it moves.
-	  Mimic     it wears a player's appearance near someone separated from them.
-	            Tells: no flashlight, silent steps, a name tag that glitches, a
-	            head that turns too far, pauses mid-stride, a wave that is too
-	            slow. It may even ping you. Report it to unmask it.
+	  Mimic     a wrong copy of a teammate near someone separated from them
+	            (Server/Mimic: its own body, face and state machine). Tells: no
+	            flashlight, silent steps, a name tag that glitches, a head that
+	            turns too far, a wave that is too slow. It may ping you, follow
+	            you, and run at you when you notice it up close. Report it.
 	  Escape    during the escape it never stops coming.
 
 	Fairness
@@ -42,6 +43,7 @@ local Signal = require(ReplicatedStorage.Shared.Util.Signal)
 local SoundFactory = require(ReplicatedStorage.Shared.SoundFactory)
 local Registry = require(script.Parent.Parent.Registry)
 local ObserverRig = require(ReplicatedStorage.Shared.ObserverRig)
+local Mimic = require(script.Parent.Parent.Mimic.Mimic)
 
 local ObserverService = {}
 
@@ -70,9 +72,12 @@ local lastPathGoal = Vector3.zero
 local lastProgressPos = Vector3.zero
 local lastProgressAt = 0
 local unwatchedSince = 0
+local lastBlinkStepAt = 0
+local pathFailures = 0
+local pathPending = false
+local behavior: string? = nil
+local align: AlignOrientation? = nil
 local attackLock = false
-local mimic: Model? = nil
-local mimicData = nil
 local active = false
 local closeTime: { [Player]: number } = {}
 local warned: { [Player]: number } = {}
@@ -97,7 +102,53 @@ local function ensureModel()
 	end
 	local head = m:FindFirstChild("Head") :: BasePart
 	breath = SoundFactory.create("ObserverBreath", head)
+	-- it turns deliberately: the Humanoid no longer snaps it round; an
+	-- AlignOrientation turns it toward where it is going at a limited rate
+	if humanoid and root then
+		humanoid.AutoRotate = false
+		local att = Instance.new("Attachment")
+		att.Name = "TurnAttachment"
+		att.Parent = root
+		local a = Instance.new("AlignOrientation")
+		a.Name = "Turn"
+		a.Mode = Enum.OrientationAlignmentMode.OneAttachment
+		a.Attachment0 = att
+		a.MaxAngularVelocity = math.rad(140)
+		a.MaxTorque = 1e7
+		a.Responsiveness = 12
+		a.PrimaryAxisOnly = false
+		a.CFrame = root.CFrame.Rotation
+		a.Parent = root
+		align = a
+	end
 	m.Parent = ServerStorage
+end
+
+-- What it is doing, for the clients' animation (ObserverFX): OBSERVING,
+-- REPOSITIONING, STALKING, THREATENING, ATTACKING, RECOVERY (or nil).
+local function setBehavior(b: string?)
+	if behavior == b then
+		return
+	end
+	behavior = b
+	if model then
+		model:SetAttribute("Behavior", b)
+	end
+end
+
+-- Turn (smoothly, rate-limited) to face a direction on the ground plane.
+local function faceToward(dir: Vector3)
+	local flat = Vector3.new(dir.X, 0, dir.Z)
+	if align and flat.Magnitude > 0.05 then
+		align.CFrame = CFrame.lookAt(Vector3.zero, flat.Unit)
+	end
+end
+
+-- After a teleport the turn target must match, or it would spin back.
+local function syncTurn()
+	if align and root then
+		align.CFrame = root.CFrame.Rotation
+	end
 end
 
 local function setState(newState: string)
@@ -145,6 +196,8 @@ local function park()
 	target = nil
 	sightingData = nil
 	waypoints = {}
+	pathFailures = 0
+	setBehavior(nil)
 	setState(S.Dormant)
 end
 
@@ -168,6 +221,7 @@ local function place(cf: CFrame)
 	end
 	lastProgressPos = cf.Position
 	lastProgressAt = os.clock()
+	syncTurn()
 end
 
 ------------------------------------------------------------------------------------
@@ -311,26 +365,65 @@ end
 -- Movement
 ------------------------------------------------------------------------------------
 
+-- The first waypoint still ahead of `pos` (paths are computed asynchronously
+-- from where it WAS; restarting at waypoint 2 made it turn back for a step).
+local function firstAhead(list, pos: Vector3): number
+	local best, bestD = 1, math.huge
+	for i, wp in list do
+		local d = Util.flat(wp.Position - pos).Magnitude
+		if d < bestD then
+			best, bestD = i, d
+		end
+	end
+	return math.min(#list, best + 1)
+end
+
+local PATH_PARAMS = { AgentRadius = 1.6, AgentHeight = 9, AgentCanJump = false, WaypointSpacing = 4 }
+
 local function computePath(goal: Vector3)
-	if not root then
+	if not root or pathPending then
 		return
 	end
 	lastPathAt = os.clock()
 	lastPathGoal = goal
+	pathPending = true
 	local from = root.Position
 	task.spawn(function()
-		local p = PathfindingService:CreatePath({ AgentRadius = 1.6, AgentHeight = 9, AgentCanJump = false, WaypointSpacing = 4 })
+		local p = PathfindingService:CreatePath(PATH_PARAMS)
 		local ok = pcall(function()
 			p:ComputeAsync(from, goal)
 		end)
+		pathPending = false
 		if ok and p.Status == Enum.PathStatus.Success then
-			waypoints = p:GetWaypoints()
-			waypointIndex = math.min(2, #waypoints)
+			local list = p:GetWaypoints()
+			waypoints = list
+			waypointIndex = if root then firstAhead(list, root.Position) else math.min(2, #list)
+			pathFailures = 0
 		else
-			waypoints = { { Position = goal } }
-			waypointIndex = 1
+			-- keep the old route (if any) and try again soon; never walk a
+			-- straight line through a wall
+			pathFailures += 1
 		end
 	end)
+end
+
+-- Straight-line fallback only when nothing solid is in the way.
+local function clearLine(a: Vector3, b: Vector3): boolean
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local ignore: { Instance } = {}
+	if model then
+		table.insert(ignore, model)
+	end
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(ignore, p.Character)
+		end
+	end
+	params.FilterDescendantsInstances = ignore
+	local from = a + Vector3.new(0, 1, 0)
+	local to = b + Vector3.new(0, 1, 0)
+	return workspace:Raycast(from, to - from, params) == nil
 end
 
 local function moveToward(goal: Vector3, speed: number)
@@ -338,20 +431,29 @@ local function moveToward(goal: Vector3, speed: number)
 		return
 	end
 	humanoid.WalkSpeed = speed
-	if os.clock() - lastPathAt > 1.1 or (goal - lastPathGoal).Magnitude > 8 then
+	local atEnd = waypointIndex >= #waypoints
+	if os.clock() - lastPathAt > (if pathFailures > 0 then 0.6 else 2.5) or (goal - lastPathGoal).Magnitude > 6 or (atEnd and os.clock() - lastPathAt > 0.8) then
 		computePath(goal)
 	end
 	local wp = waypoints[waypointIndex]
+	local pos: Vector3? = nil
 	if wp then
-		local pos = wp.Position
-		if (Util.flat(pos - root.Position)).Magnitude < 2.5 and waypointIndex < #waypoints then
+		pos = wp.Position
+		if Util.flat((pos :: Vector3) - root.Position).Magnitude < 2.5 and waypointIndex < #waypoints then
 			waypointIndex += 1
-			wp = waypoints[waypointIndex]
-			pos = wp.Position
+			pos = waypoints[waypointIndex].Position
 		end
+	elseif clearLine(root.Position, goal) then
+		pos = goal
+	end
+	if pos then
 		humanoid:MoveTo(pos)
+		faceToward((pos :: Vector3) - root.Position)
 	else
-		humanoid:MoveTo(goal)
+		-- no route yet: wait for one (it stands and watches; it does not
+		-- press into a wall)
+		humanoid:Move(Vector3.zero)
+		faceToward(goal - root.Position)
 	end
 	Registry.DoorService:OpenNear(root.Position, 7)
 end
@@ -361,6 +463,9 @@ local function freeze()
 		humanoid.WalkSpeed = 0
 		humanoid:Move(Vector3.zero)
 		root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+		root.AssemblyAngularVelocity = Vector3.zero
+		-- frozen means frozen: it does not finish turning while watched
+		syncTurn()
 	end
 end
 
@@ -382,10 +487,12 @@ local function blinkStep(goal: Vector3)
 		stepTo = root.Position + dir.Unit * 10
 	end
 	if unseenAt(stepTo) then
+		lastBlinkStepAt = os.clock()
 		local look = Util.flat(goal - stepTo)
 		local cf = if look.Magnitude > 0.1 then CFrame.lookAt(stepTo, stepTo + look.Unit) else CFrame.new(stepTo)
 		model:PivotTo(cf * CFrame.new(0, ObserverRig.HipHeight + 1 - 0, 0))
 		waypointIndex = math.min(#waypoints, waypointIndex + 2)
+		syncTurn()
 		Registry.AudioService:PlayAt("ObserverStep", stepTo, { volume = 0.8 })
 	end
 end
@@ -476,6 +583,7 @@ local function attack(victim: Player)
 	end
 	attackLock = true
 	setState(S.Attacking)
+	setBehavior("ATTACKING")
 	freeze()
 	local vroot = Util.getRoot(victim)
 	-- a Ward breaks instead of you
@@ -654,6 +762,7 @@ function ObserverService:Sighting(player: Player): boolean
 	target = player
 	sightingData = { seenAt = nil :: number?, lookAwayFor = 0, spawnedAt = os.clock() }
 	setState(S.Watched)
+	setBehavior("OBSERVING")
 	return true
 end
 
@@ -748,206 +857,60 @@ function ObserverService:StartEscapeChase()
 end
 
 ------------------------------------------------------------------------------------
--- Mimic
+-- Mimic (Server/Mimic: MimicBrain decides, Mimic drives). One creation path for
+-- the director and the admin command.
 ------------------------------------------------------------------------------------
 
-local WALK_ANIM = "rbxassetid://507777826"
-
-function ObserverService:Mimic(viewer: Player, imitated: Player?): boolean
-	if not active or mimic then
-		return false
-	end
-	imitated = imitated or viewer
-	local source = (imitated :: Player).Character
-	local sourceHumanoid = source and source:FindFirstChildOfClass("Humanoid")
-	local vroot = Util.getRoot(viewer)
-	local look = Registry.PlayerService:GetLook(viewer)
-	if not sourceHumanoid or not vroot or not look then
-		return false
-	end
-	-- somewhere the viewer will notice soon, but cannot see right now
-	local spot = nil
-	for _, s in candidateSpots(22, 60, vroot.Position, true) do
-		local head = s + Vector3.new(0, 4.5, 0)
-		if unseenAt(s) and Registry.PlayerService:HasLineOfSight(look.origin, head) then
-			spot = s
-			break
-		end
-	end
-	if not spot then
-		return false
-	end
-	local ok, desc = pcall(function()
-		return sourceHumanoid:GetAppliedDescription()
-	end)
-	if not ok or not desc then
-		return false
-	end
-	local okM, double = pcall(function()
-		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
-	end)
-	if not okM or not double then
-		return false
-	end
-	local m = double :: Model
-	m.Name = "Mimic"
-	m:SetAttribute("PlayerName", (imitated :: Player).DisplayName)
-	m:SetAttribute("Title", (imitated :: Player):GetAttribute("Title"))
-	m:SetAttribute("Mimic", true)
-	m:AddTag("NameTagged")
-	local away = Util.flat(spot - vroot.Position)
-	m:PivotTo(CFrame.lookAt(spot + Vector3.new(0, 3, 0), spot + Vector3.new(0, 3, 0) + (if away.Magnitude > 0.1 then away.Unit else Vector3.new(0, 0, 1))))
-	local mh = m:FindFirstChildOfClass("Humanoid") :: Humanoid
-	mh.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-	mh.WalkSpeed = 5
-	for _, d in m:GetDescendants() do
-		if d:IsA("BasePart") then
-			d.CollisionGroup = "Observer"
-		end
-	end
-	m.Parent = workspace
-	if m.PrimaryPart then
-		pcall(function()
-			(m.PrimaryPart :: BasePart):SetNetworkOwner(nil)
-		end)
-	end
-	local animator = mh:FindFirstChildOfClass("Animator") or Instance.new("Animator", mh)
-	local anim = Instance.new("Animation")
-	anim.AnimationId = WALK_ANIM
-	local okA, track = pcall(function()
-		return (animator :: Animator):LoadAnimation(anim)
-	end)
-	if okA and track then
-		track.Looped = true
-		track:Play(0.3, 1, 0.6)
-	end
-	mimic = m
-	local rng = Registry.HorrorDirector:Rng()
-	mimicData = {
-		viewer = viewer,
-		imitated = imitated,
-		spawned = os.clock(),
-		seenFor = 0,
-		walkTo = spot + (if away.Magnitude > 0.1 then away.Unit else Vector3.new(0, 0, 1)) * 20,
-		nextPauseAt = os.clock() + rng:Number(2.5, 5),
-		pausedUntil = 0,
-		waved = false,
-		pinged = false,
-		pingAt = if imitated ~= viewer and rng:Chance(0.35) then os.clock() + rng:Number(2.5, 5) else math.huge,
-	}
-	mh:MoveTo(mimicData.walkTo)
-	Registry.PlayerService:AddPerceptionExclusion(m)
-	return true
-end
-
-local function endMimic(lunge: boolean)
-	local m = mimic
-	if not m then
-		return
-	end
-	local viewer = mimicData and mimicData.viewer
-	mimic = nil
-	mimicData = nil
-	m:SetAttribute("Reveal", true)
-	local head = m:FindFirstChild("Head") :: BasePart?
-	if head then
-		Registry.AudioService:PlayAt("ObserverTwitch", head.Position)
-	end
-	task.delay(if lunge then 0.35 else 0.9, function()
-		if lunge and viewer then
-			Net.fire(viewer, "Effect", { name = "Jumpscare", kind = "mimic" })
-			Registry.AudioService:Play2D({ viewer }, "JumpSting")
-		end
-		Registry.PlayerService:RemovePerceptionExclusion(m)
-		m:Destroy()
-		if lunge and viewer and Registry.HorrorDirector:Rng():Chance(0.5) then
+Mimic.init({
+	candidateSpots = candidateSpots,
+	unseenAt = unseenAt,
+	-- in reach and checked by the server: its face, in the viewer's
+	onAttack = function(viewer: Player, m: Model)
+		Net.fire(viewer, "Effect", { name = "Jumpscare", kind = "mimic", model = m })
+	end,
+	-- after a lunge, sometimes The Observer is right behind you
+	onLunge = function(viewer: Player)
+		if Registry.HorrorDirector:Rng():Chance(0.5) then
 			task.delay(2, function()
 				ObserverService:StartHunt(viewer, { behind = true, reason = "mimic" })
 			end)
 		end
-	end)
+	end,
+})
+
+-- Spawns a mimic near `viewer` wearing `imitated`'s clothes. Returns (ok, why).
+function ObserverService:SpawnMimic(viewer: Player, imitated: Player?): (boolean, string)
+	if not active then
+		return false, "no round running"
+	end
+	return Mimic.spawn(viewer, imitated or viewer)
 end
 
-local function updateMimic(dt: number)
-	local m = mimic
-	if not m or not mimicData then
-		return
-	end
-	local viewer = mimicData.viewer
-	local vroot = Util.getRoot(viewer)
-	local mroot = m.PrimaryPart
-	local mh = m:FindFirstChildOfClass("Humanoid")
-	if not vroot or not mroot or not mh or not Registry.PlayerService:IsAlive(viewer) or os.clock() - mimicData.spawned > 35 then
-		endMimic(false)
-		return
-	end
-	local now = os.clock()
-	local rng = Registry.HorrorDirector:Rng()
-	local dist = (vroot.Position - mroot.Position).Magnitude
-	if dist < 7 then
-		endMimic(true)
-		return
-	end
-	-- it walks almost right: it stops for no reason, then carries on
-	if now < mimicData.pausedUntil then
-		mh:Move(Vector3.zero)
-		m:SetAttribute("Pause", true)
-	else
-		if now > mimicData.nextPauseAt then
-			mimicData.pausedUntil = now + rng:Number(1, 2.4)
-			mimicData.nextPauseAt = now + rng:Number(4, 8)
-		end
-		m:SetAttribute("Pause", false)
-		mh:MoveTo(mimicData.walkTo)
-	end
-	local seen = Registry.PlayerService:IsLookingAt(viewer, mroot.Position + Vector3.new(0, 1.5, 0), 25, 90, m)
-	if seen then
-		mimicData.seenFor += dt
-		-- noticed: it waves back, far too slowly
-		if not mimicData.waved and dist < 45 then
-			mimicData.waved = true
-			mimicData.pausedUntil = now + 3
-			m:SetAttribute("Emote", "wave")
-			m:SetAttribute("EmoteSpeed", 0.35)
-			m:SetAttribute("EmoteAt", workspace:GetServerTimeNow())
-		end
-		if mimicData.seenFor > 5 then
-			endMimic(false)
-		end
-	end
-	-- sometimes it calls you over, with your friend's name
-	if not mimicData.pinged and now > mimicData.pingAt and not seen then
-		mimicData.pinged = true
-		local imitated = mimicData.imitated
-		Registry.PingService:FakePing(viewer, "COME_HERE", mroot.Position + Vector3.new(0, 1, 0), if imitated then imitated.DisplayName else viewer.DisplayName, if imitated then imitated.UserId else 0)
-	end
+function ObserverService:Mimic(viewer: Player, imitated: Player?): boolean
+	local ok = self:SpawnMimic(viewer, imitated)
+	return ok
 end
 
--- A real ping right next to a mimic: it stops and turns to the one who pinged.
+function ObserverService:MimicStatus(): string
+	return Mimic.status()
+end
+
+function ObserverService:DespawnMimic()
+	Mimic.finish(false, "admin")
+end
+
+-- A real ping near a mimic: it stares at whoever pinged, or goes to look.
 function ObserverService:OnPing(from: Player, position: Vector3)
-	local m = mimic
-	if not m or not mimicData or not m.PrimaryPart then
-		return
-	end
-	if (m.PrimaryPart.Position - position).Magnitude < 7 then
-		mimicData.pausedUntil = os.clock() + 3.5
-		local froot = Util.getRoot(from)
-		if froot then
-			m:SetAttribute("StareAt", froot.Position)
-		end
-		local head = m:FindFirstChild("Head") :: BasePart?
-		if head then
-			Registry.AudioService:PlayAt("ObserverCrack", head.Position, { volume = 0.6 })
-		end
-	end
+	Mimic.onPing(from, position)
 end
 
 -- Reporting a mimic unmasks it. Returns true if the report was aimed at one.
 function ObserverService:ReportMimic(player: Player, origin: Vector3, dir: Vector3): boolean
-	local m = mimic
-	if not m or not mimicData or not m.PrimaryPart then
+	local found = Mimic.get()
+	if not found or not found.PrimaryPart then
 		return false
 	end
+	local m = found :: Model
 	local target = m.PrimaryPart.Position + Vector3.new(0, 1, 0)
 	local to = target - origin
 	if to.Magnitude > 80 or to.Magnitude < 0.1 then
@@ -958,13 +921,54 @@ function ObserverService:ReportMimic(player: Player, origin: Vector3, dir: Vecto
 	if angle > tolerance or not Registry.PlayerService:HasLineOfSight(origin, target, m) then
 		return false
 	end
-	local name = if mimicData.imitated then mimicData.imitated.DisplayName else "you"
+	local imitated = Mimic.imitated()
+	local name = if imitated then imitated.DisplayName else "you"
 	Net.fire(player, "Notify", { kind = "anomaly", text = "THAT WASN'T " .. string.upper(name), sub = "MIMIC UNMASKED" })
 	Net.fire(player, "Effect", { name = "RealitySnap" })
 	Registry.ProgressionService:Award(player, "NOT_MY_FRIEND")
 	Registry.ProgressionService:MimicSpotted(player)
-	endMimic(false)
+	Mimic.unmask()
 	return true
+end
+
+------------------------------------------------------------------------------------
+-- Inspect (admin): it stands in front of you, watching, so you can look at it
+------------------------------------------------------------------------------------
+
+function ObserverService:Inspect(player: Player): (boolean, string)
+	if not active then
+		return false, "no round running"
+	end
+	local proot = Util.getRoot(player)
+	if not proot then
+		return false, "no character"
+	end
+	if mode then
+		park()
+	end
+	local look = Util.flat(proot.CFrame.LookVector)
+	look = if look.Magnitude > 0.1 then look.Unit else Vector3.new(0, 0, -1)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local character = player.Character
+	params.FilterDescendantsInstances = if character then { character } else {}
+	local dist = 12
+	local hit = workspace:Raycast(proot.Position, look * 14, params)
+	if hit then
+		dist = math.max(4, (hit.Position - proot.Position).Magnitude - 2)
+	end
+	local ground = workspace:Raycast(proot.Position + look * dist + Vector3.new(0, 2, 0), Vector3.new(0, -12, 0), params)
+	local spot = if ground then ground.Position else proot.Position + look * dist - Vector3.new(0, 3, 0)
+	place(CFrame.lookAt(spot, spot - look))
+	if root then
+		root.Anchored = true
+	end
+	mode = "inspect"
+	target = player
+	huntEndsAt = os.clock() + 45
+	setState(S.Watched)
+	setBehavior("OBSERVING")
+	return true, string.format("observer standing %.0f studs in front of you for 45 s (Vanish Observer to remove)", dist)
 end
 
 ------------------------------------------------------------------------------------
@@ -972,8 +976,15 @@ end
 ------------------------------------------------------------------------------------
 
 local function tick(dt: number)
-	updateMimic(dt)
+	Mimic.tick(dt)
 	if not mode or not model or model.Parent ~= workspace or not root then
+		return
+	end
+	if mode == "inspect" then
+		-- frozen, watching its target; only its eyes and head follow (client)
+		if os.clock() > huntEndsAt or not target or not Registry.PlayerService:IsAlive(target) then
+			ObserverService:Vanish()
+		end
 		return
 	end
 	if mode == "sighting" then
@@ -1032,6 +1043,7 @@ local function tick(dt: number)
 	if #list > 0 then
 		freeze()
 		setState(S.Watched)
+		setBehavior("OBSERVING")
 		unwatchedSince = os.clock()
 		-- guarding a teammate
 		for _, p in list do
@@ -1050,8 +1062,19 @@ local function tick(dt: number)
 		ObserverService:Vanish()
 		return
 	end
-	setState(if (tr.Position - root.Position).Magnitude < 40 then S.Hunting else S.Moving)
+	local targetDist = (tr.Position - root.Position).Magnitude
+	setState(if targetDist < 40 then S.Hunting else S.Moving)
 	local cfg = Registry.RoundService:GetDifficultyConfig()
+	-- THREATENING: someone is within reach and has been warned for a while:
+	-- it straightens up and slows (the clear signal before a catch)
+	local threatening = false
+	for _, p in Registry.PlayerService:GetAlive() do
+		local pr = Util.getRoot(p)
+		if pr and (pr.Position - root.Position).Magnitude < 14 and (closeTime[p] or 0) >= (cfg.WarningTime or 1.5) * 0.5 then
+			threatening = true
+		end
+	end
+	setBehavior(if threatening then "THREATENING" elseif targetDist < 40 then "STALKING" else "REPOSITIONING")
 	-- warnings first: you always hear it before it can reach you
 	for _, p in Registry.PlayerService:GetAlive() do
 		local pr = Util.getRoot(p)
@@ -1084,9 +1107,14 @@ local function tick(dt: number)
 	if dark then
 		speed *= 1 + 0.06 * (cunning + 1)
 	end
+	if threatening then
+		speed *= 0.55
+	end
 	moveToward(tr.Position, speed)
-	local blinkChance = 0.08 * (1 + cunning * 0.35) * (if dark then 1.4 else 1)
-	if os.clock() - unwatchedSince > 1.6 and Registry.HorrorDirector:Rng():Chance(blinkChance) then
+	-- "it got closer": a jump along its path, only while nobody watches, and
+	-- rarely (it used to be ~0.6 per second: it read as erratic teleporting)
+	local blinkChance = 0.03 * (1 + cunning * 0.35) * (if dark then 1.4 else 1)
+	if os.clock() - unwatchedSince > 2.5 and os.clock() - lastBlinkStepAt > 4.5 and Registry.HorrorDirector:Rng():Chance(blinkChance) then
 		blinkStep(tr.Position)
 	end
 	-- unstick
@@ -1099,6 +1127,8 @@ local function tick(dt: number)
 		if spot then
 			model:PivotTo(CFrame.new(spot) * CFrame.new(0, ObserverRig.HipHeight + 1, 0))
 			waypoints = {}
+			syncTurn()
+			setBehavior("RECOVERY")
 		end
 	end
 end
@@ -1118,16 +1148,25 @@ end
 
 function ObserverService:EndRound()
 	active = false
-	if mimic then
-		mimic:Destroy()
-		mimic = nil
-		mimicData = nil
-	end
+	Mimic.clear()
 	park()
 end
 
 function ObserverService:GetMimic(): Model?
-	return mimic
+	return Mimic.get()
+end
+
+-- One line for the admin panel.
+function ObserverService:Status(): string
+	return string.format(
+		"observer mode %s, state %s, behavior %s, path %d wp%s, failures %d",
+		tostring(mode),
+		state,
+		tostring(behavior),
+		#waypoints,
+		if pathPending then " (planning)" else "",
+		pathFailures
+	)
 end
 
 function ObserverService:GetModel(): Model?

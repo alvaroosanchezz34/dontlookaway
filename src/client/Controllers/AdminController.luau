@@ -97,7 +97,7 @@ local function build()
 	panel = Kit.frame({ Size = UDim2.fromOffset(1500, 900), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundColor3 = C.Black, BackgroundTransparency = 0.08, Visible = false, Parent = g })
 	Kit.stroke(panel, C.Danger, 1, 0.3)
 	Kit.text({ Text = "ADMIN  ·  owner tools", Size = UDim2.fromOffset(600, 30), Position = UDim2.fromOffset(20, 12), FontFace = Kit.F.Heading, TextSize = 20, TextColor3 = C.Danger, Parent = panel })
-	message = Kit.text({ Text = "", Size = UDim2.fromOffset(800, 24), Position = UDim2.fromOffset(660, 14), TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Mono, TextSize = 14, Parent = panel })
+	message = Kit.text({ Text = "", Size = UDim2.fromOffset(1100, 44), Position = UDim2.fromOffset(380, 8), TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true, FontFace = Kit.F.Mono, TextSize = 14, Parent = panel })
 	local commands = Kit.scroll(panel, { Size = UDim2.fromOffset(310, 820), Position = UDim2.fromOffset(20, 60) })
 	Kit.list(commands, 6)
 	local entries = {
@@ -108,7 +108,14 @@ local function build()
 		{ "Spawn Observer (hunt)", "spawnObserver", true },
 		{ "Observer sighting", "sighting", true },
 		{ "Mimic", "mimic", true },
+		{ "Mimic status", "mimicStatus" },
+		{ "Observer: inspect (in front of me)", "observerInspect" },
+		{ "Observer status", "observerStatus" },
+		{ "Scare test: front", "scareTest", "front" },
+		{ "Scare test: behind", "scareTest", "behind" },
+		{ "Scare test: dark", "scareTest", "dark" },
 		{ "Vanish Observer", "vanishObserver" },
+		{ "Despawn entities", "despawnEntities" },
 		{ "Paranoia: glimpse", "paranoia", "glimpse" },
 		{ "Paranoia: shadow", "paranoia", "shadow" },
 		{ "Paranoia: silence", "paranoia", "silence" },

@@ -15,6 +15,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
@@ -331,8 +333,38 @@ handlers.WardBreak = function()
 end
 
 handlers.Jumpscare = function(p)
+	if p.kind == "mimic" and typeof(p.model) == "Instance" and p.model:IsA("Model") then
+		-- the mimic itself lunges: its own face, not The Observer's
+		Registry.ScareController:MimicLunge(p.model)
+		return
+	end
 	-- it is right there, for a fraction of a second
 	Registry.ScareController:Flash(p.kind)
+end
+
+-- Admin test (server-authorised, no death): plays a death cinematic, then
+-- gives the camera and the screen back and reports how the face was framed.
+handlers.ScareTest = function(p)
+	if Registry.ScareController:IsActive() then
+		return
+	end
+	local root = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+	Registry.ScareController:Death({
+		variant = p.variant or "front",
+		position = if root then (root :: BasePart).Position else nil,
+		side = 1,
+		mimicUserId = localPlayer.UserId,
+		mimicName = localPlayer.DisplayName,
+		test = true,
+	}, function()
+		task.delay(0.5, function()
+			Registry.CameraController:ClearOverride("Death")
+			EffectsController:ResetPost()
+			EffectsController:Fade(0, 0.4)
+			local f = Registry.ScareController.LastFrame
+			Net.event("Admin"):FireServer("scareReport", if f then { variant = f.variant, distance = f.distance, facing = f.facing, centred = f.centred, inFront = f.inFront } else nil)
+		end)
+	end)
 end
 
 handlers.ObserverClose = function()

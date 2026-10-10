@@ -622,7 +622,10 @@ do
 			end
 		end
 	end
-	check(meshes == 18, "18 meshes (both sides), got " .. meshes)
+	-- 16: the face halves keep their part-built pale face (the sculpted ones
+	-- were dark and featureless; see ObserverRig)
+	check(meshes == 16, "16 meshes (both sides, face halves excluded), got " .. meshes)
+	check(rig:FindFirstChild("FaceL") and rig:FindFirstChild("FaceL").Transparency < 1, "the pale face stays visible over the sculpted head")
 	check(hiddenSegments == 1 and visibleDetails == 0, "segments and sculpted details hidden")
 	check(ObserverRig.dress(rig) == false, "dressing twice does nothing")
 	-- the mesh sits on its segment's mesh offset
@@ -1548,6 +1551,174 @@ do
 end
 
 ------------------------------------------------------------------------------------
+
+section("the mimic: state machine")
+do
+	local fs = require("@lune/fs")
+	local MimicBrain = requireModule(Server.Mimic.MimicBrain)
+	local S = MimicBrain.States
+	local Cfg = MimicBrain.Config
+	local function ctx(over)
+		local c = {
+			valid = true,
+			now = 0,
+			stateTime = 0,
+			lifetime = 1,
+			viewerAlive = true,
+			dist = 50,
+			los = false,
+			seen = false,
+			seenFor = 0,
+			unseenFor = 0,
+			arrived = false,
+			routeFailed = false,
+			stuck = false,
+			ping = nil,
+			recoveries = 0,
+			recovered = false,
+		}
+		for k, v in over or {} do
+			c[k] = v
+		end
+		return c
+	end
+	local function step(state, over)
+		local nextState = MimicBrain.decide(state, ctx(over))
+		return nextState
+	end
+	check(step(S.SPAWNING) == S.IDLE, "spawning -> idle once the model is valid")
+	check(step(S.SPAWNING, { valid = false, invalidReason = "in a wall" }) == S.DESPAWNING, "an invalid spawn is cleaned up, not left walking")
+	check(step(S.IDLE, { stateTime = Cfg.IdleFor + 0.1 }) == S.PATROLLING, "idle -> patrolling after waiting")
+	check(step(S.IDLE, { stateTime = 0.5 }) == S.IDLE, "idle holds (no constant random changes)")
+	check(step(S.PATROLLING, { arrived = true }) == S.IDLE, "patrolling -> idle on arrival")
+	-- walking into a wall: stuck or no route -> recover, never keep pushing
+	check(step(S.PATROLLING, { stuck = true }) == S.RECOVERING, "stuck against a wall -> recovering")
+	check(step(S.PATROLLING, { routeFailed = true }) == S.RECOVERING, "no route -> recovering")
+	check(step(S.RECOVERING, { recovered = true, recoveries = 1 }) == S.PATROLLING, "recovering -> patrolling with a new route")
+	check(step(S.RECOVERING, { recoveries = Cfg.MaxRecoveries }) == S.DESPAWNING, "after repeated failures it leaves instead of looping")
+	check(step(S.RECOVERING, { recoveries = 1 }) == S.RECOVERING, "recovering waits for a route")
+	-- hunting behaviour
+	check(step(S.PATROLLING, { los = true, dist = 20 }) == S.STALKING, "viewer close and not looking -> stalking")
+	check(step(S.STALKING, { los = false, unseenFor = Cfg.StalkLoseAfter + 1 }) == S.PATROLLING, "lost sight -> back to patrolling")
+	check(step(S.STALKING, { seen = true, seenFor = 2, dist = 8, los = true }) == S.CHASING, "noticed up close -> chasing")
+	check(step(S.STALKING, { seen = true, seenFor = Cfg.StaredDownAfter, dist = 30, los = true }) == S.DESPAWNING, "stared down from afar -> it leaves")
+	check(step(S.CHASING, { dist = Cfg.AttackRange - 0.5, los = true }) == S.ATTACKING, "chasing -> attacking in reach")
+	check(step(S.CHASING, { dist = 10, stateTime = Cfg.ChaseFor + 0.1, los = true }) == S.RECOVERING, "a chase has a time limit")
+	check(step(S.CHASING, { dist = 10, stuck = true, los = true }) == S.RECOVERING, "stuck while chasing -> recovering")
+	check(step(S.ATTACKING, { stateTime = 0.1, dist = 3 }) == S.ATTACKING, "the lunge holds")
+	check(step(S.ATTACKING, { stateTime = Cfg.AttackHold, dist = 3 }) == S.DESPAWNING, "after the lunge it leaves (attack resolves once)")
+	check(step(S.IDLE, { ping = Vector3.new(1, 2, 3) }) == S.INVESTIGATING, "a ping nearby -> investigating")
+	check(step(S.INVESTIGATING, { stateTime = Cfg.InvestigateFor + 1 }) == S.IDLE, "investigating gives up")
+	check(step(S.PATROLLING, { viewerAlive = false }) == S.DESPAWNING, "viewer gone -> despawning")
+	check(step(S.PATROLLING, { lifetime = Cfg.Lifetime + 1 }) == S.DESPAWNING, "it does not stay forever")
+	check(step(S.DESPAWNING, { viewerAlive = false }) == S.DESPAWNING, "despawning is final")
+	-- a full scripted encounter never stalls in one state
+	local state, t = S.SPAWNING, 0
+	local trace = {}
+	local script_ = {
+		{},
+		{ stateTime = 3 },
+		{ stuck = true },
+		{ recovered = true, recoveries = 1 },
+		{ los = true, dist = 25 },
+		{ seen = true, seenFor = 1.5, dist = 9, los = true },
+		{ dist = 3, los = true },
+		{ stateTime = 1, dist = 3 },
+	}
+	for _, over in script_ do
+		t += 1
+		state = step(state, over)
+		table.insert(trace, state)
+	end
+	check(state == S.DESPAWNING, "scripted encounter: " .. table.concat(trace, " > "))
+	for _, st in { S.IDLE, S.PATROLLING, S.INVESTIGATING, S.STALKING, S.CHASING, S.RECOVERING } do
+		check(MimicBrain.speed(st) >= 0, "speed defined for " .. st)
+	end
+	check(MimicBrain.speed(S.CHASING) > MimicBrain.speed(S.STALKING) and MimicBrain.speed(S.STALKING) > MimicBrain.speed(S.IDLE), "it runs only when chasing")
+	-- the animations are Roblox's own R15 ids (the stock Animate script's), not invented
+	local src = fs.readFile("src/server/Mimic/Mimic.luau")
+	for _, id in { "507766666", "507777826", "507767714" } do
+		check(string.find(src, id, 1, true) ~= nil, "mimic uses the stock R15 animation " .. id)
+	end
+	check(string.find(src, "CreateHumanoidModelFromDescription", 1, true) ~= nil and string.find(src, "HeightScale = 1.15", 1, true) ~= nil, "mimic builds its own body, not a plain copy")
+	check(string.find(fs.readFile("src/server/Services/AdminService.luau"), "SpawnMimic", 1, true) ~= nil, "the admin command uses the same creation path")
+end
+
+section("the observer: face and jumpscare framing")
+do
+	local RS = game:GetService("ReplicatedStorage")
+	local ObserverRig = requireModule(RS.Shared.ObserverRig)
+	local rig = ObserverRig.build(CFrame.new(0, 0, 0), { localCopy = true })
+	local m = ObserverRig.motors(rig)
+	for _, name in { "FaceL", "FaceR", "EyeballL", "EyeballR", "Maw", "Seam", "Head" } do
+		check(rig:FindFirstChild(name) ~= nil, "observer has " .. name)
+	end
+	for _, name in { "JawL", "JawR", "EyeTurnL", "EyeTurnR", "HeadJoint", "NeckJoint", "Waist", "RootJoint" } do
+		check(m[name] ~= nil, "observer joint " .. name)
+	end
+	-- the face is pale against the body (it reads in the dark and in close-up)
+	local face = rig:FindFirstChild("FaceL")
+	local body = rig:FindFirstChild("UpperTorso")
+	local lum = function(c)
+		return 0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B
+	end
+	check(lum(face.Color) > lum(body.Color) * 4, string.format("face much brighter than body (%.2f vs %.2f)", lum(face.Color), lum(body.Color)))
+	-- the jumpscare framing, from many camera positions and directions
+	local worst = { dist = 0, facing = 1, level = 0 }
+	for i = 0, 11 do
+		local yaw = i * math.pi / 6
+		local eye = Vector3.new(math.cos(yaw) * 7, 4.5 + (i % 3) * 0.6, math.sin(yaw) * 7)
+		local dir = Vector3.new(-math.sin(yaw), 0, math.cos(yaw))
+		for _, a in { 0, 0.5, 1 } do
+			local pose = ObserverRig.ScarePose(a, if a == 1 then 1 else 0)
+			local target = eye + dir * 2
+			local rootCf = ObserverRig.placeFace(m, pose, target, eye)
+			local world = ObserverRig.solve(rig, rootCf, pose)
+			local head = world[rig:FindFirstChild("Head")] * (rig:FindFirstChild("Head").CFrame:Inverse() * rig:FindFirstChild("Head").CFrame)
+			local anchor = rootCf * ObserverRig.headFromRoot(m, pose) * ObserverRig.FaceAnchor
+			-- the solver and the full-rig FK agree
+			local fromRig = world[rig:FindFirstChild("Head")] * ObserverRig.FaceAnchor
+			worst.dist = math.max(worst.dist, (anchor.Position - target).Magnitude, (fromRig.Position - target).Magnitude)
+			local toCam = (eye - anchor.Position).Unit
+			worst.facing = math.min(worst.facing, anchor.LookVector:Dot(toCam))
+			if a == 1 then
+				worst.level = math.max(worst.level, math.abs(anchor.LookVector.Y))
+			end
+			local _ = head
+		end
+	end
+	check(worst.dist < 1e-3, string.format("the face lands exactly where the jumpscare puts it (worst %.5f)", worst.dist))
+	check(worst.facing > 0.95, string.format("the face always turns to the camera (worst %.3f)", worst.facing))
+	check(worst.level < 0.2, string.format("at the impact the face is level, not looking up or down (%.3f)", worst.level))
+	-- the arms never come between the camera and the face
+	do
+		local eye = Vector3.new(0, 4.5, 0)
+		local pose = ObserverRig.ScarePose(1, 1)
+		local target = eye + Vector3.new(0, 0, -2)
+		local world = ObserverRig.solve(rig, ObserverRig.placeFace(m, pose, target, eye), pose)
+		local blocking = {}
+		for part, cf in world do
+			if part.Transparency < 1 and not string.find(part.Name, "Face") and part.Name ~= "Head" then
+				local rel = cf.Position - eye
+				local along = rel:Dot(Vector3.new(0, 0, -1))
+				local off = (rel - Vector3.new(0, 0, -1) * along).Magnitude
+				if along > 0.1 and along < 1.6 and off < 0.45 then
+					table.insert(blocking, part.Name)
+				end
+			end
+		end
+		check(#blocking == 0, "nothing between the camera and the face: " .. table.concat(blocking, ", "))
+	end
+	-- eyes turn toward a point and stay within their sockets
+	local eyes = ObserverRig.eyesAt(rig, m, Vector3.new(30, 4, -30), 35)
+	for name, cf in eyes do
+		local rx, ry = cf:ToEulerAnglesXYZ()
+		check(math.abs(math.deg(rx)) <= 35.01 and math.abs(math.deg(ry)) <= 35.01, "eye turn limited: " .. name)
+	end
+	local open = ObserverRig.faceOpen(1)
+	check(open.JawL ~= nil and open.JawR ~= nil, "face opens with both halves")
+	rig:Destroy()
+end
 
 section("summary")
 print(string.format("%d checks, %d failures", checks, failures))
