@@ -96,7 +96,8 @@ function AssetIds.url(id: number?): string?
 end
 
 -- Hero prop meshes (assets/props, built in Blender by tools/blender/build_assets.py).
--- model: the Model asset Studio creates when the .obj is imported; color /
+-- model: the Model asset Studio creates when the .obj is imported, or mesh: the
+-- Mesh asset itself (either one is enough); color /
 -- normal / roughness / metalness: the baked maps (metalness only where the
 -- asset has metal). 0 = not uploaded: that prop keeps its part-built look.
 AssetIds.PropMeshes = {
@@ -119,5 +120,35 @@ AssetIds.PropMeshes = {
 	MetalShelf = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
 	PictureFrame = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
 }
+
+-- Mesh assets ("Malla") uploaded from assets/props/*.obj whose prop is not
+-- known yet (Studio names every imported mesh "default"). The server loads
+-- each one and recognises which prop it is by its size (PropMeshMeta: every
+-- prop has a distinct shape), and prints the result to the Output; once that
+-- is confirmed the ids can move to PropMeshes[Name].mesh.
+AssetIds.PropMeshPool = {
+	129219108161968,
+	115794966523923,
+	122181663498153,
+	82808048798811,
+	140127762614722,
+	83971467549147,
+	125688133868285,
+	88003972220267,
+	70929185932165,
+	115425178803356,
+	90791029862626,
+	83775924149092,
+	125675671894905,
+	114224068339457,
+	121522946944862,
+	98254171400043,
+	112346542686394,
+}
+
+-- true: dress the map with meshes that have no baked maps yet (flat grey), to
+-- check placement before the maps are uploaded. false: a prop only switches to
+-- its mesh once its colour map is uploaded, so nothing looks worse meanwhile.
+AssetIds.PropMeshPreview = false
 
 return AssetIds

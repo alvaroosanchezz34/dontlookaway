@@ -39,11 +39,23 @@ local PropMeshes = {}
 
 local TEMPLATE_FOLDER = "PropMeshTemplates"
 
--- Names that have a model id.
+local function entry(name: string): { [string]: number }?
+	local e = (AssetIds.PropMeshes or {})[name]
+	return if type(e) == "table" then e else nil
+end
+
+-- A prop switches to its mesh only once its colour map is uploaded (so nothing
+-- looks worse meanwhile), unless AssetIds.PropMeshPreview asks for grey meshes.
+local function ready(name: string): boolean
+	local e = entry(name)
+	return AssetIds.PropMeshPreview == true or (e ~= nil and (e.color or 0) > 0)
+end
+
+-- Names that have a model or mesh id.
 function PropMeshes.configured(): { string }
 	local list = {}
-	for name, entry in AssetIds.PropMeshes or {} do
-		if type(entry) == "table" and (entry.model or 0) > 0 and Meta[name] then
+	for name, e in AssetIds.PropMeshes or {} do
+		if type(e) == "table" and ((e.model or 0) > 0 or (e.mesh or 0) > 0) and Meta[name] then
 			table.insert(list, name)
 		end
 	end
@@ -92,33 +104,149 @@ function PropMeshes.register(name: string, mesh: BasePart)
 	mesh.Parent = folder()
 end
 
--- Server: loads every configured mesh (yields). Returns how many loaded.
+local function fromModel(id: number): MeshPart
+	local container = game:GetService("InsertService"):LoadAsset(id)
+	local found = container:FindFirstChildWhichIsA("MeshPart", true)
+	local copy = if found then found:Clone() else nil
+	container:Destroy()
+	if not copy then
+		error("no MeshPart inside model " .. tostring(id))
+	end
+	return copy
+end
+
+local function fromMesh(id: number): MeshPart
+	return game:GetService("AssetService"):CreateMeshPartAsync(Content.fromUri("rbxassetid://" .. string.format("%d", id)), {
+		CollisionFidelity = Enum.CollisionFidelity.Box,
+		RenderFidelity = Enum.RenderFidelity.Automatic,
+	})
+end
+
+local function clean(mesh: MeshPart): MeshPart
+	for _, d in mesh:GetChildren() do
+		d:Destroy()
+	end
+	return mesh
+end
+
+-- Shape difference under which a pool mesh is taken for a prop. An uploaded
+-- mesh's bounds are its vertex bounds, so the right prop scores ~0; the
+-- closest two props (the dado rail and the cornice) are 0.036 apart.
+PropMeshes.MATCH_TOLERANCE = 0.015
+
+-- How far a loaded mesh's shape is from a prop's (0 = same proportions). The
+-- comparison is per axis on the size divided by its largest side, so a mesh
+-- the importer scaled still matches; the props all have distinct proportions.
+function PropMeshes.shapeDistance(size: Vector3, want: Vector3): number
+	local a = size / math.max(size.X, size.Y, size.Z, 1e-3)
+	local b = want / math.max(want.X, want.Y, want.Z, 1e-3)
+	return (a - b).Magnitude
+end
+
+-- Pairs unnamed meshes ({ [id] = size }) with the props not loaded yet, closest
+-- shape first. Returns { { id, name, distance } } sorted by name.
+function PropMeshes.matchPool(sizes: { [number]: Vector3 }, taken: { [string]: boolean }): { { id: number, name: string, distance: number } }
+	local pairs_ = {}
+	for id, size in sizes do
+		for name, meta in Meta do
+			if not taken[name] then
+				table.insert(pairs_, { id = id, name = name, distance = PropMeshes.shapeDistance(size, meta.size) })
+			end
+		end
+	end
+	table.sort(pairs_, function(x, y)
+		return x.distance < y.distance
+	end)
+	local usedId, usedName, out = {}, table.clone(taken), {}
+	for _, pr in pairs_ do
+		if not usedId[pr.id] and not usedName[pr.name] then
+			usedId[pr.id] = true
+			usedName[pr.name] = true
+			table.insert(out, pr)
+		end
+	end
+	table.sort(out, function(x, y)
+		return x.name < y.name
+	end)
+	return out
+end
+
+local function install(name: string, mesh: MeshPart): boolean
+	if ready(name) then
+		PropMeshes.register(name, mesh)
+		return true
+	end
+	mesh:Destroy()
+	return false
+end
+
+-- Server: loads every configured mesh, then the unnamed pool (yields).
+-- Returns how many props will be dressed.
 function PropMeshes.load(): number
 	if not RunService:IsServer() then
 		return 0
 	end
-	local loaded = 0
+	local loaded, taken = 0, {}
 	for _, name in PropMeshes.configured() do
-		local id = AssetIds.PropMeshes[name].model
+		local e = entry(name) :: { [string]: number }
 		local ok, mesh = pcall(function()
-			local container = game:GetService("InsertService"):LoadAsset(id)
-			local found = container:FindFirstChildWhichIsA("MeshPart", true)
-			local copy = if found then found:Clone() else nil
-			container:Destroy()
-			if not copy then
-				error("no MeshPart inside model " .. tostring(id))
-			end
-			for _, d in copy:GetChildren() do
-				d:Destroy()
-			end
-			return copy
+			return clean(if (e.mesh or 0) > 0 then fromMesh(e.mesh) else fromModel(e.model))
 		end)
 		if ok and mesh then
-			PropMeshes.register(name, mesh)
-			loaded += 1
+			taken[name] = true
+			if install(name, mesh) then
+				loaded += 1
+			end
 		else
 			warn("[PropMeshes] could not load " .. name .. ": " .. tostring(mesh))
 		end
+	end
+	local pool, sizes = {}, {}
+	for _, id in AssetIds.PropMeshPool or {} do
+		if type(id) == "number" and id > 0 then
+			local ok, mesh = pcall(function()
+				return clean(fromMesh(id))
+			end)
+			if ok and mesh then
+				pool[id] = mesh
+				local okSize, native = pcall(function()
+					return mesh.MeshSize
+				end)
+				sizes[id] = if okSize and typeof(native) == "Vector3" and native.Magnitude > 0 then native else mesh.Size
+			else
+				warn("[PropMeshes] could not load mesh " .. tostring(id) .. ": " .. tostring(mesh))
+			end
+		end
+	end
+	for _, m in PropMeshes.matchPool(sizes, taken) do
+		local size = sizes[m.id]
+		local good = m.distance < PropMeshes.MATCH_TOLERANCE
+		local line = string.format(
+			"[PropMeshes] mesh %d -> %s (size %.2f x %.2f x %.2f, shape difference %.3f)%s",
+			m.id,
+			m.name,
+			size.X,
+			size.Y,
+			size.Z,
+			m.distance,
+			if good then "" elseif m.distance < 0.1 then " CHECK" else " NO MATCH"
+		)
+		if good then
+			print(line)
+		else
+			warn(line)
+		end
+		local mesh = pool[m.id]
+		pool[m.id] = nil
+		if good and install(m.name, mesh) then
+			loaded += 1
+		elseif mesh then
+			mesh:Destroy()
+		end
+	end
+	for id, mesh in pool do
+		warn("[PropMeshes] mesh " .. tostring(id) .. " matches no prop")
+		mesh:Destroy()
 	end
 	return loaded
 end

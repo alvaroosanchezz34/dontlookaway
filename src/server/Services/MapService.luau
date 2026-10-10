@@ -13,6 +13,7 @@ local MapBuilder = require(script.Parent.Parent.Map.MapBuilder)
 local Lobby = require(script.Parent.Parent.Map.Lobby)
 local MaterialLibrary = require(ReplicatedStorage.Shared.MaterialLibrary)
 local PropMeshes = require(ReplicatedStorage.Shared.PropMeshes)
+local AssetIds = require(ReplicatedStorage.Shared.Config.AssetIds)
 
 local MapService = {}
 
@@ -89,12 +90,12 @@ function MapService:Start()
 	-- the Blender prop meshes load in the background; the map built meanwhile
 	-- is dressed as soon as they arrive, later maps when they are built
 	task.spawn(function()
-		local wanted = #PropMeshes.configured()
+		local wanted = #PropMeshes.configured() + #(AssetIds.PropMeshPool or {})
 		if wanted == 0 then
 			return
 		end
 		local n = PropMeshes.load()
-		print(string.format("[MapService] prop meshes: %d of %d loaded", n, wanted))
+		print(string.format("[MapService] prop meshes: %d of %d in use%s", n, wanted, if n < wanted and not AssetIds.PropMeshPreview then " (a prop switches to its mesh once its colour map is uploaded)" else ""))
 		if currentMap and currentMap.Root and currentMap.Root.Parent then
 			PropMeshes.dress(currentMap.Root)
 		end

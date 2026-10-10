@@ -76,16 +76,26 @@ el test lo comprueba.
 
 ## 4. Lo que tienes que hacer en Studio (una vez)
 
-1. **Importar los OBJ.** Asset Manager → Import 3D → cada
-   `assets/props/<Asset>.obj`. Copia el ID del Model.
+1. **Mallas: hecho.** Las 17 se subieron como mallas (tipo «Malla») y Studio
+   las llamó todas `default`.
+   - Sus IDs están en `AssetIds.PropMeshPool`.
+   - Al arrancar, el servidor carga cada una con
+     `AssetService:CreateMeshPartAsync` y la reconoce por sus proporciones
+     (`PropMeshes.matchPool`): cada objeto tiene una forma distinta, y los más
+     parecidos, el zócalo y la cornisa, difieren en 0,036.
+   - Escribe en el Output una línea por malla:
+     `[PropMeshes] mesh <id> -> <Objeto> (size ..., shape difference ...)`.
+   - Si una línea sale con `CHECK` o `NO MATCH`, esa malla no se usa.
 2. **Subir los mapas.** Asset Manager → Bulk Import de las PNG de
    `assets/props/<Asset>/`.
    - Los `_metalness` solo hacen falta en PendantLamp, WallSconce, Radiator,
      FilingCabinet, Locker y OfficeDesk.
-3. **Pasarme los IDs** (una captura vale). Yo relleno `AssetIds.PropMeshes` y
-   ejecuto `sync_assets.py`.
-
-Hasta entonces el juego se ve como ahora: modelos de piezas y texturas en mosaico.
+   - Un objeto solo cambia a su malla cuando tiene su mapa de color, para que
+     nada se vea peor mientras tanto.
+   - Para comprobar la colocación antes, pon `AssetIds.PropMeshPreview = true`:
+     las mallas salen en gris liso. No lo publiques así.
+3. **Pasarme los IDs de las PNG** (una captura vale). Yo relleno
+   `AssetIds.PropMeshes` y ejecuto `sync_assets.py`.
 
 ## 5. Pruebas ejecutadas de verdad
 

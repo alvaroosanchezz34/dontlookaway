@@ -400,6 +400,38 @@ do
 		end
 	end
 	check(#names >= 13, "thirteen hero meshes (" .. #names .. ")")
+	-- unnamed uploaded meshes are recognised by shape, even when the importer
+	-- scaled them (x0.28 here, as a metres/studs mix-up would)
+	local sizes, truth, n = {}, {}, 0
+	for _, name in names do
+		n += 1
+		sizes[1000 + n] = Meta[name].size * 0.28
+		truth[1000 + n] = name
+	end
+	local matched, right = PropMeshes.matchPool(sizes, {}), 0
+	for _, m in matched do
+		if truth[m.id] == m.name and m.distance < PropMeshes.MATCH_TOLERANCE then
+			right += 1
+		end
+	end
+	check(#matched == #names and right == #names, string.format("mesh pool recognised by shape (%d of %d)", right, #names))
+	-- the closest other prop is far enough that a wrong pair is never accepted
+	local margin = math.huge
+	for _, a in names do
+		for _, b in names do
+			if a ~= b then
+				margin = math.min(margin, PropMeshes.shapeDistance(Meta[a].size, Meta[b].size))
+			end
+		end
+	end
+	check(margin > 2 * PropMeshes.MATCH_TOLERANCE, string.format("prop shapes are distinct (closest pair %.3f)", margin))
+	local AssetIdsMod = requireModule(RS.Shared.Config.AssetIds)
+	local seen = {}
+	for _, id in AssetIdsMod.PropMeshPool do
+		check(type(id) == "number" and id > 0 and not seen[id], "mesh pool id " .. tostring(id))
+		seen[id] = true
+	end
+	check(AssetIdsMod.PropMeshPreview == false, "mesh preview off in the committed config")
 	-- stand-in templates the exact size of each mesh, then dress a real map
 	for _, name in names do
 		local stand = Instance.new("Part")
