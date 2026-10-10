@@ -401,7 +401,8 @@ local function doorSwitches(ctx, rec)
 					local folder = roomFolder(ctx, room)
 					deco(folder, "SwitchPlate", size, plateCf, "plastic", Color3.fromRGB(196, 190, 172))
 					-- years of hands: a smudge around the plate
-					if decal(folder, "grime_smudge", Vector3.new(1.5, 1.7, 0.02), plateCf * CFrame.new(0, -0.05, 0.035), Enum.NormalId.Front, 0.25) then
+					local smudgeCf = plateCf * CFrame.new(0, -0.05, 0.035)
+					if ctx.clear(smudgeCf, Vector3.new(1.5, 1.7, 0.08), 0) and decal(folder, "grime_smudge", Vector3.new(1.5, 1.7, 0.02), smudgeCf, Enum.NormalId.Front, 0.25) then
 						count("DecalGrime")
 					end
 					deco(folder, "Switch", Vector3.new(0.12, 0.24, 0.09), plateCf * CFrame.new(0, 0, -0.06) * CFrame.Angles(math.rad(if ctx.rng:Chance(0.5) then 12 else -12), 0, 0), "plastic", Color3.fromRGB(210, 204, 188))
@@ -598,7 +599,7 @@ local function wallDecals(ctx, room, segments)
 				local hgt = ctx.rng:Number(2.4, 3.6)
 				local cf = seg.cf * CFrame.new(along, hgt / 2, -(SKIN + PROUD))
 				folder = folder or roomFolder(ctx, room)
-				if decal(folder, "damp_rising", Vector3.new(w, hgt, 0.02), cf, Enum.NormalId.Front, 0.1) then
+				if ctx.clear(cf, Vector3.new(w, hgt, 0.1), 0) and decal(folder, "damp_rising", Vector3.new(w, hgt, 0.02), cf, Enum.NormalId.Front, 0.1) then
 					count("DecalDamp")
 				end
 			end
@@ -609,11 +610,19 @@ local function wallDecals(ctx, room, segments)
 			if seg.length >= CELL * 2 then
 				-- a symmetric band centred on the foot of the wall: the half under
 				-- the wall is hidden, the visible half fades out into the room
-				local w = seg.length - 0.6
-				local cf = seg.cf * CFrame.new(0, 0.07, 0)
-				folder = folder or roomFolder(ctx, room)
-				if decal(folder, "floor_dirt", Vector3.new(w, 0.02, 3.2), cf, Enum.NormalId.Top, 0.15) then
-					count("DecalDirt")
+				-- in pieces of about 8 studs, so furniture against the wall only
+				-- removes the piece it stands on (dirt would draw over its feet)
+				local usable = seg.length - 0.6
+				local pieces = math.max(1, math.floor(usable / 8 + 0.5))
+				local pw = usable / pieces
+				for i = 0, pieces - 1 do
+					local cf = seg.cf * CFrame.new(-usable / 2 + (i + 0.5) * pw, 0.07, 0)
+					if ctx.clear(cf * CFrame.new(0, 0, -0.85), Vector3.new(pw, 0.14, 1.7), 0) then
+						folder = folder or roomFolder(ctx, room)
+						if decal(folder, "floor_dirt", Vector3.new(pw, 0.02, 3.2), cf, Enum.NormalId.Top, 0.15) then
+							count("DecalDirt")
+						end
+					end
 				end
 			end
 		end
@@ -626,7 +635,7 @@ local function wallDecals(ctx, room, segments)
 		local centreY = 0.3 + hgt / 2 - (Layout.WindowSill + Layout.WindowTop) / 2
 		local spot = cf * CFrame.new(ctx.rng:Number(-0.6, 0.6), centreY, -(SKIN + PROUD))
 		folder = folder or roomFolder(ctx, room)
-		if decal(folder, "water_streak", Vector3.new(2.4, hgt, 0.02), spot, Enum.NormalId.Front, 0.15) then
+		if ctx.clear(spot, Vector3.new(2.4, hgt, 0.1), 0) and decal(folder, "water_streak", Vector3.new(2.4, hgt, 0.02), spot, Enum.NormalId.Front, 0.15) then
 			count("DecalStreak")
 		end
 	end

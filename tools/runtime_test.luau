@@ -360,8 +360,9 @@ do
 	end
 	check(dead == 0, "no dead lamp in the reception")
 	holder:Destroy()
-	for k, v in saved do
-		AssetIds.Decals[k] = v
+	-- with every id at 0 (not uploaded) nothing is placed
+	for k in AssetIds.Decals do
+		AssetIds.Decals[k] = 0
 	end
 	local holder2 = Instance.new("Folder")
 	holder2.Parent = workspace
@@ -374,6 +375,12 @@ do
 	end
 	check(n == 0, "no decal placed while not uploaded (" .. n .. ")")
 	holder2:Destroy()
+	for k, v in saved do
+		AssetIds.Decals[k] = v
+	end
+	for k, v in AssetIds.Decals do
+		check(v > 0, "decal uploaded: " .. k)
+	end
 end
 
 ------------------------------------------------------------------------------------
@@ -394,7 +401,7 @@ do
 	-- (0 ids): until then their parts render the built-in material.
 	local fs = require("@lune/fs")
 	-- textures generated in the repo that wait for their upload (0 ids)
-	local PENDING = { marble_tiles = true, wallpaper_aged = true }
+	local PENDING = {}
 	local uploaded = 0
 	for key, entry in AssetIds.Materials do
 		if entry.color > 0 then
@@ -404,7 +411,7 @@ do
 		end
 	end
 	check(MaterialLibrary.count() == uploaded, string.format("%d custom textures in MaterialService, got %d", uploaded, MaterialLibrary.count()))
-	check(uploaded == 16, "all sixteen textures uploaded (" .. uploaded .. ")")
+	check(uploaded == 18, "all eighteen textures uploaded (" .. uploaded .. ")")
 	for _, name in { "DLA_Wood", "DLA_Fabric", "DLA_Rust", "DLA_PeelingPaint", "DLA_WetConcrete", "DLA_Hardware" } do
 		local v = MaterialService:FindFirstChild(name)
 		check(v ~= nil and v:IsA("MaterialVariant"), "V2 variant in MaterialService: " .. name)

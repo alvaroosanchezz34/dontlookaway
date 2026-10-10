@@ -84,18 +84,17 @@ contacto y en mosaico):
 | `ceiling_stain` | mancha en anillo en el techo; sustituye a los discos translúcidos |
 | `floor_dirt` | suciedad al pie de los muros de pasillos y zonas de servicio |
 
-### Necesitan subirse (proceso externo, en Studio)
+### Subidas y conectadas
 
-- 6 imágenes: color, normal y roughness de `marble_tiles` y de `wallpaper_aged`.
-- 5 calcomanías.
+Las 6 imágenes de `marble_tiles` y `wallpaper_aged` y las 5 calcomanías ya están
+en `AssetIds` (18 materiales personalizados en total).
 
-Mientras su ID sea 0, el juego funciona igual:
+Por semilla se colocan unas 290 calcomanías: suelo, techo, mugre, churretes y
+humedad. Cada una comprueba espacio libre contra los muebles: no se pinta
+encima de patas ni detrás de armarios.
 
-- el suelo y el papel de la recepción usan el material base;
-- no se coloca ninguna calcomanía.
-
-Los tests lo comprueban en los dos sentidos: sin IDs no se coloca nada, y con
-IDs se coloca cada tipo.
+Si un ID vuelve a 0, esa clase deja de colocarse y el juego sigue igual. Los
+tests lo comprueban en los dos sentidos.
 
 ## 4. Modelos y geometría (integrados en la generación procedural)
 
