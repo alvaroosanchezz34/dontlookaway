@@ -102,23 +102,23 @@ end
 -- asset has metal). 0 = not uploaded: that prop keeps its part-built look.
 AssetIds.PropMeshes = {
 	ReceptionDesk = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	DoorLeaf = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	DoorCasing = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	PendantLamp = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	DoorLeaf = { model = 0, color = 104062476287579, normal = 120960280836656, roughness = 96048437020898, metalness = 77932948132183 },
+	DoorCasing = { model = 0, color = 138598134035304, normal = 129608139841909, roughness = 111332877987299, metalness = 129975978837316 },
+	PendantLamp = { model = 0, color = 83434750708109, normal = 131546531198702, roughness = 86934838737715, metalness = 140732292484386 },
 	WallSconce = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
 	Radiator = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
 	WoodChair = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
 	Table = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
 	Sofa = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	FilingCabinet = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	FilingCabinet = { model = 0, color = 106213708444862, normal = 96404383273179, roughness = 74315654038322, metalness = 75367646242035 },
 	-- straight moulding runs, stretched along each wall run by the game
-	Baseboard = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	DadoRail = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	Cornice = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	OfficeDesk = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	Locker = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	MetalShelf = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
-	PictureFrame = { model = 0, color = 0, normal = 0, roughness = 0, metalness = 0 },
+	Baseboard = { model = 0, color = 128558740339034, normal = 86719071580844, roughness = 127366541657992, metalness = 136604908703833 },
+	DadoRail = { model = 0, color = 90202693012020, normal = 130758719228669, roughness = 73368476204656, metalness = 90570854585855 },
+	Cornice = { model = 0, color = 122736838630593, normal = 134966122923805, roughness = 111151954328900, metalness = 95730388826020 },
+	OfficeDesk = { model = 0, color = 104768173316177, normal = 128685634433235, roughness = 118926942007582, metalness = 74820686846275 },
+	Locker = { model = 0, color = 97530341105684, normal = 121339910452555, roughness = 110057888253692, metalness = 94745655721523 },
+	MetalShelf = { model = 0, color = 100370793355703, normal = 87655996407651, roughness = 98865717907655, metalness = 108804907718044 },
+	PictureFrame = { model = 0, color = 94038960090642, normal = 77593688495007, roughness = 81763571344709, metalness = 74617607872335 },
 }
 
 -- Mesh assets ("Malla") uploaded from assets/props/*.obj whose prop is not
