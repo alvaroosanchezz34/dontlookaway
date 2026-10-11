@@ -126,7 +126,9 @@ function TutorialController:Start()
 				end
 			end
 			if others > 0 then
-				self:Show("ping", "Hold " .. key("Ping") .. " to point things out to your team.", 6)
+				-- tap: a smart ping; hold: the wheel (not on touch: PING is a button)
+				local hold = if State.inputType == "Touch" then "" else "; hold it to choose what you mark"
+				self:Show("ping", "Tap " .. key("Ping") .. " to point things out to your team" .. hold .. ".", 6)
 			end
 		end
 	end)
