@@ -75,22 +75,31 @@ function VisualStandards.get(name: string): (EnumItem, Color3, string?)
 	return s.material, s.color, s.variant
 end
 
--- Each fixture lights a short pool with a hard falloff and leaves the space
--- between fixtures dark: the glowing tubes read from afar, the pools do not
--- merge (the ceiling is ~13 studs up and fixtures are 16 apart, so a cone of
--- 40 degrees makes a pool ~9 wide). The fill only lights the fitting's own
--- patch of ceiling and upper wall.
+-- Each fixture lights a pool that fades out: a bright centre, a wide penumbra
+-- and a gradual falloff to dark, with no visible cone edge. A cone edge is a
+-- hard line wherever it lands, so the pool is shaped by the lights' range (a
+-- smooth falloff) and never by the cone:
+--   * the cone edge of a main light lands where its range has already faded
+--     it to nothing (pendant), or up against the ceiling (troffer);
+--   * the fill is a long, weak point light: it has no edge at all and carries
+--     the penumbra onto the floor around the pool and the walls next to it.
+-- The ceiling is ~13 studs up and fixtures are 16 apart: halfway between two
+-- of them the floor gets 15-30% of the light under one, so the stretch between
+-- pools stays dark without a cut.
 VisualStandards.Fixtures = {
-	-- 2-tube troffer: a tight cone from the diffuser onto the floor
+	-- 2-tube troffer: an open wash from the diffuser. At 150 degrees the cone
+	-- edge sits against the ceiling, so floor and walls fade with the range
 	fluoro = {
-		main = { class = "SurfaceLight", host = "Housing", face = Enum.NormalId.Bottom, angle = 40, range = 17, ratio = 1.5 },
-		fill = { range = 9, ratio = 0.12, solo = 1 },
+		main = { class = "SurfaceLight", host = "Housing", face = Enum.NormalId.Bottom, angle = 150, range = 16, ratio = 1 },
+		fill = { range = 18, ratio = 0.25, solo = 1 },
 	},
-	-- enamel pendant: a pool of warm light under the bell (the bell's local -X
-	-- face points down), the fill lights the ceiling around the rose
+	-- enamel pendant: a warm core under the bell (the bell's local -X face
+	-- points down). The bell hangs 9.5 studs up: a 62 degree cone stays off the
+	-- walls and its edge reaches the floor at the end of the 12 stud range. The
+	-- fill is the glow under the shade: floor penumbra, walls and ceiling
 	pendant = {
-		main = { class = "SpotLight", host = "Shade", face = Enum.NormalId.Left, angle = 60, range = 16, ratio = 1.4 },
-		fill = { range = 9, ratio = 0.12, solo = 1 },
+		main = { class = "SpotLight", host = "Shade", face = Enum.NormalId.Left, angle = 62, range = 12, ratio = 1.8 },
+		fill = { range = 15, ratio = 0.28, solo = 1 },
 	},
 	-- caged / bare bulbs light everything around them: the point light is the source
 	cage = { fill = { range = 12, ratio = 1, solo = 1 } },

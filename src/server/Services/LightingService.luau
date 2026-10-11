@@ -6,7 +6,7 @@
 	on clients.
 
 	Darkness is dark. With power, only the fixtures light anything: each throws a
-	short pool and the space between them is near black. Without power
+	pool that fades out and the space between them is dark. Without power
 	(EMERGENCY) and in a total blackout (BLACKOUT) there is no ambient fill and
 	no light follows the camera: what you see without the flashlight is what
 	glows (tubes still on, exit signs, beacon domes) and the silhouettes right
@@ -71,15 +71,16 @@ LightingService.Presets = {
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(14, 15, 18), Decay = Color3.fromRGB(6, 6, 8) },
 	},
 	-- NORMAL: the building with power and no event. The reference for play: a
-	-- near-black corridor where only the fixtures light anything. Each one
-	-- throws a short pool (VisualStandards.Fixtures) and the stretch between
-	-- pools is dark; the glowing tubes read from afar. No ambient fill, a cold
-	-- near-monochrome grade with hard contrast, no haze to grey the distance.
+	-- dark corridor where only the fixtures light anything. Each one throws a
+	-- pool that fades out (VisualStandards.Fixtures) and the stretch between
+	-- pools is dark; the glowing tubes read from afar. A minimal ambient, a cold
+	-- near-monochrome grade, no haze to grey the distance. The contrast is kept
+	-- moderate: a hard one crushes the penumbra of every pool to black.
 	NORMAL = {
 		Ambient = Color3.fromRGB(7, 7, 8),
 		OutdoorAmbient = Color3.fromRGB(9, 10, 12),
 		ExposureCompensation = 0,
-		cc = { Brightness = 0.0, Contrast = 0.24, Saturation = -0.6, TintColor = Color3.fromRGB(228, 236, 250) },
+		cc = { Brightness = 0.0, Contrast = 0.16, Saturation = -0.6, TintColor = Color3.fromRGB(228, 236, 250) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(26, 28, 32), Decay = Color3.fromRGB(10, 10, 12) },
 	},
 	-- scripted moments (cinematics, the Observer's reveal): the same building,
@@ -129,7 +130,8 @@ LightingService.Base = {
 	-- the night sky barely lights the inside: no fill where no fixture reaches
 	EnvironmentDiffuseScale = 0.08,
 	EnvironmentSpecularScale = 0.5,
-	ShadowSoftness = 0.15,
+	-- soft shadow edges, like the pools themselves
+	ShadowSoftness = 0.5,
 	FogEnd = 100000,
 }
 

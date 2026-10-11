@@ -90,7 +90,7 @@
         "GlobalShadows": true,
         "EnvironmentDiffuseScale": 0.08,
         "EnvironmentSpecularScale": 0.5,
-        "ShadowSoftness": 0.15,
+        "ShadowSoftness": 0.5,
         "ExposureCompensation": 0,
         "GeographicLatitude": 30
       }
