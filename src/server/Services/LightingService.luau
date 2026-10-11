@@ -36,6 +36,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
+local LightingRules = require(ReplicatedStorage.Shared.LightingRules)
 local Signal = require(ReplicatedStorage.Shared.Util.Signal)
 local Registry = require(script.Parent.Parent.Registry)
 
@@ -201,20 +202,74 @@ function LightingService:IsPowered(): boolean
 	return workspace:GetAttribute("Power") == true
 end
 
--- THE definition of "it is dark here", for every system that cares (The
--- Observer's speed and blinks, what it takes to see it, the director's fear
--- events): no main power, a major or total blackout, or a partial one on this
--- position's floor. Without a position: dark for the whole building.
+-- Fixtures of the current map with where they are and how far they light,
+-- collected once per map.
+type FixtureSpot = { model: Model, pos: Vector3, reach: number }
+local fixtureCache: { root: Instance?, list: { FixtureSpot } } = { root = nil, list = {} }
+
+local function mapFixtures(map): { FixtureSpot }
+	if fixtureCache.root == map.Root then
+		return fixtureCache.list
+	end
+	local list = {}
+	for _, room in map.Rooms do
+		for _, m in room.fixtures or {} do
+			local light = m:FindFirstChild("Light", true)
+			local reach = if light and light:IsA("Light") then (light :: any).Range else 12
+			table.insert(list, { model = m, pos = if light and light.Parent and light.Parent:IsA("BasePart") then light.Parent.Position else m:GetPivot().Position, reach = reach })
+		end
+	end
+	fixtureCache.root = map.Root
+	fixtureCache.list = list
+	return list
+end
+
+local darkCache: { [string]: { t: number, dark: boolean } } = {}
+
+--[[
+	THE definition of "it is dark here", for every system that cares (The
+	Observer's speed and blinks, what it takes to see it, the director's fear
+	events). Inside the building it is what the players see: dark unless a
+	fixture that is lit right now (LightingRules, the same rules the clients
+	paint with) reaches this point with nothing in between. Outside the
+	building, or without a position: no main power or a major blackout.
+]]
 function LightingService:IsDark(position: Vector3?): boolean
-	if blackoutLevel >= 3 or not self:IsPowered() then
-		return true
+	local globalDark = blackoutLevel >= 3 or not self:IsPowered()
+	local map = if position and Registry.MapService then Registry.MapService:GetMap() else nil
+	if not position or not map or not map:isInsideBuilding(position) then
+		return globalDark
 	end
-	if blackoutLevel == 2 and position and Registry.MapService then
-		local map = Registry.MapService:GetMap()
-		local floor = map and map:floorAtY(position.Y)
-		return floor ~= nil and floor.id == workspace:GetAttribute("BlackoutZone")
+	local at = position :: Vector3
+	local world = LightingRules.world(workspace)
+	local key = string.format("%d,%d,%d|%s%d%d", at.X // 2, at.Y // 2, at.Z // 2, if world.power then "p" else "-", world.level, world.seed)
+	local now = os.clock()
+	local cached = darkCache[key]
+	if cached and now - cached.t < 0.3 then
+		return cached.dark
 	end
-	return false
+	local litReach = GameConfig.Perception.LitFraction
+	local dark = true
+	for _, f in mapFixtures(map) do
+		local d = (f.pos - at).Magnitude
+		if d <= f.reach * litReach and f.model.Parent then
+			local lit = LightingRules.evaluate(LightingRules.fixture(f.model), world, now, { steady = true })
+			if lit and Registry.PlayerService:HasLineOfSight(f.pos, at, f.model) then
+				dark = false
+				break
+			end
+		end
+	end
+	if next(darkCache) and math.random() < 0.02 then
+		-- forget stale entries now and then
+		for k, v in darkCache do
+			if now - v.t > 1 then
+				darkCache[k] = nil
+			end
+		end
+	end
+	darkCache[key] = { t = now, dark = dark }
+	return dark
 end
 
 -- Can light reach `point`? Always where it is not dark; in the dark only the

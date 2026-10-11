@@ -205,6 +205,9 @@ GameConfig.Perception = {
 	Focus = 30,
 	Stare = 18,
 	DarkSightRange = 12,
+	-- a lit fixture "lights" a point within this share of its light's range
+	-- (the falloff leaves almost nothing near the end of it)
+	LitFraction = 0.7,
 }
 
 GameConfig.Observer = {

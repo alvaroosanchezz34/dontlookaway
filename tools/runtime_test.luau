@@ -922,8 +922,8 @@ do
 		check(string.find(body, "not Registry.LightingService:IsPowered() or", 1, true) == nil, "no power no longer cancels every blackout")
 		check(string.find(body, "story == Story.Collapse and not totalBlackoutDone", 1, true) ~= nil, "without power only the collapse's total blackout runs")
 	end
-	local lights = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.LightController.Source
-	check(string.find(lights, "local emergencyOn = emergency and not (level >= 4 and frac < 0.5)", 1, true) ~= nil, "a total blackout over the emergency lighting still takes half the battery lamps")
+	local rules = RS.Shared.LightingRules.Source
+	check(string.find(rules, "local emergencyOn = f.emergency and not (level >= 4 and frac < 0.5)", 1, true) ~= nil, "a total blackout over the emergency lighting still takes half the battery lamps")
 end
 
 section("scares: a fallen box lies on the floor, never in it")
@@ -998,6 +998,70 @@ do
 	check(P.ESCAPE.cc.TintColor.R > P.ESCAPE.cc.TintColor.B, "the escape is tinted red")
 	check(P.CINEMATIC.cc.Contrast >= normal.cc.Contrast and P.CINEMATIC.cc.Saturation <= normal.cc.Saturation, "a scripted moment is harder and colder than NORMAL")
 	check(string.find(Server.Services.LightingService.Source, "never blind", 1, true) == nil, "no comment says the darkness is never blind")
+end
+
+section("light: the server's dark is the dark the players see")
+do
+	local LightingRules = requireModule(RS.Shared.LightingRules)
+	local holder = Instance.new("Folder")
+	holder.Parent = workspace
+	local map = MapBuilder.build(42, holder)
+	syncPositions(map.Root)
+	withRegistry({
+		MapService = { GetMap = function()
+			return map
+		end },
+		PlayerService = { HasLineOfSight = function()
+			return true
+		end },
+	}, function()
+		local Lighting = requireModule(Server.Services.LightingService)
+		-- a lit fixture in a lit building: right under it is not dark
+		local room
+		for _, r in map.Rooms do
+			if r.kind ~= "corridor" and #r.fixtures > 0 then
+				room = r
+				break
+			end
+		end
+		local fixture = room.fixtures[1]
+		fixture:SetAttribute("Mode", "on")
+		local under = fixture:GetPivot().Position - Vector3.new(0, 6, 0)
+		workspace:SetAttribute("Power", true)
+		workspace:SetAttribute("Blackout", 0)
+		workspace:SetAttribute("BlackoutSeed", 7)
+		check(LightingRules.evaluate(LightingRules.fixture(fixture), LightingRules.world(workspace), 0, { steady = true }), "the rules light a working lamp with power")
+		check(not Lighting:IsDark(under), "under a lit lamp it is not dark")
+		-- the same lamp dead (and its neighbours too): dark, even with power
+		local saved = {}
+		for _, r in map.Rooms do
+			for _, f in r.fixtures do
+				saved[f] = f:GetAttribute("Mode")
+				f:SetAttribute("Mode", "dead")
+			end
+		end
+		task.wait(0.35) -- IsDark keeps an answer for 0.3 s
+		check(Lighting:IsDark(under), "under a dead lamp it is dark, power or not")
+		for f, mode in saved do
+			f:SetAttribute("Mode", mode)
+		end
+		-- a main-circuit lamp in a total blackout: dark
+		local main
+		for _, r in map.Rooms do
+			for _, f in r.fixtures do
+				if f:GetAttribute("Circuit") == "MAIN" and f:GetAttribute("Mode") ~= "dead" then
+					main = f
+				end
+			end
+		end
+		workspace:SetAttribute("Blackout", 4)
+		check(not LightingRules.evaluate(LightingRules.fixture(main), LightingRules.world(workspace), 0, { steady = true }), "a main-circuit lamp has no current in a total blackout")
+		workspace:SetAttribute("Blackout", 0)
+		workspace:SetAttribute("Power", nil)
+	end)
+	holder:Destroy()
+	local client = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.LightController.Source
+	check(string.find(client, "LightingRules.evaluate(", 1, true) ~= nil and string.find(client, "BLACKOUT_SAG", 1, true) == nil, "the client paints with the same rules")
 end
 
 section("the observer: reference silhouette and jumpscare framing")

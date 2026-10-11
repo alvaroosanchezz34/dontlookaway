@@ -48,19 +48,13 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
 local VisualStandards = require(ReplicatedStorage.Shared.VisualStandards)
+local LightingRules = require(ReplicatedStorage.Shared.LightingRules)
 
 local LightController = {}
 
 local LOD_DISTANCE = 95 -- updated from the quality tier
 local useMain = true
-local EMERGENCY_COLOR = Color3.fromRGB(255, 176, 120)
-local ALARM_COLOR = Color3.fromRGB(255, 64, 52)
 local DARK = Color3.fromRGB(38, 38, 36)
--- Share of its brightness a fixture that still has main current keeps at each
--- blackout level, so the states read apart at a glance, from brightest to
--- darkest: normal > 1 > 2 > 3 / no power > 4. Emergency lamps running on
--- their own battery are dimmed separately in evaluate.
-local BLACKOUT_SAG = { [1] = 0.7, [2] = 0.45, [3] = 0.7 }
 
 type LightEntry = { light: Light, ratio: number, solo: number, main: boolean }
 type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string, bucket: number }
@@ -73,11 +67,6 @@ local roomFlicker: { [string]: number } = {}
 local poweredLights: { [Light]: boolean } = {}
 local random = Random.new()
 local FAR_BUCKETS = 8
-
-local function hashFrac(a: number, b: number): number
-	local h = (a * 7919 + b * 104729 + 1013) % 100003
-	return (h % 1000) / 1000
-end
 
 local function register(model: Instance)
 	if not model:IsA("Model") or fixtures[model] then
@@ -154,66 +143,10 @@ end
 
 local function evaluate(info: Info, camPos: Vector3, now: number)
 	local m = info.model
-	local mode = m:GetAttribute("Mode")
-	local power = Workspace:GetAttribute("Power") == true
-	local circuit = m:GetAttribute("Circuit")
-	local forceOn = m:GetAttribute("ForceOn") == true
-	local override = m:GetAttribute("Override")
-	local tint = m:GetAttribute("Tint")
-	local base = m:GetAttribute("BaseColor")
+	-- lit, how bright, what colour: the rules the server also reads (LightingRules)
+	local flickerNow = now < info.flickerUntil or (roomFlicker[m:GetAttribute("Room") or ""] or 0) > now
+	local lit, brightness, color = LightingRules.evaluate(LightingRules.fixture(m, info.seed), LightingRules.world(Workspace), now, { flicker = flickerNow })
 	local baseBrightness = m:GetAttribute("BaseBrightness") or 1
-	local escape = Workspace:GetAttribute("Escape") == true
-	local level = blackoutLevel()
-	local bseed = Workspace:GetAttribute("BlackoutSeed") or 0
-	local frac = hashFrac(info.seed, bseed)
-	local emergency = circuit == "EMERGENCY"
-
-	-- does this fixture have current?
-	local mainOn = power
-	local blackoutFlicker = false
-	if level == 1 then
-		blackoutFlicker = frac < 0.35
-	elseif level == 2 then
-		if info.floor == Workspace:GetAttribute("BlackoutZone") then
-			mainOn = false
-		end
-	elseif level == 3 then
-		if frac < 0.85 then
-			mainOn = false
-		else
-			blackoutFlicker = true
-		end
-	elseif level >= 4 then
-		mainOn = false
-	end
-	local emergencyOn = emergency and not (level >= 4 and frac < 0.5)
-	local lit = mode ~= "dead" and override ~= "off" and (forceOn or (if emergency then (mainOn or emergencyOn) else mainOn))
-	local color = if typeof(tint) == "Color3" then tint elseif typeof(base) == "Color3" then base else Color3.new(1, 1, 1)
-	-- every level is a visible step down: whatever still has current sags
-	local brightness = baseBrightness * (BLACKOUT_SAG[level] or 1)
-	if lit and emergency and not mainOn and not forceOn then
-		-- emergency lighting: dim and warm, red when things are serious
-		if level >= 3 or escape then
-			color = if typeof(tint) == "Color3" then tint else ALARM_COLOR
-			brightness = baseBrightness * 0.5 * (0.7 + 0.3 * math.sin(now * (if level >= 4 then 3.2 else 1.6) + info.seed))
-		else
-			color = if typeof(tint) == "Color3" then tint else EMERGENCY_COLOR
-			brightness = baseBrightness * 0.55
-		end
-	end
-	if lit and escape and not (emergency and not mainOn) then
-		-- the building is failing: slow, uneasy pulse
-		brightness *= 0.55 + 0.35 * math.sin(now * 2.2 + info.seed)
-	end
-	local flickering = lit and (mode == "flicker" or blackoutFlicker or now < info.flickerUntil or (roomFlicker[m:GetAttribute("Room") or ""] or 0) > now)
-	if flickering then
-		local n = math.noise(now * 9, info.seed * 0.37)
-		if n < -0.15 then
-			lit = false
-		elseif n < 0.05 then
-			brightness *= 0.4
-		end
-	end
 	local dist = (m:GetPivot().Position - camPos).Magnitude
 	-- a jumpscare blacks out every light around you (ScareController)
 	local inRange = lit and dist < LOD_DISTANCE and not State.scareDark
