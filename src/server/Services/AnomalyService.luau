@@ -25,6 +25,10 @@
 
 	Rules enforced here:
 	  * an anomaly only activates where no player in its scope is looking
+	    (not even out of the corner of an eye: the "periphery" angle). The one
+	    deliberate exception is opts.ignoreVisibility: the building's own
+	    changes when the escape starts and in the collapse's total blackout,
+	    where it fights back in plain sight (and admin spawns)
 	  * the server alone decides whether a report hits an anomaly
 	  * every change is reversible and reverted on resolve / expire / round end
 	  * a miss only counts while the quota is still open and before the escape

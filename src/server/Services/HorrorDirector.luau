@@ -41,6 +41,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Enums = require(ReplicatedStorage.Shared.Enums)
@@ -305,6 +307,54 @@ SCARES.shadow_run = function(player, root)
 	return true
 end
 
+-- Where a box tipped onto its side would come to rest: lying on the floor,
+-- fallen away from its base. nil if that spot is not clear (a wall, another
+-- prop, a doorway, a player) so it never ends up inside or across anything.
+local function tippedBoxRest(prop: Model, body: BasePart): CFrame?
+	local s = body.Size
+	local base = body.Position - Vector3.new(0, s.Y / 2, 0)
+	local yaw = CFrame.fromMatrix(Vector3.zero, Util.flat(body.CFrame.RightVector).Unit, Vector3.yAxis)
+	local side = if rng:Chance(0.5) then 1 else -1
+	-- on its side: its height now lies along the floor, away from where it
+	-- stood, and its depth is the new height, resting on the floor
+	local center = CFrame.new(base) * yaw * CFrame.new(0, s.Z / 2, side * s.Y / 2) * CFrame.Angles(side * math.rad(90), 0, 0)
+	-- the model's pivot follows the body (body = pivot * offset)
+	local rest = center * prop:GetPivot():ToObjectSpace(body.CFrame):Inverse()
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local ignore: { Instance } = { prop }
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(ignore, p.Character)
+		end
+	end
+	params.FilterDescendantsInstances = ignore
+	-- lifted a little and shrunk so the floor it rests on is not a hit
+	for _, hit in workspace:GetPartBoundsInBox(center * CFrame.new(0, 0.15, 0), s - Vector3.new(0.3, 0.3, 0.3), params) do
+		if hit.CanCollide and hit.Transparency < 0.95 then
+			return nil
+		end
+	end
+	local map = Registry.MapService:GetMap()
+	for _, door in (map and map.Doors) or {} do
+		if (Util.flat(door.center - center.Position)).Magnitude < 4.5 then
+			return nil
+		end
+	end
+	for _, p in Registry.PlayerService:GetAlive() do
+		local r = Util.getRoot(p)
+		if r and (Util.flat(r.Position - center.Position)).Magnitude < 2.5 then
+			return nil
+		end
+	end
+	return rest
+end
+
+HorrorDirector.TippedBoxRest = tippedBoxRest -- for the test harness
+
+-- A stacked box falls over somewhere you are not looking: you hear it and turn
+-- to find it on the floor. It tips over in a fraction of a second (no snap, if
+-- someone glimpses it), lies flat on the floor and never blocks a way through.
 SCARES.falling_box = function(player, root)
 	local map = Registry.MapService:GetMap()
 	local room = map and map:roomAt(root.Position)
@@ -312,12 +362,29 @@ SCARES.falling_box = function(player, root)
 		return false
 	end
 	for _, prop in room.props do
-		if typeof(prop) == "Instance" and prop.Parent and prop.Name == "Box" then
+		if typeof(prop) == "Instance" and prop:IsA("Model") and prop.Parent and prop.Name == "Box" and not prop:GetAttribute("Fallen") then
+			local body = prop:FindFirstChild("Body")
 			local cf = prop:GetPivot()
-			if (cf.Position - root.Position).Magnitude < 22 then
-				prop:PivotTo(cf * CFrame.new(rng:Number(-1, 1), 0, rng:Number(-1, 1)) * CFrame.Angles(math.rad(80), math.rad(rng:Number(0, 90)), 0))
-				Registry.AudioService:PlayAt("Thud", cf.Position)
-				return true
+			if body and body:IsA("BasePart") and (cf.Position - root.Position).Magnitude < 22 and not Registry.PlayerService:CanAnyoneSee({ body.Position }, "screen", 60) then
+				local rest = tippedBoxRest(prop, body)
+				if rest then
+					prop:SetAttribute("Fallen", true)
+					local alpha = Instance.new("NumberValue")
+					alpha.Changed:Connect(function(a)
+						if prop.Parent then
+							prop:PivotTo(cf:Lerp(rest, a))
+						end
+					end)
+					local tween = TweenService:Create(alpha, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Value = 1 })
+					tween.Completed:Connect(function()
+						alpha:Destroy()
+					end)
+					tween:Play()
+					task.delay(0.4, function()
+						Registry.AudioService:PlayAt("Thud", rest.Position)
+					end)
+					return true
+				end
 			end
 		end
 	end

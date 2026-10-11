@@ -164,6 +164,10 @@ end
 roblox.implementMethod("Workspace", "Raycast", function(_, origin, direction)
 	return raycastStub(origin, direction)
 end)
+-- no physics in Lune: spatial queries find nothing
+roblox.implementMethod("Workspace", "GetPartBoundsInBox", function()
+	return {}
+end)
 roblox.implementMethod("HttpService", "GenerateGUID", function()
 	return tostring(math.random(1, 2 ^ 30)) .. "-" .. tostring(os.clock())
 end)
@@ -332,6 +336,9 @@ local function envFor(scriptInstance)
 		Random = Random,
 		TweenInfo = TweenInfo,
 		RaycastParams = { new = function()
+			return {}
+		end },
+		OverlapParams = { new = function()
 			return {}
 		end },
 		task = require("@lune/task"),

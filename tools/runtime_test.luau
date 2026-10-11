@@ -926,6 +926,60 @@ do
 	check(string.find(lights, "local emergencyOn = emergency and not (level >= 4 and frac < 0.5)", 1, true) ~= nil, "a total blackout over the emergency lighting still takes half the battery lamps")
 end
 
+section("scares: a fallen box lies on the floor, never in it")
+do
+	local SeededRandom = requireModule(RS.Shared.Util.SeededRandom)
+	local Props = requireModule(Server.Map.Props)
+	withRegistry({
+		MapService = { GetMap = function()
+			return { Doors = { { center = Vector3.new(40, 0, 40) } } }
+		end },
+		PlayerService = { GetAlive = function()
+			return {}
+		end },
+	}, function()
+		local Director = requireModule(Server.Services.HorrorDirector)
+		local holder = Instance.new("Folder")
+		holder.Parent = workspace
+		local worst, fell = 0, 0
+		for i = 1, 12 do
+			local rng = SeededRandom.new(i, "box")
+			local box = Props.box(holder, CFrame.new(i * 10, 2, 0) * CFrame.Angles(0, i * 0.5, 0), rng)
+			syncPositions(box)
+			local body = box:FindFirstChild("Body")
+			local rest = Director.TippedBoxRest(box, body)
+			check(rest ~= nil, "box " .. i .. " has somewhere to fall")
+			if rest then
+				box:PivotTo(rest)
+				syncPositions(box)
+				local s = body.Size / 2
+				local low, high = math.huge, -math.huge
+				for _, x in { -1, 1 } do
+					for _, y in { -1, 1 } do
+						for _, z in { -1, 1 } do
+							local c = (body.CFrame * CFrame.new(s.X * x, s.Y * y, s.Z * z)).Position
+							low, high = math.min(low, c.Y), math.max(high, c.Y)
+						end
+					end
+				end
+				worst = math.max(worst, math.abs(low - 2))
+				fell = math.max(fell, math.abs((high - low) - 2 * s.Z))
+			end
+		end
+		check(worst < 0.02, string.format("its lowest corner rests on the floor (off by %.3f studs)", worst))
+		check(fell < 0.02, string.format("it lies on its side: its depth is now its height (off by %.3f)", fell))
+		-- near a doorway it does not fall at all
+		local rng = SeededRandom.new(99, "box")
+		local box = Props.box(holder, CFrame.new(40, 0, 41), rng)
+		syncPositions(box)
+		check(Director.TippedBoxRest(box, box:FindFirstChild("Body")) == nil, "a box by a doorway stays standing")
+		holder:Destroy()
+	end)
+	local src = Server.Services.HorrorDirector.Source
+	check(string.find(src, "prop:PivotTo(cf * CFrame.new", 1, true) == nil, "no snap to a new pose")
+	check(string.find(src, "not Registry.PlayerService:CanAnyoneSee({ body.Position }, \"screen\", 60)", 1, true) ~= nil, "it only falls where nobody has it on screen")
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")

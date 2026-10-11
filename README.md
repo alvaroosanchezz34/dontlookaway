@@ -133,6 +133,11 @@ Key design decisions:
   head and the body's yaw, and answers "can anyone see this?" with raycasts. That is
   what makes "it moves only when nobody looks" and "anomalies only change unseen"
   server-authoritative.
+- **It changes only when you stop looking.** Anomalies activate, and The Observer
+  moves, only where nobody has them on screen (or in the corner of an eye, for
+  anomalies). In the dark, staring is not enough: The Observer is held only up
+  close or in a light. The one deliberate exception: when the escape starts and
+  in the collapse's total blackout the building changes in plain sight.
 - **Reality ops** are a tiny reversible vocabulary (Hide/Show/Pivot/Prop/Attr/Clone/Tag).
   An anomaly is just data + a few functions; new anomalies are one table entry.
 - **Seeds**: every round has a seed. The map variations, item placement, puzzle
