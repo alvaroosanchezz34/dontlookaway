@@ -11,14 +11,15 @@
 	Building state (workspace attributes)
 	  Power, Blackout (0-4), BlackoutZone, BlackoutSeed, Escape
 
-	Blackout levels
-	  1 failing   a third of the lights stutter, everything clearly dimmer
-	  2 partial   one floor goes dark, emergency lighting there; the other
-	              floors drop to under half
-	  3 major     most of the building dark, the few lights left are dimmer
-	              and stutter; emergency turns red, beacons spin
-	  4 total     everything off except some red emergency lamps, the beacons
-	              and the battery-backed exit signs
+	Blackout levels: more macabre, not darker (the rules: Shared/LightingRules)
+	  1 FAILS     a third of the lamps stutter and buzz, then come back
+	  2 BREATHES  the lamps swell and sink together; the light goes sickly pale
+	  3 BEATS     the lamps beat like a heart; a wave of light runs down the
+	              corridor toward you; the emergency lamps turn red
+	  4 WATCHES   the lamps die one by one, far to near, and come back
+	  Here: the wave and the dying (they depend on where you stand) and the
+	  lamps near The Observer sagging and stuttering at any level: the light
+	  is its. BlackoutFX adds the figures, the eyes and the sounds.
 
 	Without power the dark is real: no light follows the camera. What you see
 	without the flashlight is what glows (tubes still on, exit signs, beacon
@@ -56,6 +57,9 @@ local LOD_DISTANCE = 95 -- updated from the quality tier
 local useMain = true
 local DARK = Color3.fromRGB(38, 38, 36)
 local DEAD_LAMP = Color3.fromRGB(46, 42, 36)
+-- lamps within this many studs of The Observer sag and stutter
+local OBSERVER_SAG = 26
+local observerAt: Vector3? = nil
 
 type LightEntry = { light: Light, ratio: number, solo: number, main: boolean, range: number }
 type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string, bucket: number, wallDist: number, shadowed: boolean, dist: number }
@@ -152,9 +156,39 @@ local function evaluate(info: Info, camPos: Vector3, now: number)
 	local m = info.model
 	-- lit, how bright, what colour: the rules the server also reads (LightingRules)
 	local flickerNow = now < info.flickerUntil or (roomFlicker[m:GetAttribute("Room") or ""] or 0) > now
-	local lit, brightness, color = LightingRules.evaluate(LightingRules.fixture(m, info.seed), LightingRules.world(Workspace), now, { flicker = flickerNow })
+	local world = LightingRules.world(Workspace)
+	local reduced = State.settings.reducedEffects == true
+	local lit, brightness, color = LightingRules.evaluate(LightingRules.fixture(m, info.seed), world, now, { flicker = flickerNow, reduced = reduced })
 	local baseBrightness = m:GetAttribute("BaseBrightness") or 1
-	local dist = (m:GetPivot().Position - camPos).Magnitude
+	local pivot = m:GetPivot().Position
+	local here = (pivot - camPos).Magnitude
+	if lit and world.power and not world.escape then
+		if world.level == 3 and not reduced then
+			-- a wave of light runs down toward you (its crests move inward)
+			local wave = 0.5 + 0.5 * math.sin(now * 2.4 + here * 0.18)
+			brightness *= 0.85 + 0.3 * wave ^ 3
+		elseif world.level >= 4 then
+			-- the lamps die one by one, far to near, then all come back
+			local period = if reduced then 12 else 7
+			local p = (now % period) / period
+			local front = 60 * (1 - p / 0.6)
+			if p < 0.6 and here > math.max(front, 8) then
+				lit = false
+			end
+			brightness *= 1.1
+		end
+	end
+	-- the light is its: lamps near The Observer sag and stutter, at any level
+	if lit and observerAt then
+		local r = (pivot - observerAt).Magnitude
+		if r < OBSERVER_SAG then
+			brightness *= 0.3 + 0.7 * (r / OBSERVER_SAG) ^ 2
+			if math.noise(now * 7, info.seed * 0.11) < -0.35 then
+				lit = false
+			end
+		end
+	end
+	local dist = here
 	info.dist = dist
 	-- light LOD: the light fades over the last fifth of the distance instead of
 	-- switching off at a line (a far stretch of corridor no longer goes black
@@ -317,6 +351,18 @@ local function applyPowered()
 	end
 end
 
+-- Where light falls right now near the camera: the lit lamps within maxDist
+-- (BlackoutFX puts its figures in these pools).
+function LightController:LitLamps(maxDist: number): { Vector3 }
+	local list = {}
+	for model, info in fixtures do
+		if info.lit and info.dist < maxDist and model.Parent then
+			table.insert(list, model:GetPivot().Position)
+		end
+	end
+	return list
+end
+
 function LightController:Start()
 	for _, m in CollectionService:GetTagged("Fixture") do
 		register(m)
@@ -365,6 +411,12 @@ function LightController:Start()
 		local now = os.clock()
 		frame += 1
 		local bucket = frame % FAR_BUCKETS
+		observerAt = nil
+		for _, o in CollectionService:GetTagged("Observer") do
+			if o:IsA("Model") and o:IsDescendantOf(Workspace) then
+				observerAt = o:GetPivot().Position
+			end
+		end
 		farAcc += dt
 		local doFar = farAcc > 0.35
 		if doFar then

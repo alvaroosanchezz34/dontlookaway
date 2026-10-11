@@ -19,14 +19,20 @@
 	Power
 	  workspace "Power" (bool)        MAIN circuit fixtures need it
 	Blackouts (temporary, layered on top of Power)
-	  workspace "Blackout" (0-4)      0 none
-	                                  1 failing: a share of lights flicker, buzz
-	                                  2 partial: one floor goes dark, emergency on
-	                                  3 major: most of the building dark, red emergency
-	                                  4 total: everything but emergency beacons and
-	                                    exit signs, short and special
-	  workspace "BlackoutZone"        floor id for level 2
-	  workspace "BlackoutSeed"        which fixtures fail (clients hash it)
+	  workspace "Blackout" (0-4)      0 none. Each level is more macabre, not
+	                                  darker (LightingRules, same light on average):
+	                                  1 FAILS: a third of the lamps stutter and buzz
+	                                  2 BREATHES: the lamps swell and sink together,
+	                                    the light drains to a sick pale white
+	                                  3 BEATS: the lamps beat like a heart, the
+	                                    emergency lamps turn red, figures in the light
+	                                  4 WATCHES: lamps die far to near and come
+	                                    back; eyes at the edge of the light
+	                                  Without power only the emergency lamps light,
+	                                  and level 4 takes half of them (the collapse)
+	  workspace "BlackoutZone"        a floor id (kept for level 2's sounds; it no
+	                                  longer darkens the floor)
+	  workspace "BlackoutSeed"        which lamps stutter (clients hash it)
 	Fixtures, exit signs and beacons read these attributes client-side.
 ]]
 
@@ -112,17 +118,31 @@ LightingService.Presets = {
 		cc = { Brightness = lifted(0.18), Contrast = 0.18, Saturation = -0.68, TintColor = Color3.fromRGB(220, 230, 252) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(24, 27, 33), Decay = Color3.fromRGB(9, 10, 12) },
 	},
-	-- a total blackout: the darkest the game gets. Only what glows and the
-	-- silhouettes right next to you; everything else needs the flashlight
-	BLACKOUT = {
-		Ambient = Color3.fromRGB(14, 14, 16),
-		OutdoorAmbient = Color3.fromRGB(16, 16, 19),
-		ExposureCompensation = 0.75,
-		cc = { Brightness = lifted(0.18), Contrast = 0.18, Saturation = -0.5, TintColor = Color3.fromRGB(236, 228, 232) },
-		atmosphere = { Density = 0.2, Haze = 0.1, Glare = 0, Color = Color3.fromRGB(8, 8, 10), Decay = Color3.fromRGB(4, 4, 5) },
+	-- The blackouts with power (LightingRules: more macabre, not darker): the
+	-- same light as NORMAL, a grade that turns. 2 BREATHES: the light drains
+	-- to a sick pale white; 3 BEATS: harder, a trace of red (the emergency
+	-- lamps are the only colour); 4 WATCHES: the hardest, coldest grade
+	BREATH = {
+		Ambient = Color3.fromRGB(22, 22, 23),
+		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
+		ExposureCompensation = 0.8,
+		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.75, TintColor = Color3.fromRGB(232, 240, 222) },
+		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(26, 28, 26), Decay = Color3.fromRGB(10, 11, 10) },
 	},
-	-- the way out: NORMAL's light turned red and harder (the fixtures pulse,
-	-- the alarm beacons turn), not a brighter or hazier building
+	HEARTBEAT = {
+		Ambient = Color3.fromRGB(22, 22, 23),
+		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
+		ExposureCompensation = 0.8,
+		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.7, TintColor = Color3.fromRGB(246, 228, 226) },
+		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(30, 24, 24), Decay = Color3.fromRGB(12, 9, 9) },
+	},
+	BLACKOUT = {
+		Ambient = Color3.fromRGB(22, 22, 23),
+		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
+		ExposureCompensation = 0.8,
+		cc = { Brightness = lifted(0.2), Contrast = 0.2, Saturation = -0.78, TintColor = Color3.fromRGB(236, 228, 232) },
+		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(20, 20, 22), Decay = Color3.fromRGB(8, 8, 9) },
+	},
 	ESCAPE = {
 		Ambient = Color3.fromRGB(22, 17, 17),
 		OutdoorAmbient = Color3.fromRGB(24, 19, 19),
@@ -189,16 +209,17 @@ end
 
 -- The preset that matches the current power / blackout situation inside the building.
 function LightingService:InteriorPreset(): string
-	if blackoutLevel >= 4 then
+	local powered = workspace:GetAttribute("Power") == true
+	if powered and blackoutLevel >= 4 then
 		return "BLACKOUT"
 	end
 	if workspace:GetAttribute("Escape") == true then
 		return "ESCAPE"
 	end
-	if workspace:GetAttribute("Power") ~= true or blackoutLevel >= 3 then
+	if not powered then
 		return "EMERGENCY"
 	end
-	return "NORMAL"
+	return if blackoutLevel == 3 then "HEARTBEAT" elseif blackoutLevel == 2 then "BREATH" else "NORMAL"
 end
 
 function LightingService:SetPower(on: boolean, keepPreset: boolean?)

@@ -305,12 +305,12 @@ do
 	check(normal.cc.Contrast >= 0.1 and normal.cc.Saturation <= -0.4, "NORMAL grade is contrasted and desaturated (contrast " .. normal.cc.Contrast .. ", saturation " .. normal.cc.Saturation .. ")")
 	-- ColorCorrection pivots contrast round mid grey: black on screen is
 	-- 0.5 - (1 + contrast) / 2 + brightness. Inside, it is a deep grey, never 0
-	for _, name in { "NORMAL", "EMERGENCY", "BLACKOUT", "CINEMATIC", "ESCAPE" } do
+	for _, name in { "NORMAL", "EMERGENCY", "BREATH", "HEARTBEAT", "BLACKOUT", "CINEMATIC", "ESCAPE" } do
 		local cc = LightingService.Presets[name].cc
 		local black = 0.5 - (1 + cc.Contrast) / 2 + cc.Brightness
 		check(black >= 0.02 and black <= 0.06, string.format("%s: black reads as a deep grey (%.3f)", name, black))
 	end
-	check(normal.Ambient ~= blackout.Ambient and normal.ExposureCompensation ~= blackout.ExposureCompensation, "blackout differs from normal")
+	check(normal.cc.Contrast ~= blackout.cc.Contrast and normal.cc.TintColor ~= blackout.cc.TintColor, "a total blackout has a grade of its own")
 	-- surfaces have real albedo: colour (linear) x texture mean of the main surfaces
 	local Layout = requireModule(Server.Map.Layout)
 	local function lin(c: number): number
@@ -998,13 +998,18 @@ do
 		return (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) * 255
 	end
 	local normal = P.NORMAL
-	for _, name in { "EMERGENCY", "BLACKOUT", "CINEMATIC", "ESCAPE" } do
+	for _, name in { "EMERGENCY", "BREATH", "HEARTBEAT", "BLACKOUT", "CINEMATIC", "ESCAPE" } do
 		local p = P[name]
 		check(lum(p.Ambient) <= lum(normal.Ambient) + 0.01, string.format("%s ambient is no brighter than NORMAL (%.1f vs %.1f)", name, lum(p.Ambient), lum(normal.Ambient)))
 		check(p.ExposureCompensation <= normal.ExposureCompensation, name .. " exposure is no higher than NORMAL")
 		check(p.atmosphere.Haze <= normal.atmosphere.Haze + 0.01, string.format("%s adds no haze to grey the distance (%.1f)", name, p.atmosphere.Haze))
 	end
-	check(lum(P.EMERGENCY.Ambient) >= lum(P.BLACKOUT.Ambient) and P.EMERGENCY.ExposureCompensation >= P.BLACKOUT.ExposureCompensation, "a total blackout is a step down from the emergency lighting")
+	-- blackouts with power are more macabre, not darker: NORMAL's light, a
+	-- grade of their own; no power (EMERGENCY) is the one darker state
+	for _, name in { "BREATH", "HEARTBEAT", "BLACKOUT" } do
+		check(lum(P[name].Ambient) >= lum(normal.Ambient) - 0.01 and P[name].ExposureCompensation >= normal.ExposureCompensation, name .. " keeps NORMAL's light")
+	end
+	check(lum(P.EMERGENCY.Ambient) <= lum(normal.Ambient), "without power it is darker than any blackout")
 	check(P.ESCAPE.cc.TintColor.R > P.ESCAPE.cc.TintColor.B, "the escape is tinted red")
 	check(P.CINEMATIC.cc.Contrast >= normal.cc.Contrast and P.CINEMATIC.cc.Saturation <= normal.cc.Saturation, "a scripted moment is harder and colder than NORMAL")
 	check(string.find(Server.Services.LightingService.Source, "never blind", 1, true) == nil, "no comment says the darkness is never blind")
@@ -1065,7 +1070,10 @@ do
 			end
 		end
 		workspace:SetAttribute("Blackout", 4)
-		check(not LightingRules.evaluate(LightingRules.fixture(main), LightingRules.world(workspace), 0, { steady = true }), "a main-circuit lamp has no current in a total blackout")
+		check(LightingRules.evaluate(LightingRules.fixture(main), LightingRules.world(workspace), 0, { steady = true }), "a total blackout with power keeps the lamps' current (it is macabre, not dark)")
+		workspace:SetAttribute("Power", false)
+		check(not LightingRules.evaluate(LightingRules.fixture(main), LightingRules.world(workspace), 0, { steady = true }), "without power a main-circuit lamp is out")
+		workspace:SetAttribute("Power", true)
 		workspace:SetAttribute("Blackout", 0)
 		workspace:SetAttribute("Power", nil)
 	end)
@@ -1149,6 +1157,54 @@ do
 	check(string.find(client, "math.min(entry.range, info.wallDist)", 1, true) ~= nil, "a lamp without shadows is cut to its walls")
 	check(string.find(client, "l.Shadows = shadowed", 1, true) ~= nil and string.find(client, "pickShadowed(tier.shadowLights)", 1, true) ~= nil, "the nearest lamps cast the shadows")
 	check(string.find(client, "LOD_DISTANCE * 0.2", 1, true) ~= nil, "far lamps fade instead of switching off")
+end
+
+section("blackouts: each level more macabre, not darker")
+do
+	local LightingRules = requireModule(RS.Shared.LightingRules)
+	local f = { seed = 123, floor = "G", mode = "on", emergency = false, forceOn = false, off = false, tint = nil, base = roblox.Color3.new(1, 1, 1), baseBrightness = 1 }
+	-- the light a working lamp gives on average over 20 s, level by level
+	local means = {}
+	for level = 0, 4 do
+		local world = { power = true, level = level, zone = "G", seed = 7, escape = false }
+		local sum, n = 0, 0
+		for i = 0, 1999 do
+			local lit, b = LightingRules.evaluate(f, world, i * 0.01, {})
+			sum += if lit then b else 0
+			n += 1
+		end
+		means[level] = sum / n
+	end
+	for level = 2, 4 do
+		check(means[level] >= means[level - 1] - 0.05, string.format("level %d is not darker than level %d (%.3f vs %.3f)", level, level - 1, means[level], means[level - 1]))
+	end
+	check(means[4] >= 0.8, string.format("a total blackout keeps most of the light (%.3f)", means[4]))
+	-- the steady reading (the server's) is the same on every level
+	for level = 1, 4 do
+		local _, b = LightingRules.evaluate(f, { power = true, level = level, zone = "G", seed = 7, escape = false }, 0, { steady = true })
+		check(math.abs(b - LightingRules.LEVEL_MEAN[level]) < 1e-6, "level " .. level .. ": the server reads the level's mean light")
+	end
+	-- level 3: the emergency lamps are the colour; level 2: the light goes pale
+	local em = table.clone(f)
+	em.emergency = true
+	local _, _, red = LightingRules.evaluate(em, { power = true, level = 3, zone = "", seed = 7, escape = false }, 0, {})
+	check(red.R > red.G * 2, "at level 3 the emergency lamps turn red")
+	local _, _, pale = LightingRules.evaluate(f, { power = true, level = 2, zone = "", seed = 7, escape = false }, 0, {})
+	check(pale ~= f.base, "at level 2 the light drains to a sickly pale")
+	-- reduced effects: nothing pulses faster than 1 Hz (level 3 breathes instead)
+	local beats = 0
+	local prev = 0
+	for i = 0, 999 do
+		local _, b = LightingRules.evaluate(f, { power = true, level = 3, zone = "", seed = 7, escape = false }, i * 0.01, { reduced = true })
+		if b > 1.0 and prev <= 1.0 then
+			beats += 1
+		end
+		prev = b
+	end
+	check(beats <= 10, "with reduced effects level 3 pulses at most once a second (" .. beats .. " in 10 s)")
+	local client = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers
+	check(client:FindFirstChild("BlackoutFX") ~= nil, "figures, eyes and sounds come with the levels (BlackoutFX)")
+	check(string.find(client.BlackoutFX.Source, "elseif not reduced then", 1, true) ~= nil, "no one-frame figures with reduced effects")
 end
 
 section("the observer: reference silhouette and jumpscare framing")

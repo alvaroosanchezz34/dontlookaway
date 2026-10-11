@@ -59,13 +59,14 @@ local STATES = {
 	B3 = { power = true, level = 3 },
 	B4 = { power = true, level = 4 },
 }
+-- as LightingService:InteriorPreset picks them
 local function presetFor(st): string
-	if st.level >= 4 then
+	if st.power and st.level >= 4 then
 		return "BLACKOUT"
-	elseif not st.power or st.level >= 3 then
+	elseif not st.power then
 		return "EMERGENCY"
 	end
-	return "NORMAL"
+	return if st.level == 3 then "HEARTBEAT" elseif st.level == 2 then "BREATH" else "NORMAL"
 end
 -- the client's lights are driven at the medium quality tier
 local useMain = VisualStandards.Quality[2].secondary
@@ -127,7 +128,8 @@ for _, d in map.Root:GetDescendants() do
 						brightness = b * (if main or useMain then ratio else solo)
 						color = c
 					elseif d:GetAttribute("PoweredLight") == true then
-						on = st.power and st.level < 4
+						-- LightController.applyPowered: they follow the power only
+						on = st.power
 					elseif d:HasTag("Moonlight") then
 						on = true
 					end
