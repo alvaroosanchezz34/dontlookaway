@@ -11,8 +11,10 @@ apis.roblox.com). Python 3.8+, no extra packages.
     3. In the repo:
          set ROBLOX_API_KEY=...        (PowerShell: $env:ROBLOX_API_KEY="...")
          python tools/upload_assets.py --group 12345678 observer props audio
-       Sets: observer (30 maps), props (~57 maps), audio (3 sounds),
-             textures (54 maps), decals. Default: observer props audio.
+       Sets: meshes (27 models), observer (30 maps), props (~68 maps),
+             audio (3 sounds), textures (54 maps), decals.
+             Default: meshes observer props audio. Everything:
+             python tools/upload_assets.py --group 12345678 meshes observer props audio textures decals
        --dry-run lists what would be uploaded.
     4. It writes build/uploaded_ids.json and the ids into AssetIds.luau
        (tools/apply_ids.py), then runs sync_assets.py. Commit and push.
@@ -20,8 +22,8 @@ apis.roblox.com). Python 3.8+, no extra packages.
        tools/studio/check_image_ids.luau once and apply its DLA_FIX line
        (python tools/apply_image_fix.py "DLA_FIX ...").
 
-Meshes (.obj) are not uploaded here (Open Cloud does not take .obj): import
-them in Studio and use tools/studio/export_mesh_ids.luau.
+Meshes go up as .fbx (assets/fbx, made from the .obj files by
+tools/blender/obj_to_fbx.py: Open Cloud does not take .obj).
 Never commit the API key. Already uploaded files (in build/uploaded_ids.json)
 are skipped, so the script can be re-run after a failure.
 """
@@ -43,6 +45,7 @@ OUT = os.path.join(ROOT, "build", "uploaded_ids.json")
 API = "https://apis.roblox.com/assets/v1"
 
 SETS = {
+    "meshes": ("Model", "assets/fbx/*.fbx"),
     "observer": ("Decal", "assets/observer/*/*.png"),
     "props": ("Decal", "assets/props/*/*.png"),
     "textures": ("Decal", "assets/textures/*/*.png"),
@@ -56,7 +59,8 @@ def multipart(fields, file_field, path):
     body = bytearray()
     for name, value in fields.items():
         body += ("--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n%s\r\n" % (boundary, name, value)).encode()
-    ctype = mimetypes.guess_type(path)[0] or ("audio/ogg" if path.endswith(".ogg") else "application/octet-stream")
+    ext = os.path.splitext(path)[1].lower()
+    ctype = {".png": "image/png", ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".fbx": "model/fbx"}.get(ext) or mimetypes.guess_type(path)[0] or "application/octet-stream"
     body += ("--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\nContent-Type: %s\r\n\r\n" % (boundary, file_field, os.path.basename(path), ctype)).encode()
     body += open(path, "rb").read()
     body += ("\r\n--%s--\r\n" % boundary).encode()
@@ -108,11 +112,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--group", required=True, type=int)
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("sets", nargs="*", default=["observer", "props", "audio"])
+    ap.add_argument("sets", nargs="*", default=["meshes", "observer", "props", "audio"])
     args = ap.parse_args()
     key = os.environ.get("ROBLOX_API_KEY", "")
     if not key and not args.dry_run:
-        raise SystemExit("set ROBLOX_API_KEY first (see the top of this file)")
+        import getpass  # noqa: PLC0415
+
+        key = getpass.getpass("Open Cloud API key (not shown, not saved): ").strip()
+    if not key and not args.dry_run:
+        raise SystemExit("no API key")
     done = json.load(open(OUT)) if os.path.exists(OUT) else {}
     files = []
     for s in args.sets:
