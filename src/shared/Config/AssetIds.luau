@@ -49,27 +49,13 @@ AssetIds.Decals = {
 -- type "Modelo", named after the file). `meshes`: a raw mesh id, if preferred.
 -- Either works; a mesh id wins when both are set.
 AssetIds.Observer = {
+	-- the smooth body from tools/blender/build_observer.py (the old ribbed
+	-- sculpt was retired): import assets/observer/<Segment>.obj and paste ids
 	models = {
-		UpperTorso = 133171989693937,
-		LowerTorso = 129218204675278,
-		Neck = 121327873576376,
-		Head = 81693864937120,
-		FaceL = 137474714940635,
-		FaceR = 84783262679053,
-		UpperArm = 114524026637038,
-		LowerArm = 118352438172157,
-		Hand = 105017445485151,
-		UpperLeg = 107974134887547,
-		LowerLeg = 84078826201154,
-		Foot = 133906447313908,
-	},
-	meshes = {
 		UpperTorso = 0,
 		LowerTorso = 0,
 		Neck = 0,
 		Head = 0,
-		FaceL = 0,
-		FaceR = 0,
 		UpperArm = 0,
 		LowerArm = 0,
 		Hand = 0,
@@ -77,6 +63,20 @@ AssetIds.Observer = {
 		LowerLeg = 0,
 		Foot = 0,
 	},
+	meshes = {
+		UpperTorso = 0,
+		LowerTorso = 0,
+		Neck = 0,
+		Head = 0,
+		UpperArm = 0,
+		LowerArm = 0,
+		Hand = 0,
+		UpperLeg = 0,
+		LowerLeg = 0,
+		Foot = 0,
+	},
+	-- unnamed mesh uploads ("default"): recognised by their exact size
+	pool = {},
 	skin = { color = 73026626049237, normal = 83633682521540, roughness = 128909048447810 },
 }
 

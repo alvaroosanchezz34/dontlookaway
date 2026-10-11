@@ -579,7 +579,7 @@ for _, variant in { "behind", "side", "front", "dark", "door", "mirror", "mimic"
 	check(f ~= nil and f.variant == variant, "death cinematic " .. variant .. " measured its impact frame")
 	if f then
 		check(f.inFront, "death cinematic " .. variant .. ": the face is in front of the camera")
-		check(math.abs(f.distance - 2) < 0.15, string.format("death cinematic %s: face %.2f studs from the lens", variant, f.distance))
+		check(math.abs(f.distance - 3) < 0.15, string.format("death cinematic %s: face %.2f studs from the lens", variant, f.distance))
 		check(f.centred > 0.995, string.format("death cinematic %s: face centred (%.3f)", variant, f.centred))
 		check(f.facing > 0.95, string.format("death cinematic %s: face turned to the camera (%.3f)", variant, f.facing))
 	end

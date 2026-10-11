@@ -76,6 +76,8 @@
 
 ## 2. The Observer
 
+> El aspecto descrito aquí fue sustituido por el rediseño de `OBSERVER_REDESIGN.md`. El comportamiento y el jumpscare siguen vigentes.
+
 ### Aspecto
 
 **Por qué parecía genérico:**

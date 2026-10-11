@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local ObserverRig = require(ReplicatedStorage.Shared.ObserverRig)
 local Enums = require(ReplicatedStorage.Shared.Enums)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local JournalCatalog = require(ReplicatedStorage.Shared.Catalog.JournalCatalog)
@@ -231,7 +232,7 @@ COMMANDS.scareReport = function(_, report)
 	if type(report) ~= "table" then
 		return "scare test finished (no frame measured)"
 	end
-	local ok = report.inFront == true and type(report.distance) == "number" and math.abs(report.distance - 2) < 0.3 and (tonumber(report.facing) or 0) > 0.9 and (tonumber(report.centred) or 0) > 0.98
+	local ok = report.inFront == true and type(report.distance) == "number" and math.abs(report.distance - ObserverRig.ScareDistance) < 0.3 and (tonumber(report.facing) or 0) > 0.9 and (tonumber(report.centred) or 0) > 0.98
 	return string.format(
 		"scare test %s %s: face %.2f studs, facing camera %.2f, centred %.3f, in front %s",
 		tostring(report.variant),

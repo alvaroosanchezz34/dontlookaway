@@ -173,6 +173,16 @@ _proto = {}
 def proto(shape):
     if shape in _proto:
         return _proto[shape]
+    if shape == "wedge":
+        # Roblox WedgePart: full bottom (-Y) and back (+Z) faces, the slope
+        # from the top-back edge down to the bottom-front edge (thin at -Z)
+        me = bpy.data.meshes.new("wedge")
+        v = [(-0.5, -0.5, -0.5), (0.5, -0.5, -0.5), (0.5, -0.5, 0.5), (-0.5, -0.5, 0.5), (-0.5, 0.5, 0.5), (0.5, 0.5, 0.5)]
+        f = [(0, 1, 2, 3), (3, 2, 5, 4), (0, 4, 5, 1), (0, 3, 4), (1, 5, 2)]
+        me.from_pydata(v, [], f)
+        me.update()
+        _proto[shape] = me
+        return me
     if shape == "ball":
         bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5, segments=32, ring_count=16)
         bpy.ops.object.shade_smooth()  # Roblox draws a Ball smooth
@@ -196,7 +206,38 @@ def add_part(p, coll, state="NORMAL"):
     me.materials.append(part_material(p, state))
 
 
+def add_flat_mesh(m, coll):
+    # an OBJ in Roblox axes with a flat colour (tools/observer_shot.luau);
+    # Roblox centres a MeshPart on its bounding box, so we do too
+    bpy.ops.wm.obj_import(filepath=os.path.join(ROOT, m["file"]), forward_axis="Y", up_axis="Z")
+    o = bpy.context.selected_objects[0]
+    for c in o.users_collection:
+        c.objects.unlink(o)
+    coll.objects.link(o)
+    me = o.data
+    lo = [min(v.co[i] for v in me.vertices) for i in range(3)]
+    hi = [max(v.co[i] for v in me.vertices) for i in range(3)]
+    centre = Vector([(lo[i] + hi[i]) / 2 for i in range(3)])
+    me.transform(Matrix.Translation(-centre))
+    o.matrix_world = cframe_matrix(m["pos"], m["rx"], m["ry"], m["rz"])
+    for poly in me.polygons:
+        poly.use_smooth = True
+    key = "flat|%d,%d,%d" % tuple(m["color"])
+    if key not in _mats:
+        mat = bpy.data.materials.new(key)
+        mat.use_nodes = True
+        bsdf = mat.node_tree.nodes["Principled BSDF"]
+        bsdf.inputs["Base Color"].default_value = (*lin(m["color"]), 1)
+        bsdf.inputs["Roughness"].default_value = 0.85
+        _mats[key] = mat
+    me.materials.clear()
+    me.materials.append(_mats[key])
+    return True
+
+
 def add_mesh(m, coll):
+    if m.get("file"):
+        return add_flat_mesh(m, coll)
     path = os.path.join(ROOT, "assets", "props", m["name"] + ".obj")
     if not os.path.exists(path):
         return False
@@ -330,7 +371,7 @@ def main():
             continue
         add_part(p, coll, state)
     placed = 0
-    if mode == "meshes":
+    if mode == "meshes" or data.get("camera"):
         for m in data.get("meshes", []):
             placed += 1 if add_mesh(m, coll) else 0
     lights = state_lights(data, state)

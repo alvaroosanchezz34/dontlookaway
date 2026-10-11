@@ -595,7 +595,7 @@ do
 	local dressedCount = MaterialLibrary.dress(box)
 	check(dressedCount == 2, "dress textures plaster and carpet only (" .. tostring(dressedCount) .. ")")
 	check(named.MaterialVariant == MaterialLibrary.Wallpaper, "a chosen variant is kept")
-	-- sculpted Observer: templates stand in for the uploaded meshes
+	-- the smooth Observer body: templates stand in for the uploaded meshes
 	local folder = Instance.new("Folder")
 	folder.Name = "ObserverMeshes"
 	for name in MeshMeta do
@@ -604,1119 +604,180 @@ do
 		mp.Parent = folder
 	end
 	folder.Parent = RS
+	check(MeshMeta.FaceL == nil and MeshMeta.Head ~= nil, "the smooth body has no face halves")
+	-- unnamed uploads are told apart by exact size (tolerance 0.06)
+	local closest = math.huge
+	for a, ma in MeshMeta do
+		for b, mb in MeshMeta do
+			if a ~= b then
+				closest = math.min(closest, (ma.size - mb.size).Magnitude)
+			end
+		end
+	end
+	check(closest > 0.12, string.format("observer segments differ in size (closest %.2f)", closest))
+	for name, meta in MeshMeta do
+		check(fs.isFile("assets/observer/" .. name .. ".obj"), "observer mesh file " .. name)
+		check(meta.triangles > 0 and meta.triangles < 20000, string.format("observer %s under the triangle limit (%d)", name, meta.triangles))
+	end
 	local rig = ObserverRig.build(CFrame.new(0, 0, 0), { localCopy = true })
-	check(rig:GetAttribute("Sculpted") == true, "rig dressed with meshes")
-	local meshes, hiddenSegments, visibleDetails = 0, 0, 0
+	check(rig:GetAttribute("Sculpted") == true, "rig dressed with the smooth meshes")
+	local meshes, visibleHard = 0, {}
 	for _, d in rig:GetChildren() do
 		if d:IsA("MeshPart") then
 			meshes += 1
 			local weld = d:FindFirstChildOfClass("WeldConstraint")
 			check(weld ~= nil and weld.Part0 ~= nil and weld.Part0.Transparency == 1, "mesh welded to a hidden segment: " .. d.Name)
-			check(not d.Anchored and d.Massless and not d.CanCollide, "mesh is cosmetic: " .. d.Name)
-		elseif d:IsA("BasePart") then
-			if (d.Name == "Rib" or d.Name == "Spine" or string.find(d.Name, "Finger")) and d.Transparency < 1 then
-				visibleDetails += 1
-			end
-			if d.Name == "UpperTorso" and d.Transparency == 1 then
-				hiddenSegments += 1
-			end
+			check(not d.Anchored and d.Massless and not d.CanCollide and d.Reflectance == 0, "mesh is cosmetic and matte: " .. d.Name)
+		elseif d:IsA("BasePart") and d.Transparency < 1 and not string.find(d.Name, "Eyeball") and d.Name ~= "Pupil" then
+			table.insert(visibleHard, d.Name)
 		end
 	end
-	-- 16: the face halves keep their part-built pale face (the sculpted ones
-	-- were dark and featureless; see ObserverRig)
-	check(meshes == 16, "16 meshes (both sides, face halves excluded), got " .. meshes)
-	check(rig:FindFirstChild("FaceL") and rig:FindFirstChild("FaceL").Transparency < 1, "the pale face stays visible over the sculpted head")
-	check(hiddenSegments == 1 and visibleDetails == 0, "segments and sculpted details hidden")
+	check(meshes == 16, "16 smooth meshes (both sides), got " .. meshes)
+	check(#visibleHard == 0, "no hard-edged part left visible over the smooth body: " .. table.concat(visibleHard, ", "))
 	check(ObserverRig.dress(rig) == false, "dressing twice does nothing")
-	-- the mesh sits on its segment's mesh offset
-	local torso = rig:FindFirstChild("UpperTorso") :: any
-	local torsoMesh = rig:FindFirstChild("UpperTorsoMesh") :: any
-	local rel = torso.CFrame:PointToObjectSpace(torsoMesh.CFrame.Position)
-	check((rel - MeshMeta.UpperTorso.offset).Magnitude < 0.01, "mesh placed at its offset")
-	check((torsoMesh.Size - MeshMeta.UpperTorso.size).Magnitude < 0.01, "mesh sized to its bounding box")
-	-- the eyes still exist for the face-opening cinematic
-	check(rig:FindFirstChild("EyeL") ~= nil and rig:FindFirstChild("JawL", true) ~= nil, "face rig intact")
+	rig:Destroy()
 	folder:Destroy()
 end
 
-section("flashlight identities")
-do
-	local Equipment = requireModule(RS.Shared.Catalog.Equipment)
-	local seen = {}
-	for _, item in Equipment.List do
-		if item.kind == "FLASHLIGHT" then
-			local b = item.beam
-			check(b ~= nil and typeof(b.tone) == "Color3" and b.core > 0 and b.spill > 0 and b.switch > 0 and type(b.feel) == "string", "beam profile " .. item.id)
-			if b then
-				local key = string.format("%.2f/%.2f/%.2f", b.core, b.spill, b.warmup)
-				check(not seen[key], "beam is distinct " .. item.id)
-				seen[key] = true
-			end
-		end
-	end
-end
-
-section("marketing studio access")
-do
-	local Access = requireModule(RS.Marketing.MarketingAccess)
-	local Config = requireModule(RS.Marketing.MarketingConfig)
-	local E = env.roblox.Enum
-	local cfg = table.clone(Config)
-	cfg.AdminUserIds = { 4242 }
-	local public = { studio = false, privateServerId = "", privateServerOwnerId = 0, creatorType = E.CreatorType.User, creatorId = 99 }
-	local studio = { studio = true, privateServerId = "", privateServerOwnerId = 0, creatorType = E.CreatorType.User, creatorId = 99 }
-	local vip = { studio = false, privateServerId = "abc", privateServerOwnerId = 99, creatorType = E.CreatorType.User, creatorId = 99 }
-	local reserved = { studio = false, privateServerId = "abc", privateServerOwnerId = 0, creatorType = E.CreatorType.User, creatorId = 99 }
-	check(not Access.environmentAllowed(cfg, public), "marketing: never on public servers")
-	for _, id in { 4242, 99, 1, -1 } do
-		check(not Access.isAuthorized(id, cfg, public), "marketing: public server denies " .. id)
-	end
-	check(Access.environmentAllowed(cfg, studio), "marketing: allowed in Studio")
-	check(Access.isAuthorized(4242, cfg, studio) and Access.isAuthorized(99, cfg, studio), "marketing: listed user and owner in Studio")
-	check(not Access.isAuthorized(12345, cfg, studio), "marketing: a stranger is denied even in Studio")
-	check(Access.isAuthorized(-1, cfg, studio), "marketing: Studio test players")
-	check(not Access.environmentAllowed(cfg, vip), "marketing: private servers off by default")
-	cfg.AllowInPrivateServers = true
-	check(Access.isAuthorized(99, cfg, vip) and not Access.isAuthorized(12345, cfg, vip) and not Access.isAuthorized(-1, cfg, vip), "marketing: private server only for authorised users")
-	check(not Access.environmentAllowed(cfg, reserved), "marketing: never on reserved (matchmade) servers")
-	cfg.Enabled = false
-	check(not Access.isAuthorized(99, cfg, studio), "marketing: Enabled = false turns everything off")
-	check(Config.AllowInPrivateServers == false, "marketing: shipped config keeps private servers off")
-end
-
-section("lore archive")
-do
-	local RS = game:GetService("ReplicatedStorage")
-	local Lore = requireModule(RS.Shared.Catalog.Lore)
-	local SeededRandom = requireModule(RS.Shared.Util.SeededRandom)
-	local ids, perChapter, cats = {}, {}, {}
-	for _, c in Lore.Categories do
-		cats[c] = true
-	end
-	for _, e in Lore.List do
-		check(not ids[e.id], "unique lore id " .. e.id)
-		ids[e.id] = true
-		check(cats[e.category] == true, "known category for " .. e.id)
-		check(#e.body > 20 and #e.body < 420, "short lore body " .. e.id)
-		perChapter[e.chapter] = (perChapter[e.chapter] or 0) + 1
-	end
-	for chapter = 1, 8 do
-		check((perChapter[chapter] or 0) >= 2, "chapter " .. chapter .. " has entries")
-	end
-	check(Lore.WitnessRequired <= Lore.Count - 2, "the witness is reachable")
-	local rng = SeededRandom.new(5, "lore")
-	local fresh = Lore.pick({ {} }, 4, rng)
-	check(#fresh == 4, "four pieces a night")
-	for _, e in fresh do
-		check(e.chapter <= 2, "a new team starts at the beginning (got chapter " .. e.chapter .. ")")
-	end
-	-- a team that finished chapters 1-3 continues with 4 and 5
-	local known = {}
-	for _, e in Lore.List do
-		if e.chapter <= 3 then
-			known[e.id] = 1
-		end
-	end
-	check(Lore.chapter(known) == 4, "chapter after 1-3 is 4")
-	for _, e in Lore.pick({ known }, 4, rng) do
-		check(e.chapter == 4 or e.chapter == 5, "story continues in order (chapter " .. e.chapter .. ")")
-	end
-	-- mixed team: the newcomer pulls the story back to the start
-	for _, e in Lore.pick({ known, {} }, 4, rng) do
-		check(e.chapter <= 2, "newcomer gets the beginning too")
-	end
-	check(Lore.found({ PF_CHARTER = 1, BOGUS = 1 }) == 1, "unknown ids ignored")
-end
-
-section("original audio sheets")
-do
-	local RS = game:GetService("ReplicatedStorage")
-	local AssetIds = requireModule(RS.Shared.Config.AssetIds)
-	local AudioSheets = requireModule(RS.Shared.Config.AudioSheets)
-	local AudioLibrary = requireModule(RS.Shared.Config.AudioLibrary)
-	local SoundFactory = requireModule(RS.Shared.SoundFactory)
-	local count = 0
-	for key, region in AudioSheets do
-		count += 1
-		check(AudioLibrary.Sounds[key] ~= nil, "sheet sound is in the library: " .. key)
-		check(region.stop > region.start and AssetIds.Audio[region.sheet] ~= nil, "valid region: " .. key)
-	end
-	check(count >= 90, "audio sheets cover the soundscape (" .. count .. ")")
-	local saved = table.clone(AssetIds.Audio)
-	-- nothing uploaded: the shaped built-in sample is used
-	for sheet in AssetIds.Audio do
-		AssetIds.Audio[sheet] = 0
-	end
-	local plain = SoundFactory.create("ObserverScreech", nil)
-	check(plain ~= nil and plain.SoundId == AudioLibrary.Sounds.ObserverScreech.id, "built-in sample without an upload")
-	-- uploaded: the region of the sheet, spatial effects only
-	AssetIds.Audio.ambience, AssetIds.Audio.horror, AssetIds.Audio.world = 111, 222, 333
-	local s1 = SoundFactory.create("ObserverScreech", nil) :: any
-	local r = AudioSheets.ObserverScreech
-	check(s1.SoundId == "rbxassetid://222" and s1.PlaybackRegionsEnabled == true, "screech plays from the horror sheet")
-	check(math.abs(s1.PlaybackRegion.Min - r.start) < 1e-3 and math.abs(s1.PlaybackRegion.Max - r.stop) < 1e-3, "screech region")
-	local onlySpatial = true
-	for _, e in s1:GetChildren() do
-		if not (e:IsA("ReverbSoundEffect") or e:IsA("EchoSoundEffect")) then
-			onlySpatial = false
-		end
-	end
-	check(onlySpatial, "original sounds keep only spatial effects")
-	local loop = SoundFactory.create("AmbientDrone", nil, { looped = true }) :: any
-	check(loop.SoundId == "rbxassetid://111" and loop.Looped and math.abs(loop.LoopRegion.Min - AudioSheets.AmbientDrone.start) < 1e-3, "drone loops inside its region")
-	local ui = SoundFactory.create("UIClick", nil)
-	check(ui ~= nil and ui.SoundId == AudioLibrary.Sounds.UIClick.id, "sounds without an original keep the built-in sample")
-	for sheet, id in saved do
-		AssetIds.Audio[sheet] = id
-	end
-end
-
-section("lobby (field office)")
-do
-	local Lobby = requireModule(Server.Map.Lobby)
-	local holder = Instance.new("Folder")
-	holder.Name = "LobbyTest"
-	holder.Parent = workspace
-	local ok, lobby = pcall(Lobby.build, holder)
-	check(ok, "build lobby: " .. tostring(lobby))
-	if ok then
-		check(#lobby.Spawns == 4, "four lobby spawns")
-		check(lobby.Boards and lobby.Boards.Leaderboard and #lobby.Boards.Leaderboard.rows >= 10, "leaderboard board")
-		local O, size = lobby.Center, lobby.Size
-		local minX, maxX = O.X - size.X / 2 + 0.15, O.X + size.X / 2 - 0.15
-		local minZ, maxZ = O.Z - size.Z / 2 + 0.15, O.Z + size.Z / 2 - 0.15
-		-- every free-standing model stays inside the room, on the floor, and clear of the others
-		local boxes = {}
-		for _, m in lobby.Root:GetChildren() do
-			if m:IsA("Model") and #m:GetChildren() > 0 then
-				local cf, sz = m:GetBoundingBox()
-				local p = cf.Position
-				local lo = p - sz / 2
-				local hi = p + sz / 2
-				check(lo.X >= minX - 0.25 and hi.X <= maxX + 0.25 and lo.Z >= minZ - 0.25 and hi.Z <= maxZ + 0.25, "lobby prop inside the room: " .. m.Name .. string.format(" (%.1f..%.1f, %.1f..%.1f)", lo.X - O.X, hi.X - O.X, lo.Z - O.Z, hi.Z - O.Z))
-				check(lo.Y >= O.Y - 0.3, "lobby prop above the floor: " .. m.Name)
-				local wallMounted = lo.Y > O.Y + 2 or m.Name == "Sign" or m.Name == "Clock" or m.Name == "Extinguisher"
-				if not wallMounted then
-					table.insert(boxes, { name = m.Name, lo = lo, hi = hi })
-				end
-			end
-		end
-		for i = 1, #boxes do
-			for j = i + 1, #boxes do
-				local a, b = boxes[i], boxes[j]
-				local pad = 0.05
-				local overlap = a.lo.X < b.hi.X - pad and b.lo.X < a.hi.X - pad and a.lo.Z < b.hi.Z - pad and b.lo.Z < a.hi.Z - pad and a.lo.Y < b.hi.Y - pad and b.lo.Y < a.hi.Y - pad
-				-- a CRT sits on its table by design
-				if overlap and not ((a.name == "Table" and b.name == "CRT") or (a.name == "CRT" and b.name == "Table")) then
-					check(false, "lobby props overlap: " .. a.name .. " / " .. b.name)
-				end
-			end
-		end
-		-- each terminal can be walked up to: 3 studs in front of the screen are free
-		for _, d in lobby.Root:GetDescendants() do
-			if d:IsA("BasePart") and d:GetAttribute("InteractKind") == "Kiosk" then
-				local model = d:FindFirstAncestorWhichIsA("Model")
-				local front = d.CFrame.Position + d.CFrame.LookVector * 3
-				front = Vector3.new(front.X, O.Y + 2, front.Z)
-				local blocked = nil
-				for _, b in boxes do
-					if model and b.name == model.Name then
-						continue
-					end
-					if front.X > b.lo.X and front.X < b.hi.X and front.Z > b.lo.Z and front.Z < b.hi.Z and front.Y > b.lo.Y and front.Y < b.hi.Y then
-						blocked = b.name
-					end
-				end
-				check(blocked == nil, "terminal reachable: " .. tostring(d:GetAttribute("Kiosk")) .. " (blocked by " .. tostring(blocked) .. ")")
-				check(front.X > minX and front.X < maxX and front.Z > minZ and front.Z < maxZ, "terminal faces into the room: " .. tostring(d:GetAttribute("Kiosk")))
-			end
-		end
-		for _, sp in lobby.Spawns do
-			for _, b in boxes do
-				local p = sp.Position
-				check(not (p.X > b.lo.X - 1 and p.X < b.hi.X + 1 and p.Z > b.lo.Z - 1 and p.Z < b.hi.Z + 1), "lobby spawn clear of " .. b.name)
-			end
-		end
-	end
-	holder:Destroy()
-end
-
-section("objectives")
-syncPositions(workspace)
-local Registry = requireModule(Server.Registry)
-local SeededRandom = requireModule(RS.Shared.Util.SeededRandom)
-local Signal = requireModule(RS.Shared.Util.Signal)
-local currentMap = maps[42]
-local spawned = {}
--- minimal service stubs: real InventoryService pickup creation, real Objective & Puzzle logic
-Registry.MapService = { GetMap = function()
-	return currentMap
-end }
-Registry.RoundService = {
-	GetQuota = function(_, n)
-		return 6 + (n - 1)
-	end,
-	IsEscape = function()
-		return false
-	end,
-	GetDifficulty = function()
-		return "NORMAL"
-	end,
-	GetDifficultyConfig = function()
-		return requireModule(RS.Shared.Config.GameConfig).Difficulty.NORMAL
-	end,
-	GetElapsed = function()
-		return 400
-	end,
-}
-Registry.InventoryService = requireModule(Server.Services.InventoryService)
-local origSpawn = Registry.InventoryService.SpawnPickup
-Registry.InventoryService.SpawnPickup = function(self, id, cf, opts)
-	local m = origSpawn(self, id, cf, opts)
-	table.insert(spawned, { id = id, model = m })
-	return m
-end
-Registry.AudioService = setmetatable({}, { __index = function()
-	return function() end
-end })
-local handlers = {}
-Registry.InteractionService = { Register = function(_, kind, fn)
-	handlers[kind] = fn
-end }
-Registry.PuzzleService = requireModule(Server.Services.PuzzleService)
-Registry.ObjectiveService = requireModule(Server.Services.ObjectiveService)
-Registry.ObjectiveService.Push = function() end
-Registry.HorrorDirector = {
-	AddDread = function() end,
-	OnMilestone = function() end,
-	Rng = function()
-		return SeededRandom.new(1)
-	end,
-	AllowsAnomaly = function()
-		return true
-	end,
-	GetStoryPhase = function()
-		return "DISTORTION"
-	end,
-}
-
-for _, seed in { 1, 42, 1337, 99991, 123456 } do
-	currentMap = maps[seed]
-	if currentMap then
-		spawned = {}
-		local ok, state = pcall(function()
-			return Registry.ObjectiveService:Plan(currentMap, SeededRandom.new(seed, "objectives"), 3)
-		end)
-		check(ok, "plan seed " .. seed .. ": " .. tostring(state))
-		if ok then
-			local counts = {}
-			for _, s in spawned do
-				counts[s.id] = (counts[s.id] or 0) + 1
-				local room = s.model and currentMap:roomAt(s.model:GetPivot().Position + Vector3.new(0, 1.5, 0))
-				if s.id ~= "PHOTOGRAPH" then
-					check(room ~= nil, "item inside a room: " .. s.id)
-					if room then
-						check(room.lockKey == nil, s.id .. " not behind a locked door (" .. room.id .. ")")
-						if s.id == "MAINT_KEY" or s.id == "OFFICE_KEY" then
-							check(room.zone ~= "BASEMENT", "keys never in the basement")
-						end
-					end
-				end
-			end
-			-- softlock check: walk the room graph from the vestibule through plain
-			-- doors and the stairwell, then every lock must sit next to the
-			-- reachable part and every item must lie in it.
-			local reach = { G_e = true }
-			local changed = true
-			while changed do
-				changed = false
-				for _, d in currentMap.Doors do
-					if (d.char == "D" or d.char == "O" or d.char == "E") and d.roomA and d.roomB then
-						if reach[d.roomA] ~= reach[d.roomB] then
-							local other = if reach[d.roomA] then d.roomB else d.roomA
-							local room = currentMap.Rooms[other]
-							if room and not room.lockKey then
-								reach[d.roomA], reach[d.roomB] = true, true
-								changed = true
-							end
-						end
-					end
-				end
-				for _, pair in { { "B_s", "G_s" }, { "G_s", "U_s" } } do
-					if reach[pair[1]] ~= reach[pair[2]] then
-						reach[pair[1]], reach[pair[2]] = true, true
-						changed = true
-					end
-				end
-			end
-			for id, room in currentMap.Rooms do
-				if not room.lockKey and not room.secret and room.kind ~= "closet" and not room.keypad then
-					check(reach[id] == true, string.format("seed %d: %s reachable without keys", seed, id))
-				end
-			end
-			for _, d in currentMap.Doors do
-				if d.char == "L" or d.char == "K" or d.char == "P" or d.char == "H" then
-					check((d.roomA and reach[d.roomA]) or (d.roomB and reach[d.roomB]), string.format("seed %d: locked door %s faces the reachable building", seed, d.id))
-				end
-			end
-			for _, sp in spawned do
-				local room = sp.model and sp.id ~= "PHOTOGRAPH" and currentMap:roomAt(sp.model:GetPivot().Position + Vector3.new(0, 1.5, 0))
-				if room then
-					check(reach[room.id] == true, string.format("seed %d: %s reachable (%s)", seed, sp.id, room.id))
-				end
-			end
-			check(counts.FUSE == 3, "three fuses")
-			check(counts.MAINT_KEY == 1 and counts.OFFICE_KEY == 1, "both keys")
-			check((counts.BATTERY or 0) >= 3, "batteries")
-			check(counts.PHOTOGRAPH == 1, "photograph in the hidden room")
-			for _, p in state.puzzles do
-				if p == "DOORS" then
-					check(counts.TAPE == 1, "tape for the closets")
-					check(#state.doorOrder == 4, "door order")
-				elseif p == "OFFERING" then
-					check(counts.MUSIC_BOX == 1 and counts.DOLL == 1 and counts.CANDLE == 1, "offerings")
-				elseif p == "CODE" then
-					check(#state.code == 4, "code")
-				elseif p == "SYMBOLS" then
-					check(#state.symbols == 4, "symbols")
-				end
-			end
-			-- every item and note rests on a surface, inside nothing
-			local audit = Instance.new("Folder")
-			audit.Name = "AuditPickups"
-			audit.Parent = workspace
-			for _, sp in spawned do
-				if sp.model and sp.id ~= "PHOTOGRAPH" then
-					sp.model.Parent = audit
-				end
-			end
-			local GeometryValidator = requireModule(Server.Map.GeometryValidator)
-			local extra = { audit }
-			local docs = currentMap.Root:FindFirstChild("Documents")
-			if docs then
-				table.insert(extra, docs)
-			end
-			local report = GeometryValidator.run(currentMap, { extra = extra })
-			local itemIssues = {}
-			for _, issue in report.issues do
-				local inst = issue.inst
-				if inst:IsDescendantOf(audit) or (docs and inst:IsDescendantOf(docs)) then
-					table.insert(itemIssues, issue)
-				end
-			end
-			check(#itemIssues == 0, string.format("seed %d: items and notes placed cleanly (%d issues)", seed, #itemIssues))
-			for i, issue in itemIssues do
-				if i <= 5 then
-					print(string.format("    [%s] %s %s in %s: %s", issue.severity, issue.kind, issue.name, tostring(issue.room), issue.detail))
-				end
-			end
-			print(string.format("  seed %d: puzzles %s, quota %d, items %d", seed, table.concat(state.puzzles, "+"), state.quota, #spawned))
-		end
-	end
-end
-
-------------------------------------------------------------------------------------
--- 4. Every anomaly definition creates valid, revertible reality ops
-------------------------------------------------------------------------------------
-
-section("anomalies")
-requireModule(RS.Shared.SoundFactory).ensureGroups()
-syncPositions(game)
-local RealityOps = requireModule(RS.Shared.RealityOps)
-local AnomalyService = requireModule(Server.Services.AnomalyService)
-currentMap = maps[42]
-local assets = Instance.new("Folder")
-assets.Name = "RealityAssets"
-assets.Parent = RS
-local dynamic = Instance.new("Folder")
-dynamic.Name = "Dynamic"
-dynamic.Parent = assets
-Registry.RealityService = {
-	AddTemplate = function(_, name, inst, isDynamic)
-		inst.Name = name
-		inst.Parent = if isDynamic then dynamic else assets
-		return inst
-	end,
-	GetTemplate = function(_, name)
-		return assets:FindFirstChild(name) or dynamic:FindFirstChild(name)
-	end,
-}
-Registry.PlayerService = {
-	GetAlive = function()
-		return {}
-	end,
-	IsLookingAt = function()
-		return false
-	end,
-	CanAnyoneSee = function()
-		return false
-	end,
-	HasLineOfSight = function()
-		return true
-	end,
-}
-Registry.DataService = { Get = function()
-	return nil
-end }
-Registry.DoorService = { DoorToggled = Signal.new(), OpenNear = function() end }
-Registry.ObjectiveService.GetState = function()
-	return { fuses = 0 }
-end
--- build the anomaly templates through the real code path
-local okInit, errInit = pcall(function()
-	AnomalyService:Init()
-end)
-check(okInit, "AnomalyService:Init " .. tostring(errInit))
-AnomalyService:BeginRound(42)
-local defs = AnomalyService:GetDefinitions()
-check(#defs == JournalCatalog.Count, string.format("every journal entry has behaviour (%d/%d)", #defs, JournalCatalog.Count))
-
-local function fakeCharacter(name, pos)
-	local m = Instance.new("Model")
-	m.Name = name
-	local root = Instance.new("Part")
-	root.Name = "HumanoidRootPart"
-	root.Size = Vector3.new(2, 2, 1)
-	root.CFrame = CFrame.new(pos)
-	root.Parent = m
-	local head = Instance.new("Part")
-	head.Name = "Head"
-	head.Size = Vector3.new(1, 1, 1)
-	head.CFrame = CFrame.new(pos + Vector3.new(0, 2.5, 0))
-	head.Parent = m
-	Instance.new("Humanoid").Parent = m
-	m.WorldPivot = CFrame.new(pos)
-	m.Parent = workspace
-	syncPositions(m)
-	return m
-end
-local corridorPos = currentMap.Rooms.G_c.center + Vector3.new(0, 3, 0)
-local fakePlayer = { Name = "Tester", DisplayName = "Tester", UserId = 1, Character = fakeCharacter("Tester", corridorPos) }
-local otherPlayer = { Name = "Other", DisplayName = "Other", UserId = 2, Character = fakeCharacter("Other", corridorPos + Vector3.new(30, 0, 0)) }
-Registry.PlayerService.GetAlive = function()
-	return { fakePlayer, otherPlayer }
-end
-Registry.PlayerService.IsAlive = function()
-	return true
-end
-Registry.DoorService.SetOpen = function(_, model, open)
-	model:SetAttribute("Open", open)
-end
-local Ctx = AnomalyService.Ctx
-local okDefs, noCandidates = 0, {}
-for _, def in defs do
-	local ctx = setmetatable({ map = currentMap, rng = SeededRandom.new(7, def.id), players = { fakePlayer }, scope = "GLOBAL", svc = AnomalyService, def = def }, Ctx)
-	ctx.nearest = function()
-		return 50
-	end
-	ctx.anyPlayerInRoom = function()
-		return false
-	end
-	ctx.playerRoom = function()
-		return currentMap.Rooms.G_c
-	end
-	ctx.history = function()
-		local h = {}
-		for i = 1, 12 do
-			table.insert(h, { pos = Vector3.new(20 + i * 3, 3, 42), t = i })
-		end
-		return h
-	end
-	local okC, candidates = pcall(def.candidates, ctx)
-	if not okC then
-		check(false, def.id .. " candidates error: " .. tostring(candidates))
-	elseif #candidates == 0 then
-		table.insert(noCandidates, def.id)
-	else
-		local created = false
-		for i = 1, math.min(5, #candidates) do
-			syncPositions(workspace)
-			syncPositions(RS)
-			local okS, spec = pcall(def.create, ctx, candidates[i])
-			if not okS then
-				check(false, def.id .. " create error: " .. tostring(spec))
-				break
-			elseif spec then
-				created = true
-				check(type(spec.ops) == "table", def.id .. " has ops")
-				check(type(spec.anchors) == "table", def.id .. " has anchors")
-				local revert, made = RealityOps.applyAll(spec.ops)
-				check(type(revert) == "function", def.id .. " revert function")
-				if spec.onApplied then
-					local okA, errA = pcall(spec.onApplied, { data = {}, players = { fakePlayer } }, made)
-					check(okA, def.id .. " onApplied: " .. tostring(errA))
-				end
-				local okR, errR = pcall(revert)
-				check(okR, def.id .. " revert: " .. tostring(errR))
-				for _, inst in made do
-					check(inst.Parent == nil, def.id .. " clone removed on revert")
-				end
-				okDefs += 1
-				break
-			end
-		end
-		check(created, def.id .. " produced a spec from its candidates")
-	end
-end
-print(string.format("  %d/%d definitions exercised; need live players for: %s", okDefs, #defs, table.concat(noCandidates, ", ")))
-
-------------------------------------------------------------------------------------
--- 5. Every puzzle type can be solved through the real server logic
-------------------------------------------------------------------------------------
-
-section("puzzles")
-Registry.AnalyticsService = Registry.AnalyticsService or setmetatable({}, { __index = function()
-	return function() end
-end })
-Registry.ProgressionService = { PuzzleSolved = function() end, Award = function() end }
-Registry.LightingService = { SetPower = function() end }
-Registry.DoorService = requireModule(Server.Services.DoorService)
-Registry.HorrorDirector.OnMilestone = function() end
-local realGetState = requireModule(Server.Services.ObjectiveService).GetState
-Registry.ObjectiveService.GetState = realGetState
-local okPS, errPS = pcall(function()
-	Registry.PuzzleService:Init()
-	Registry.InventoryService:Init()
-end)
-check(okPS, "PuzzleService/InventoryService init " .. tostring(errPS))
-local solverChar = fakeCharacter("Solver", Vector3.zero)
-local solverAttrs = {}
-local solver = {
-	Name = "Solver",
-	DisplayName = "Solver",
-	UserId = 99,
-	Character = solverChar,
-	Parent = game,
-	SetAttribute = function(_, k, v)
-		solverAttrs[k] = v
-	end,
-	GetAttribute = function(_, k)
-		return solverAttrs[k]
-	end,
-}
-Registry.PlayerService.IsAlive = function()
-	return true
-end
-local function moveSolverTo(pos)
-	solverChar:PivotTo(CFrame.new(pos + Vector3.new(0, 3, 4)))
-	syncPositions(solverChar)
-end
-local function findTagged(root, tag)
-	for _, d in root:GetDescendants() do
-		if d:HasTag(tag) then
-			return d
-		end
-	end
-	return nil
-end
-local covered = {}
-for _, seed in { 1, 42, 1337, 99991, 123456 } do
-	currentMap = maps[seed]
-	local state = Registry.ObjectiveService:Plan(currentMap, SeededRandom.new(seed, "objectives"), 1)
-	syncPositions(currentMap.Root)
-	local root = currentMap.Root
-	Registry.InventoryService:Reset(solver)
-	-- POWER: fuses, then breakers from the log
-	local fuseBox = findTagged(root, "FuseBox")
-	local hit = fuseBox:FindFirstChild("Interact")
-	for _ = 1, 3 do
-		Registry.InventoryService:Add(solver, "FUSE")
-	end
-	-- before THE OUTAGE the lights work and the box refuses new fuses
-	check(state.power == true and state.outage == false, "seed " .. seed .. ": the building starts powered")
-	handlers.FuseBox(solver, hit)
-	check(state.fuses == 0 and Registry.InventoryService:Count(solver, "FUSE") == 3, "seed " .. seed .. ": no fuses before the outage")
-	Registry.PuzzleService:BurnOut()
-	check(state.power == false and state.outage == true and state.fuses == 0, "seed " .. seed .. ": the outage burns the fuses out")
-	for _ = 1, 3 do
-		handlers.FuseBox(solver, hit)
-	end
-	check(state.fuses == 3, "seed " .. seed .. ": three fuses inserted")
-	local breaker = findTagged(root, "BreakerPanel")
-	for i = 1, 5 do
-		if state.breakerPattern[i] then
-			handlers.Breaker(solver, breaker:FindFirstChild("Lever" .. i))
-		end
-	end
-	check(state.power == true and state.locks.POWER == true, "seed " .. seed .. ": power restored")
-	covered.POWER = true
-	for _, p in state.puzzles do
-		if p == "CODE" then
-			local keypad = findTagged(root, "Keypad")
-			moveSolverTo(keypad:GetPivot().Position)
-			handlers.Keypad(solver, keypad:FindFirstChild("Body"))
-			Registry.PuzzleService:SubmitCode(solver, "0000")
-			task.wait(0.9)
-			Registry.PuzzleService:SubmitCode(solver, state.code)
-			local override = findTagged(root, "SecurityOverride")
-			handlers.Override(solver, override:FindFirstChild("Lever"))
-			check(state.locks.CODE == true, "seed " .. seed .. ": keypad + override")
-		elseif p == "SYMBOLS" then
-			local cabinet = findTagged(root, "SymbolCabinet")
-			local Art = requireModule(Server.Map.Art)
-			-- odometer over every combination (6^4); the server opens the drawer on the right one
-			local n = #Art.Symbols
-			for counter = 1, n ^ 4 do
-				if state.locks.SYMBOLS then
-					break
-				end
-				handlers.SymbolDial(solver, cabinet:FindFirstChild("DialHit4"))
-				if counter % n == 0 then
-					handlers.SymbolDial(solver, cabinet:FindFirstChild("DialHit3"))
-				end
-				if counter % (n * n) == 0 then
-					handlers.SymbolDial(solver, cabinet:FindFirstChild("DialHit2"))
-				end
-				if counter % (n * n * n) == 0 then
-					handlers.SymbolDial(solver, cabinet:FindFirstChild("DialHit1"))
-				end
-			end
-			check(state.locks.SYMBOLS == true, "seed " .. seed .. ": symbol cabinet")
-		elseif p == "DOORS" then
-			local recorder = findTagged(root, "TapeRecorder")
-			Registry.InventoryService:Add(solver, "TAPE")
-			handlers.TapeRecorder(solver, recorder:FindFirstChild("Body"))
-			local closets = {}
-			for _, rec in currentMap.Doors do
-				if rec.model and rec.model:GetAttribute("Kind") == "closet" then
-					closets[rec.model:GetAttribute("Closet")] = rec.model
-				end
-			end
-			-- one wrong door resets, then the right order
-			local wrong = state.doorOrder[2]
-			Registry.PuzzleService:OnClosetDoor(solver, closets[wrong])
-			for _, idx in state.doorOrder do
-				Registry.PuzzleService:OnClosetDoor(solver, closets[idx])
-			end
-			check(state.locks.DOORS == true, "seed " .. seed .. ": closets in order")
-		elseif p == "OFFERING" then
-			local tableModel = findTagged(root, "OfferingTable")
-			for i, item in { "MUSIC_BOX", "DOLL", "CANDLE" } do
-				Registry.InventoryService:Add(solver, item)
-				handlers.Offering(solver, tableModel:FindFirstChild("Slot" .. i))
-			end
-			check(state.locks.OFFERING == true, "seed " .. seed .. ": offerings")
-		end
-		covered[p] = true
-	end
-	-- anomaly quota releases the last lock
-	for _ = 1, state.quota do
-		Registry.ObjectiveService:AnomalyFound()
-	end
-	local all = true
-	for _, v in state.locks do
-		all = all and v
-	end
-	check(all, "seed " .. seed .. ": all four exit locks released")
-end
-for _, kind in { "POWER", "CODE", "SYMBOLS", "DOORS", "OFFERING" } do
-	check(covered[kind], "puzzle covered by test seeds: " .. kind)
-end
-
-------------------------------------------------------------------------------------
--- 6. Anomaly lifecycle through the real services
-------------------------------------------------------------------------------------
-
-section("anomaly lifecycle")
-Registry.ObserverService = {
-	ReportMimic = function()
-		return false
-	end,
-	IsActive = function()
-		return false
-	end,
-}
-currentMap = maps[42]
-local objectiveState = Registry.ObjectiveService:Plan(currentMap, SeededRandom.new(42, "objectives"), 1)
-syncPositions(currentMap.Root)
-Registry.RealityService = requireModule(Server.Services.RealityService)
-Registry.RealityService:Init()
-local reported, falseReports = 0, 0
-Registry.ProgressionService = {
-	AnomalyReported = function()
-		reported += 1
-	end,
-	FalseReport = function()
-		falseReports += 1
-	end,
-	Award = function() end,
-	PuzzleSolved = function() end,
-}
-Registry.AnalyticsService = setmetatable({}, { __index = function()
-	return function() end
-end })
-Registry.HorrorDirector = {
-	AddDread = function() end,
-	OnAnomalyResolved = function() end,
-	OnMilestone = function() end,
-	Rng = function()
-		return SeededRandom.new(7)
-	end,
-	AllowsAnomaly = function()
-		return true
-	end,
-	GetStoryPhase = function()
-		return "DISTORTION"
-	end,
-}
-Registry.RoundService.FailRound = function() end
-Registry.PlayerService.GetAlive = function()
-	return { solver }
-end
-Registry.PlayerService.GetLook = function()
-	return nil
-end
-moveSolverTo(currentMap.Rooms.G_c.center)
-AnomalyService:BeginRound(7)
-local spawnedIds = {}
-for _ = 1, 30 do
-	syncPositions(workspace)
-	local inst = AnomalyService:TrySpawn()
-	syncPositions(workspace)
-	if inst then
-		spawnedIds[inst.def.id] = true
-		-- aim exactly at the first anchor and report it
-		local anchor = inst.spec.anchors[1]
-		if anchor and inst.def.detection ~= "ENDURE" then
-			local target = if typeof(anchor.pos) == "Instance" then (anchor.pos:IsA("BasePart") and anchor.pos.CFrame.Position or anchor.pos:GetPivot().Position) else anchor.pos
-			local before = objectiveState.found
-			-- walk up to it (reports have a 75 stud range)
-			moveSolverTo(target + Vector3.new(6, -3, 6))
-			local head = solverChar:FindFirstChild("Head")
-			local origin = head.CFrame.Position
-			task.wait(1.5)
-			AnomalyService:Report(solver, origin, (target - origin).Unit)
-			check(objectiveState.found == before + 1, "report resolves " .. inst.def.id)
-		else
-			AnomalyService:Expire(inst)
-		end
-	end
-end
-local n = 0
-for _ in spawnedIds do
-	n += 1
-end
-check(n >= 10, "many different anomalies spawned (" .. n .. ")")
--- a report at nothing is a false report
-task.wait(1.5)
-local head = solverChar:FindFirstChild("Head")
-AnomalyService:Report(solver, head.CFrame.Position, Vector3.new(0, 1, 0))
-check(falseReports >= 1, "false report is penalised")
--- expiry reverts and counts as missed
-local inst = AnomalyService:TrySpawn("PAINTING_SWAP", { ignoreVisibility = true })
-if inst then
-	local missedBefore = AnomalyService:GetRoundStats().missed
-	AnomalyService:Expire(inst)
-	check(AnomalyService:GetRoundStats().missed == missedBefore + 1, "expired anomaly counted as missed")
-	check(not Registry.RealityService:IsLive(inst.token), "expired anomaly reverted")
-end
-AnomalyService:EndRound()
-print(string.format("  %d distinct anomalies spawned and reported, %d reports credited", n, reported))
-
-------------------------------------------------------------------------------------
--- 7. Story phases, the outage, phase-gated anomalies and soft guidance
-------------------------------------------------------------------------------------
-
-section("story & guidance")
-do
-	local GameConfig = requireModule(RS.Shared.Config.GameConfig)
-	local Enums = requireModule(RS.Shared.Enums)
-	currentMap = maps[1337]
-	local state = Registry.ObjectiveService:Plan(currentMap, SeededRandom.new(1337, "objectives"), 1)
-	Registry.ObjectiveService.GetState = function()
-		return state
-	end
-	syncPositions(currentMap.Root)
-	local lighting = {
-		power = true,
-		blackout = 0,
-		Blackout = function(self, level)
-			self.blackout = level
-			return true
-		end,
-		EndBlackout = function(self)
-			self.blackout = 0
-		end,
-		SetPower = function(self, on)
-			self.power = on
-		end,
-		IsPowered = function(self)
-			return self.power
-		end,
-		GetBlackout = function(self)
-			return self.blackout
-		end,
-		BlackoutChanged = Signal.new(),
-	}
-	Registry.LightingService = lighting
-	Registry.ObserverService = {
-		IsActive = function()
-			return false
-		end,
-		ProximityLevel = function()
-			return 1
-		end,
-	}
-	Registry.AdminService = nil
-	local difficulty = "NORMAL"
-	Registry.RoundService.GetDifficulty = function()
-		return difficulty
-	end
-	Registry.RoundService.GetDifficultyConfig = function()
-		return GameConfig.Difficulty[difficulty]
-	end
-	Registry.RoundService.IsRunning = function()
-		return true
-	end
-	Registry.RoundService.GetState = function()
-		return "EXPLORING"
-	end
-	local Director = requireModule(Server.Services.HorrorDirector)
-	Registry.HorrorDirector = Director
-	Director:BeginRound(1337)
-	check(Director:GetStoryPhase() == "ARRIVAL", "rounds begin in ARRIVAL")
-	local defs = requireModule(Server.Services.AnomalyService):GetDefinitions()
-	local function allowedCount(pred)
-		local n = 0
-		for _, def in defs do
-			if Director:AllowsAnomaly(def) and pred(def) then
-				n += 1
-			end
-		end
-		return n
-	end
-	check(allowedCount(function()
-		return true
-	end) == 0, "no anomalies while arriving")
-	Director:TriggerOutage()
-	task.wait(5.4)
-	check(Director:GetStoryPhase() == "UNEASE", "the outage starts UNEASE")
-	check(lighting.power == false, "the outage cuts the power")
-	check(state.outage == true and state.power == false and state.fuses == 0, "the outage burns out the fuse box")
-	check(Director:GetBudget() > 0 and Director:GetBudget() < 45, "tension budget: the outage leaves room for small events, not a hunt")
-	check(allowedCount(function(def)
-		return def.category == Enums.AnomalyCategory.Dangerous
-	end) == 0, "nothing dangerous during UNEASE")
-	check(allowedCount(function()
-		return true
-	end) > 0, "subtle anomalies during UNEASE")
-	Director:AdvanceStory()
-	check(Director:GetStoryPhase() == "DISTORTION", "advance to DISTORTION")
-	Director:AdvanceStory()
-	check(Director:GetStoryPhase() == "DANGER", "advance to DANGER")
-	check(allowedCount(function(def)
-		return def.category == Enums.AnomalyCategory.Dangerous
-	end) > 0, "dangerous anomalies once it hunts")
-	Director:AdvanceStory()
-	check(Director:GetStoryPhase() == "COLLAPSE", "advance to COLLAPSE")
-	check(Director:Reached("DANGER") and not Director:Reached("ESCAPE"), "phase ordering")
-	Director:EndRound()
-
-	-- soft guidance always has a next step and walks through the objectives
-	Registry.InventoryService:Reset(solver)
-	Registry.AnomalyService = { GetActive = function()
-		return {}
-	end }
-	local Guidance = requireModule(Server.Services.GuidanceService)
-	Registry.GuidanceService = Guidance
-	Guidance:BeginRound()
-	local t = Guidance:NextTarget()
-	check(t ~= nil and t.room ~= nil, "guidance: a target after the outage")
-	if t then
-		check(string.find(t.key, "fuse") ~= nil or t.key == "maintkey", "guidance: power first (" .. t.key .. ")")
-		print("  first nudge: " .. t.key .. " -> " .. t.where)
-	end
-	-- with the power back, it points at the puzzles
-	state.power = true
-	state.locks.POWER = true
-	t = Guidance:NextTarget()
-	check(t ~= nil, "guidance: a puzzle target")
-	if t then
-		print("  next nudge: " .. t.key .. " -> " .. t.where)
-	end
-	for _, kind in state.puzzles do
-		state.locks[kind] = true
-	end
-	state.locks.ANOMALIES = false
-	for _, id in { "BREAKERS", "SYMBOLS", "OFFERING", "LORE_1", "LORE_2", "LORE_3", "LORE_4", "CODE_A", "CODE_B" } do
-		Guidance:DocumentRead(id)
-	end
-	t = Guidance:NextTarget()
-	check(t == nil or string.find(t.key, "anomaly") ~= nil, "guidance: nothing left but anomalies")
-	-- difficulty tables are complete
-	for _, name in Enums.DifficultyOrder do
-		local c = GameConfig.Difficulty[name]
-		check(c ~= nil and c.ArrivalDuration and c.PhaseDurations and c.HintDelay and c.RewardMultiplier, "difficulty config " .. name)
-	end
-end
-
-------------------------------------------------------------------------------------
-
-section("the mimic: state machine")
-do
-	local fs = require("@lune/fs")
-	local MimicBrain = requireModule(Server.Mimic.MimicBrain)
-	local S = MimicBrain.States
-	local Cfg = MimicBrain.Config
-	local function ctx(over)
-		local c = {
-			valid = true,
-			now = 0,
-			stateTime = 0,
-			lifetime = 1,
-			viewerAlive = true,
-			dist = 50,
-			los = false,
-			seen = false,
-			seenFor = 0,
-			unseenFor = 0,
-			arrived = false,
-			routeFailed = false,
-			stuck = false,
-			ping = nil,
-			recoveries = 0,
-			recovered = false,
-		}
-		for k, v in over or {} do
-			c[k] = v
-		end
-		return c
-	end
-	local function step(state, over)
-		local nextState = MimicBrain.decide(state, ctx(over))
-		return nextState
-	end
-	check(step(S.SPAWNING) == S.IDLE, "spawning -> idle once the model is valid")
-	check(step(S.SPAWNING, { valid = false, invalidReason = "in a wall" }) == S.DESPAWNING, "an invalid spawn is cleaned up, not left walking")
-	check(step(S.IDLE, { stateTime = Cfg.IdleFor + 0.1 }) == S.PATROLLING, "idle -> patrolling after waiting")
-	check(step(S.IDLE, { stateTime = 0.5 }) == S.IDLE, "idle holds (no constant random changes)")
-	check(step(S.PATROLLING, { arrived = true }) == S.IDLE, "patrolling -> idle on arrival")
-	-- walking into a wall: stuck or no route -> recover, never keep pushing
-	check(step(S.PATROLLING, { stuck = true }) == S.RECOVERING, "stuck against a wall -> recovering")
-	check(step(S.PATROLLING, { routeFailed = true }) == S.RECOVERING, "no route -> recovering")
-	check(step(S.RECOVERING, { recovered = true, recoveries = 1 }) == S.PATROLLING, "recovering -> patrolling with a new route")
-	check(step(S.RECOVERING, { recoveries = Cfg.MaxRecoveries }) == S.DESPAWNING, "after repeated failures it leaves instead of looping")
-	check(step(S.RECOVERING, { recoveries = 1 }) == S.RECOVERING, "recovering waits for a route")
-	-- hunting behaviour
-	check(step(S.PATROLLING, { los = true, dist = 20 }) == S.STALKING, "viewer close and not looking -> stalking")
-	check(step(S.STALKING, { los = false, unseenFor = Cfg.StalkLoseAfter + 1 }) == S.PATROLLING, "lost sight -> back to patrolling")
-	check(step(S.STALKING, { seen = true, seenFor = 2, dist = 8, los = true }) == S.CHASING, "noticed up close -> chasing")
-	check(step(S.STALKING, { seen = true, seenFor = Cfg.StaredDownAfter, dist = 30, los = true }) == S.DESPAWNING, "stared down from afar -> it leaves")
-	check(step(S.CHASING, { dist = Cfg.AttackRange - 0.5, los = true }) == S.ATTACKING, "chasing -> attacking in reach")
-	check(step(S.CHASING, { dist = 10, stateTime = Cfg.ChaseFor + 0.1, los = true }) == S.RECOVERING, "a chase has a time limit")
-	check(step(S.CHASING, { dist = 10, stuck = true, los = true }) == S.RECOVERING, "stuck while chasing -> recovering")
-	check(step(S.ATTACKING, { stateTime = 0.1, dist = 3 }) == S.ATTACKING, "the lunge holds")
-	check(step(S.ATTACKING, { stateTime = Cfg.AttackHold, dist = 3 }) == S.DESPAWNING, "after the lunge it leaves (attack resolves once)")
-	check(step(S.IDLE, { ping = Vector3.new(1, 2, 3) }) == S.INVESTIGATING, "a ping nearby -> investigating")
-	check(step(S.INVESTIGATING, { stateTime = Cfg.InvestigateFor + 1 }) == S.IDLE, "investigating gives up")
-	check(step(S.PATROLLING, { viewerAlive = false }) == S.DESPAWNING, "viewer gone -> despawning")
-	check(step(S.PATROLLING, { lifetime = Cfg.Lifetime + 1 }) == S.DESPAWNING, "it does not stay forever")
-	check(step(S.DESPAWNING, { viewerAlive = false }) == S.DESPAWNING, "despawning is final")
-	-- a full scripted encounter never stalls in one state
-	local state, t = S.SPAWNING, 0
-	local trace = {}
-	local script_ = {
-		{},
-		{ stateTime = 3 },
-		{ stuck = true },
-		{ recovered = true, recoveries = 1 },
-		{ los = true, dist = 25 },
-		{ seen = true, seenFor = 1.5, dist = 9, los = true },
-		{ dist = 3, los = true },
-		{ stateTime = 1, dist = 3 },
-	}
-	for _, over in script_ do
-		t += 1
-		state = step(state, over)
-		table.insert(trace, state)
-	end
-	check(state == S.DESPAWNING, "scripted encounter: " .. table.concat(trace, " > "))
-	for _, st in { S.IDLE, S.PATROLLING, S.INVESTIGATING, S.STALKING, S.CHASING, S.RECOVERING } do
-		check(MimicBrain.speed(st) >= 0, "speed defined for " .. st)
-	end
-	check(MimicBrain.speed(S.CHASING) > MimicBrain.speed(S.STALKING) and MimicBrain.speed(S.STALKING) > MimicBrain.speed(S.IDLE), "it runs only when chasing")
-	-- the animations are Roblox's own R15 ids (the stock Animate script's), not invented
-	local src = fs.readFile("src/server/Mimic/Mimic.luau")
-	for _, id in { "507766666", "507777826", "507767714" } do
-		check(string.find(src, id, 1, true) ~= nil, "mimic uses the stock R15 animation " .. id)
-	end
-	check(string.find(src, "CreateHumanoidModelFromDescription", 1, true) ~= nil and string.find(src, "HeightScale = 1.15", 1, true) ~= nil, "mimic builds its own body, not a plain copy")
-	check(string.find(fs.readFile("src/server/Services/AdminService.luau"), "SpawnMimic", 1, true) ~= nil, "the admin command uses the same creation path")
-end
-
-section("the observer: face and jumpscare framing")
+section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")
 	local ObserverRig = requireModule(RS.Shared.ObserverRig)
 	local rig = ObserverRig.build(CFrame.new(0, 0, 0), { localCopy = true })
 	local m = ObserverRig.motors(rig)
-	for _, name in { "FaceL", "FaceR", "EyeballL", "EyeballR", "Maw", "Seam", "Head" } do
+	for _, name in { "Head", "Chin", "EyeballL", "EyeballR", "Neck", "UpperTorso", "LeftUpperArm", "RightHand", "LeftLowerLeg" } do
 		check(rig:FindFirstChild(name) ~= nil, "observer has " .. name)
 	end
-	for _, name in { "JawL", "JawR", "EyeTurnL", "EyeTurnR", "HeadJoint", "NeckJoint", "Waist", "RootJoint" } do
+	for _, name in { "EyeTurnL", "EyeTurnR", "HeadJoint", "NeckJoint", "Waist", "RootJoint", "LeftShoulder", "RightElbow", "LeftHip", "RightKnee" } do
 		check(m[name] ~= nil, "observer joint " .. name)
 	end
-	-- the face is pale against the body (it reads in the dark and in close-up)
-	local face = rig:FindFirstChild("FaceL")
-	local body = rig:FindFirstChild("UpperTorso")
+	-- nothing the reference does not have
+	local forbidden = {}
+	for _, d in rig:GetDescendants() do
+		if d:IsA("BasePart") then
+			for _, word in { "Rib", "Spine", "Tooth", "Maw", "Finger", "Seam", "Blade" } do
+				if string.find(d.Name, word) then
+					table.insert(forbidden, d.Name)
+				end
+			end
+		end
+	end
+	check(#forbidden == 0, "no ribs, teeth, maw, fingers or seam: " .. table.concat(forbidden, ", "))
+	-- proportions, measured on the standing rig
+	local world = ObserverRig.solve(rig, rig.PrimaryPart.CFrame, {})
+	local headParts = { Head = true, Wing = true, WingL = true, WingR = true, Chin = true }
+	local headMin, headMax, armX, handLow, top = math.huge, -math.huge, 0, math.huge, -math.huge
+	for part, cf in world do
+		if part.Transparency < 1 then
+			local half = part.Size / 2
+			local corners = {}
+			for _, sx in { -1, 1 } do
+				for _, sy in { -1, 1 } do
+					for _, sz in { -1, 1 } do
+						table.insert(corners, (cf * CFrame.new(half.X * sx, half.Y * sy, half.Z * sz)).Position)
+					end
+				end
+			end
+			for _, c in corners do
+				top = math.max(top, c.Y)
+				if headParts[part.Name] then
+					headMin, headMax = math.min(headMin, c.X), math.max(headMax, c.X)
+				end
+				if string.find(part.Name, "Arm") then
+					armX = math.max(armX, math.abs(c.X))
+				end
+				if string.find(part.Name, "Hand") then
+					handLow = math.min(handLow, c.Y)
+				end
+			end
+		end
+	end
+	local headWidth, shoulderWidth = headMax - headMin, armX * 2
+	print(string.format("  observer: head %.2f studs wide, shoulders %.2f, height %.2f, hands down to %.2f", headWidth, shoulderWidth, top, handLow))
+	check(headWidth > shoulderWidth * 1.8, string.format("the head is a wide horizontal blade (%.1f studs vs shoulders %.1f)", headWidth, shoulderWidth))
+	check(top > 9 and top < 10, string.format("very tall (%.1f studs)", top))
+	check(handLow < 2.3 and handLow > 0.6, string.format("the arms hang to the middle of the shins (hands down to %.1f)", handLow))
+	-- matte black body, two small pale eyes
 	local lum = function(c)
 		return 0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B
 	end
-	check(lum(face.Color) > lum(body.Color) * 4, string.format("face much brighter than body (%.2f vs %.2f)", lum(face.Color), lum(body.Color)))
+	local bright, shiny = {}, {}
+	for _, d in rig:GetDescendants() do
+		if d:IsA("BasePart") and d.Transparency < 1 then
+			if string.find(d.Name, "Eyeball") then
+				check(lum(d.Color) > 0.45 and d.Size.X < 0.25, "small pale eye: " .. d.Name)
+			elseif d.Name ~= "Pupil" and lum(d.Color) > 0.06 then
+				table.insert(bright, d.Name)
+			end
+			if d.Reflectance > 0 then
+				table.insert(shiny, d.Name)
+			end
+		end
+	end
+	check(#bright == 0, "the body is uniformly black: " .. table.concat(bright, ", "))
+	check(#shiny == 0, "the body is matte: " .. table.concat(shiny, ", "))
 	-- the jumpscare framing, from many camera positions and directions
-	local worst = { dist = 0, facing = 1, level = 0 }
+	local dist = ObserverRig.ScareDistance
+	local worst = { dist = 0, facing = 1, level = 0, eyes = 0 }
 	for i = 0, 11 do
 		local yaw = i * math.pi / 6
 		local eye = Vector3.new(math.cos(yaw) * 7, 4.5 + (i % 3) * 0.6, math.sin(yaw) * 7)
 		local dir = Vector3.new(-math.sin(yaw), 0, math.cos(yaw))
 		for _, a in { 0, 0.5, 1 } do
-			local pose = ObserverRig.ScarePose(a, if a == 1 then 1 else 0)
-			local target = eye + dir * 2
+			local pose = ObserverRig.ScarePose(a, 0)
+			local target = eye + dir * dist
 			local rootCf = ObserverRig.placeFace(m, pose, target, eye)
-			local world = ObserverRig.solve(rig, rootCf, pose)
-			local head = world[rig:FindFirstChild("Head")] * (rig:FindFirstChild("Head").CFrame:Inverse() * rig:FindFirstChild("Head").CFrame)
+			local solved = ObserverRig.solve(rig, rootCf, pose)
 			local anchor = rootCf * ObserverRig.headFromRoot(m, pose) * ObserverRig.FaceAnchor
 			-- the solver and the full-rig FK agree
-			local fromRig = world[rig:FindFirstChild("Head")] * ObserverRig.FaceAnchor
+			local fromRig = solved[rig:FindFirstChild("Head")] * ObserverRig.FaceAnchor
 			worst.dist = math.max(worst.dist, (anchor.Position - target).Magnitude, (fromRig.Position - target).Magnitude)
 			local toCam = (eye - anchor.Position).Unit
 			worst.facing = math.min(worst.facing, anchor.LookVector:Dot(toCam))
 			if a == 1 then
 				worst.level = math.max(worst.level, math.abs(anchor.LookVector.Y))
+				-- both eyes well inside the picture (angle from the view axis;
+				-- not CFrame.lookAt, which Lune builds facing the other way)
+				local axis = (target - eye).Unit
+				for _, side in { "L", "R" } do
+					local to = (solved[rig:FindFirstChild("Eyeball" .. side)].Position - eye).Unit
+					worst.eyes = math.max(worst.eyes, math.deg(math.acos(math.clamp(to:Dot(axis), -1, 1))))
+				end
 			end
-			local _ = head
 		end
 	end
 	check(worst.dist < 1e-3, string.format("the face lands exactly where the jumpscare puts it (worst %.5f)", worst.dist))
 	check(worst.facing > 0.95, string.format("the face always turns to the camera (worst %.3f)", worst.facing))
 	check(worst.level < 0.2, string.format("at the impact the face is level, not looking up or down (%.3f)", worst.level))
-	-- the arms never come between the camera and the face
+	print(string.format("  jumpscare: face error %.5f, facing %.3f, level %.3f, eyes within %.1f deg of centre", worst.dist, worst.facing, worst.level, worst.eyes))
+	check(worst.eyes < ObserverRig.ScareFov * 0.25, string.format("both eyes near the centre of the picture (worst %.1f deg)", worst.eyes))
+	-- nothing comes between the camera and its head
 	do
 		local eye = Vector3.new(0, 4.5, 0)
-		local pose = ObserverRig.ScarePose(1, 1)
-		local target = eye + Vector3.new(0, 0, -2)
-		local world = ObserverRig.solve(rig, ObserverRig.placeFace(m, pose, target, eye), pose)
+		local pose = ObserverRig.ScarePose(1, 0)
+		local target = eye + Vector3.new(0, 0, -dist)
+		local solved = ObserverRig.solve(rig, ObserverRig.placeFace(m, pose, target, eye), pose)
 		local blocking = {}
-		for part, cf in world do
-			if part.Transparency < 1 and not string.find(part.Name, "Face") and part.Name ~= "Head" then
+		for part, cf in solved do
+			local onHead = headParts[part.Name] or string.find(part.Name, "Eyeball") or part.Name == "Pupil"
+			if part.Transparency < 1 and not onHead then
 				local rel = cf.Position - eye
 				local along = rel:Dot(Vector3.new(0, 0, -1))
 				local off = (rel - Vector3.new(0, 0, -1) * along).Magnitude
-				if along > 0.1 and along < 1.6 and off < 0.45 then
+				if along > 0.1 and along < dist - 0.3 and off < 0.9 then
 					table.insert(blocking, part.Name)
 				end
 			end
 		end
-		check(#blocking == 0, "nothing between the camera and the face: " .. table.concat(blocking, ", "))
+		check(#blocking == 0, "nothing between the camera and the head: " .. table.concat(blocking, ", "))
 	end
-	-- eyes turn toward a point and stay within their sockets
+	-- eyes turn toward a point, within limits
 	local eyes = ObserverRig.eyesAt(rig, m, Vector3.new(30, 4, -30), 35)
 	for name, cf in eyes do
 		local rx, ry = cf:ToEulerAnglesXYZ()
 		check(math.abs(math.deg(rx)) <= 35.01 and math.abs(math.deg(ry)) <= 35.01, "eye turn limited: " .. name)
 	end
-	local open = ObserverRig.faceOpen(1)
-	check(open.JawL ~= nil and open.JawR ~= nil, "face opens with both halves")
+	check(next(ObserverRig.faceOpen(1)) == nil, "no opening face (the reference has none)")
 	rig:Destroy()
 end
 

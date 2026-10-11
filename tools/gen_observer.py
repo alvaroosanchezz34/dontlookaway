@@ -439,6 +439,11 @@ def skin(n=1024):
 
 
 def main():
+    # Retired: The Observer is now the smooth body from
+    # tools/blender/build_observer.py (after the reference silhouette). Running
+    # this would overwrite its meshes and ObserverMeshMeta with the old sculpt.
+    if "--legacy" not in sys.argv:
+        sys.exit("gen_observer.py is retired: use tools/blender/build_observer.py (or pass --legacy)")
     os.makedirs(OUT, exist_ok=True)
     meta = []
     for name, build in SEGMENTS.items():

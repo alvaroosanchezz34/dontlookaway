@@ -34,9 +34,12 @@ local LightingService = requireModule(Server.Services.LightingService)
 local shot = process.args[2] or "scare"
 local out = process.args[3] or ("build/observer_" .. shot .. ".json")
 local open = tonumber(process.args[4]) or 1
+-- "smooth": the body as the flowing meshes (assets/observer), like the
+-- dressed rig in the game; "parts": the part-built fallback
+local body = process.args[7] or "smooth"
 -- ScareController's light levels at full strength
-local SPOT = tonumber(process.args[5]) or 3.2
-local UNDER = tonumber(process.args[6]) or 1.1
+local SPOT = tonumber(process.args[5]) or 2.2
+local UNDER = tonumber(process.args[6]) or 0.5
 
 local function c3(c)
 	return { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) }
@@ -90,7 +93,7 @@ local rootCf = rig.PrimaryPart.CFrame
 
 if shot == "scare" then
 	transforms = ObserverRig.ScarePose(1, open)
-	local face = eye + look * 2.0
+	local face = eye + look * ObserverRig.ScareDistance
 	rootCf = ObserverRig.placeFace(motors, transforms, face, eye)
 	-- eyes on the lens
 	local world = ObserverRig.solve(rig, rootCf, transforms)
@@ -100,7 +103,7 @@ if shot == "scare" then
 		local rel = rest:PointToObjectSpace(eye)
 		transforms["EyeTurn" .. side] = CFrame.Angles(math.atan2(rel.Y, math.sqrt(rel.X * rel.X + rel.Z * rel.Z)), math.atan2(-rel.X, -rel.Z), 0)
 	end
-	camera = { eye = v3(eye), target = v3(face), fov = 50 }
+	camera = { eye = v3(eye), target = v3(face), fov = ObserverRig.ScareFov }
 	-- ScareController's light: a hard spot from the camera, a low warm one under the jaw
 	addLight("SpotLight", eye - look * 0.4, look, SPOT, 18, 70, roblox.Color3.fromRGB(226, 234, 255), true)
 	addLight("PointLight", face - Vector3.new(0, 1.8, 0) - look * 0.6, Vector3.new(0, 1, 0), UNDER, 7, 180, roblox.Color3.fromRGB(255, 206, 180), false)
@@ -125,12 +128,12 @@ elseif shot == "scareOld" then
 	local head = world[rig:FindFirstChild("Head")]
 	camera = { eye = v3(eye - (head.Position - eye).Unit * 0.85), target = v3(head.Position), fov = 30 }
 	addLight("SpotLight", eye - look * 0.4, (head.Position - eye).Unit, 9, 18, 70, roblox.Color3.fromRGB(226, 234, 255), true)
-elseif shot == "stand" or shot == "far" then
-	local dist = if shot == "far" then 40 else 12
+elseif shot == "stand" or shot == "far" or shot == "side" or shot == "dark" then
+	local dist = if shot == "far" then 40 elseif shot == "side" then 10 else 12
 	-- facing the camera (+Z). Angles, not CFrame.lookAt: Lune's lookAt faces
 	-- the other way.
-	rootCf = CFrame.new(0, ObserverRig.HipHeight + 1, -dist) * CFrame.Angles(0, math.pi, 0)
-	transforms = { HeadJoint = CFrame.Angles(0, 0, math.rad(14)) }
+	rootCf = CFrame.new(0, ObserverRig.HipHeight + 1, -dist) * CFrame.Angles(0, if shot == "side" then math.pi / 2 else math.pi, 0)
+	transforms = ObserverRig.ScarePose(0, 0)
 	local world = ObserverRig.solve(rig, rootCf, transforms)
 	for _, side in { "L", "R" } do
 		local m = motors["EyeTurn" .. side]
@@ -138,7 +141,7 @@ elseif shot == "stand" or shot == "far" then
 		local rel = rest:PointToObjectSpace(eye)
 		transforms["EyeTurn" .. side] = CFrame.Angles(math.atan2(rel.Y, math.sqrt(rel.X * rel.X + rel.Z * rel.Z)), math.atan2(-rel.X, -rel.Z), 0)
 	end
-	camera = { eye = v3(eye), target = v3(Vector3.new(0, if shot == "far" then 5 else 6.5, -dist)), fov = 70 }
+	camera = { eye = v3(eye), target = v3(Vector3.new(0, if shot == "far" then 5 else 6.2, -dist)), fov = 70 }
 	-- a corridor: floor, walls, ceiling
 	local len = dist + 12
 	local grey = roblox.Color3.fromRGB(120, 118, 112)
@@ -147,19 +150,43 @@ elseif shot == "stand" or shot == "far" then
 	addPart("WallL", CFrame.new(-5.5, 5.5, -len / 2), Vector3.new(1, 12, len + 4), grey, "Plaster")
 	addPart("WallR", CFrame.new(5.5, 5.5, -len / 2), Vector3.new(1, 12, len + 4), grey, "Plaster")
 	addPart("End", CFrame.new(0, 5.5, -len - 1), Vector3.new(12, 12, 1), grey, "Plaster")
-	-- one dim fluorescent halfway, one beyond the creature
-	addLight("PointLight", Vector3.new(0, 10.5, -dist * 0.5), Vector3.new(0, -1, 0), 0.9, 18, 180, roblox.Color3.fromRGB(220, 226, 230), true)
-	addLight("PointLight", Vector3.new(0, 10.5, -dist - 6), Vector3.new(0, -1, 0), 0.7, 16, 180, roblox.Color3.fromRGB(220, 226, 230), true)
+	if shot == "dark" then
+		-- only a light far behind it: it stands in the dark against a lit wall
+		addLight("PointLight", Vector3.new(0, 10.5, -dist - 8), Vector3.new(0, -1, 0), 1.2, 18, 180, roblox.Color3.fromRGB(220, 226, 230), true)
+	else
+		-- one fluorescent halfway, one beyond the creature
+		addLight("PointLight", Vector3.new(0, 10.5, -dist * 0.5), Vector3.new(0, -1, 0), 0.9, 18, 180, roblox.Color3.fromRGB(220, 226, 230), true)
+		addLight("PointLight", Vector3.new(0, 10.5, -dist - 6), Vector3.new(0, -1, 0), 0.7, 16, 180, roblox.Color3.fromRGB(220, 226, 230), true)
+	end
 end
 
 local world = ObserverRig.solve(rig, rootCf, transforms)
+local MeshMeta = requireModule(RS.Shared.Config.ObserverMeshMeta)
+local meshes = {}
 local skipped = 0
 for part, cf in world do
-	if part.Transparency < 0.95 then
+	local meshName = ObserverRig.SegmentMesh[part.Name]
+	if body == "smooth" and meshName and MeshMeta[meshName] then
+		local mcf = cf * CFrame.new(MeshMeta[meshName].offset)
+		table.insert(meshes, {
+			file = "assets/observer/" .. meshName .. ".obj",
+			bboxCentre = true,
+			color = c3(part.Color),
+			pos = v3(mcf.Position),
+			rx = v3(mcf.RightVector),
+			ry = v3(mcf.UpVector),
+			rz = v3(-mcf.LookVector),
+		})
+		skipped += 1
+	elseif body == "smooth" and ObserverRig.MeshDetails[part.Name] then
+		skipped += 1
+	elseif part.Transparency < 0.95 then
 		local shape = "box"
 		local size = part.Size
 		local mesh = part:FindFirstChildWhichIsA("SpecialMesh")
-		if part.Shape == roblox.Enum.PartType.Ball or (mesh and mesh.MeshType == roblox.Enum.MeshType.Sphere) then
+		if part:IsA("WedgePart") then
+			shape = "wedge"
+		elseif part.Shape == roblox.Enum.PartType.Ball or (mesh and mesh.MeshType == roblox.Enum.MeshType.Sphere) then
 			shape = "ball"
 		end
 		addPart(part.Name, cf, size, part.Color, part.Material.Name, shape)
@@ -180,7 +207,7 @@ fs.writeFile(out, serde.encode("json", {
 	parts = parts,
 	lights = lights,
 	presets = presets,
-	meshes = {},
+	meshes = meshes,
 	camera = camera,
 }))
 print(string.format("observer %s: %d parts (%d hidden), %d lights -> %s", shot, #parts, skipped, #lights, out))

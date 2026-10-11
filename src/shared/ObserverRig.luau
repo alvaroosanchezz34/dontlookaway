@@ -1,27 +1,28 @@
 --[[
 	ObserverRig
-	Builds THE OBSERVER: a very tall, impossibly thin humanoid with arms that hang
-	below its knees, a small featureless head pushed forward on a long neck, and
-	a hunched, listening posture.
+	Builds THE OBSERVER, after the reference silhouette: a black figure,
+	extremely tall and thin, with
+	  * a head that is a wide horizontal blade (about 4.6 studs, two and a half
+	    times its shoulders): the top edge almost straight, the lower edge
+	    rising to a point at each end, and a narrow point in the middle that
+	    runs down into the neck
+	  * two small pale eyes with dark pupils, close to the middle, that turn to
+	    whoever it is watching
+	  * a long thin neck, sloping angular shoulders, a narrow torso with no
+	    anatomy
+	  * arms far too long, hanging to the middle of the shins, plain hands
+	  * long straight legs
+	  * a uniform matte black that swallows light: no clothes, no ribs, no
+	    teeth, no shine. It is frightening by its shape and its stillness.
+	The eyes are the only light thing on it; they are a dim self-lit grey (not
+	a glow) so they read in the dark, as in the reference.
 
-	Details that make it wrong even when it is perfectly still:
-	  * a spine that shows through the back, ribs pressing through the chest
-	  * a faintly wet sheen that catches flashlights
-	  * its face: a long, pale, waxy face set into a black skull, split down
-	    the middle by a seam. Two huge lidless eyes sit in dark sockets and
-	    always turn to the nearest person (it OBSERVES). No mouth. During an
-	    attack the face parts along the seam: the halves swing open like
-	    doors, carrying the eyes apart, and show a wet red maw lined with
-	    small teeth, with two pale points deep inside.
-	    The face is what you remember: pale against the dark body, it reads at
-	    the end of a corridor, and it is lit and framed in every jumpscare.
-	  * long, many-jointed fingers
-
-	It is built from parts with Motor6D joints so clients can animate it
-	procedurally (twitches, unnatural stillness, slow strides, the face
-	opening), and it carries a Humanoid so the server can path it through the
-	map. Shared so clients can build a local copy for death cinematics, framed
-	exactly against their own camera.
+	Parts and Motor6D joints keep the names every system uses (RootJoint,
+	Waist, NeckJoint, HeadJoint, shoulders, elbows, wrists, hips, knees,
+	ankles, EyeTurnL/R), so the server pathing, ObserverFX, the jumpscare and
+	the marketing figures work unchanged. It carries a Humanoid so the server
+	can path it through the map. Shared so clients can build a local copy for
+	death cinematics, framed exactly against their own camera.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -55,20 +56,25 @@ local SEGMENT_MESH = {
 }
 
 -- Part-built details that the meshes already sculpt (ribs, spine, fingers...).
-local MESH_DETAILS = { Spine = true, Rib = true, Blade = true, LeftFinger = true, RightFinger = true }
+-- Part-built pieces the smooth meshes replace (fused into Head / UpperTorso).
+local MESH_DETAILS = { WingL = true, WingR = true, Chin = true, Flank = true, ShoulderPlate = true }
 
 local TEMPLATE_FOLDER = "ObserverMeshes"
 
-local SKIN = Color3.fromRGB(20, 19, 21)
-local FACE = Color3.fromRGB(34, 31, 31) -- the skull around the face
-local BONE = Color3.fromRGB(30, 28, 29)
--- the face itself: pale and waxy, so it reads against the black body and in
--- the dark (albedo ~0.55, about the brightest thing in a lit corridor)
-local PALE = Color3.fromRGB(156, 148, 132)
-local PALE_SHADE = Color3.fromRGB(112, 102, 90)
-local SOCKET = Color3.fromRGB(22, 14, 14)
-local MAW = Color3.fromRGB(64, 8, 10)
-local TOOTH = Color3.fromRGB(206, 196, 168)
+-- (exposed for offline renders: tools/observer_shot.luau)
+ObserverRig.SegmentMesh = SEGMENT_MESH
+ObserverRig.MeshDetails = MESH_DETAILS
+
+-- matte, near-black: it absorbs light (SmoothPlastic, no reflectance)
+local SKIN = Color3.fromRGB(9, 9, 10)
+-- the eyes: a pale grey that is self-lit but dim (no bloom, no halo)
+local EYE = Color3.fromRGB(150, 150, 146)
+local PUPIL = Color3.fromRGB(2, 2, 2)
+
+-- The smooth body (tools/blender/build_observer.py): one flowing mesh per
+-- segment, welded over the rig parts once uploaded. Until then the
+-- part-built body below is the fallback (same silhouette, hard edges).
+ObserverRig.UseSculptedBody = true
 
 ObserverRig.Height = 9.6
 ObserverRig.HipHeight = 4.0
@@ -80,7 +86,7 @@ local function part(model, name, size, cf, color, material)
 	p.CFrame = cf
 	p.Color = color or SKIN
 	p.Material = material or Enum.Material.SmoothPlastic
-	p.Reflectance = 0.07
+	p.Reflectance = 0
 	p.CanCollide = false
 	p.CanTouch = false
 	p.CanQuery = false
@@ -100,6 +106,28 @@ local function ellipsoid(model, name, size: Vector3, cf: CFrame, color: Color3, 
 	mesh.MeshType = Enum.MeshType.Sphere
 	mesh.Parent = p
 	return p
+end
+
+-- A wedge from its world axes: the wedge's thin edge is at its local -Z,
+-- its full height at +Z; `along` points from the full end to the thin tip.
+local function wedge(model, name, height: number, length: number, depth: number, centre: CFrame, along: Vector3, up: Vector3)
+	local w = Instance.new("WedgePart")
+	w.Name = name
+	w.Size = Vector3.new(depth, height, length)
+	local z = -along.Unit
+	local y = up.Unit
+	local x = y:Cross(z)
+	w.CFrame = CFrame.fromMatrix(centre.Position, centre:VectorToWorldSpace(x), centre:VectorToWorldSpace(y), centre:VectorToWorldSpace(z))
+	w.Color = SKIN
+	w.Material = Enum.Material.SmoothPlastic
+	w.Reflectance = 0
+	w.CanCollide = false
+	w.CanTouch = false
+	w.CanQuery = false
+	w.Massless = true
+	w.CastShadow = true
+	w.Parent = model
+	return w
 end
 
 local function motor(name, part0, part1, jointWorld: CFrame)
@@ -143,128 +171,78 @@ function ObserverRig.build(base: CFrame?, opts: { [string]: any }?): Model
 	root.CastShadow = false
 	root.Anchored = opts.localCopy == true
 
-	-- legs: hips at y = 4.6
+	-- feet at y = 0, front is -Z; hips at 4.6, shoulders at 7.35, the head's
+	-- blade at 9.05
 	local hipY = 4.6
-	local lowerTorso = part(model, "LowerTorso", Vector3.new(1.3, 0.9, 0.6), at(0, hipY + 0.35, 0))
-	local upperTorso = part(model, "UpperTorso", Vector3.new(1.55, 2.3, 0.62), at(0, hipY + 0.8 + 1.1, -0.25, -12, 0, 0))
-	local neck = part(model, "Neck", Vector3.new(0.28, 1.0, 0.28), at(0, hipY + 3.25, -0.65, -28, 0, 0))
-	local head = part(model, "Head", Vector3.new(0.85, 1.25, 0.95), at(0, hipY + 3.95, -1.0, -8, 0, 6), FACE)
-
-	-- the spine shows through the back, the ribs through the chest
-	for i = 0, 6 do
-		local node = part(model, "Spine", Vector3.new(0.16, 0.12, 0.1), upperTorso.CFrame * CFrame.new(0, 1.0 - i * 0.32, 0.33), BONE)
-		weld(upperTorso, node)
-	end
-	for i = 0, 4 do
-		for _, s in { -1, 1 } do
-			local rib = part(model, "Rib", Vector3.new(0.62, 0.07, 0.06), upperTorso.CFrame * CFrame.new(s * 0.36, 0.75 - i * 0.28, -0.32) * CFrame.Angles(0, 0, math.rad(s * (18 + i * 3))), BONE)
-			weld(upperTorso, rib)
-		end
-	end
+	local lowerTorso = part(model, "LowerTorso", Vector3.new(0.85, 0.8, 0.45), at(0, hipY + 0.3, 0))
+	-- the torso: narrow at the waist, widening into sloped, angular shoulders
+	-- (a core plus two flank wedges that taper to nothing at the waist)
+	local upperTorso = part(model, "UpperTorso", Vector3.new(0.86, 2.3, 0.46), at(0, hipY + 1.85, 0))
 	for _, s in { -1, 1 } do
-		local blade = part(model, "Blade", Vector3.new(0.45, 0.6, 0.08), upperTorso.CFrame * CFrame.new(s * 0.45, 0.7, 0.33) * CFrame.Angles(0, 0, math.rad(s * 12)), BONE)
-		weld(upperTorso, blade)
+		local flank = wedge(model, "Flank", 0.34, 2.0, 0.44, upperTorso.CFrame * CFrame.new(s * (0.43 + 0.17), 0.15, 0), Vector3.new(0, -1, 0), Vector3.new(s, 0, 0))
+		weld(upperTorso, flank)
+		-- the shoulder slopes down from the neck to the top of the arm
+		local shoulder = part(model, "ShoulderPlate", Vector3.new(0.9, 0.36, 0.44), at(s * 0.68, 7.4, 0, 0, 0, -s * 19))
+		weld(upperTorso, shoulder)
 	end
+	local neck = part(model, "Neck", Vector3.new(0.3, 1.0, 0.3), at(0, 8.05, 0))
+	local head = part(model, "Head", Vector3.new(0.7, 0.62, 0.5), at(0, 9.0, 0))
 
-	-- the skull is an egg, not a box (the sculpted head mesh replaces it)
-	local skullShape = Instance.new("SpecialMesh")
-	skullShape.MeshType = Enum.MeshType.Sphere
-	skullShape.Parent = head
-
-	-- THE FACE (head space: front is -Z). One long, pale, waxy oval split by a
-	-- hairline seam: two heavily overlapping halves, each hinged at its outer
-	-- edge. Deep black sockets with no whites, only a small wet glint far
-	-- inside that turns to follow you. A thin mouth, too wide and too low.
-	-- When the face opens, the halves swing back into the skull from the
-	-- seam and the gap shows a wet red maw lined with needle teeth.
-	local function hs(x, y, z)
-		return head.CFrame * CFrame.new(x, y, z)
-	end
-	local maw = ellipsoid(model, "Maw", Vector3.new(0.44, 0.86, 0.16), hs(0, -0.04, -0.4), MAW)
-	maw.Reflectance = 0.18
-	weld(head, maw)
-	local throat = ellipsoid(model, "Throat", Vector3.new(0.16, 0.44, 0.05), hs(0, -0.02, -0.455), Color3.fromRGB(14, 2, 3))
-	weld(head, throat)
-	local halves = {}
+	-- the blade of the head: two tapering wings, each an upper wedge (low, so
+	-- the top edge stays almost straight) and a lower wedge (deep, so the
+	-- lower edge rises to the tip)
+	local bladeY = 9.08
+	local wingLen = 2.0
 	for _, s in { -1, 1 } do
 		local side = if s < 0 then "L" else "R"
-		-- needle teeth lining the gap (on the maw: they show when it opens),
-		-- uneven in length, angle and spacing
-		for i = 0, 8 do
-			local k = (i * 37 + (if s < 0 then 17 else 0)) % 7
-			local len = 0.07 + k * 0.012
-			local y = 0.3 - i * 0.075 + (k % 3) * 0.01
-			local tilt = (k - 3) * 7 + s * 6
-			local tooth = ellipsoid(model, "Tooth", Vector3.new(len, 0.02, 0.02), hs(s * (0.15 - len / 2), y, -0.455) * CFrame.Angles(0, 0, math.rad(tilt)), TOOTH)
-			weld(head, tooth)
-		end
-		local half = ellipsoid(model, "Face" .. side, Vector3.new(0.6, 1.24, 0.34), hs(s * 0.105, -0.04, -0.36), PALE)
-		half.Reflectance = 0.06
-		motor("Jaw" .. side, head, half, hs(s * 0.4, -0.04, -0.42))
-		halves[s] = half
-		-- hollows under the cheekbones and at the temples
-		local hollow = ellipsoid(model, "Cheek", Vector3.new(0.17, 0.42, 0.08), hs(s * 0.26, -0.2, -0.47), PALE_SHADE)
-		weld(half, hollow)
-		local temple = ellipsoid(model, "Cheek", Vector3.new(0.12, 0.3, 0.08), hs(s * 0.3, 0.3, -0.42), PALE_SHADE)
-		weld(half, temple)
-		-- a long, deep, black socket that droops at the outer corner; far
-		-- inside it, a small wet eye with a pale glint that turns to follow you
-		local socket = ellipsoid(model, "Socket", Vector3.new(0.19, 0.34, 0.1), hs(s * 0.165, 0.17, -0.5) * CFrame.Angles(0, 0, math.rad(s * -14)), SOCKET)
-		weld(half, socket)
-		local eyeAt = hs(s * 0.165, 0.17, -0.535)
-		local ball = part(model, "Eyeball" .. side, Vector3.new(0.1, 0.1, 0.1), eyeAt, Color3.fromRGB(26, 22, 22))
-		ball.Shape = Enum.PartType.Ball
-		ball.Reflectance = 0.35
-		motor("EyeTurn" .. side, half, ball, eyeAt)
-		local iris = ellipsoid(model, "Iris", Vector3.new(0.045, 0.045, 0.02), ball.CFrame * CFrame.new(0, 0, -0.046), Color3.fromRGB(196, 190, 170))
-		iris.Reflectance = 0.3
-		weld(ball, iris)
-		local pupil = ellipsoid(model, "Pupil", Vector3.new(0.018, 0.018, 0.01), ball.CFrame * CFrame.new(0, 0, -0.056), Color3.fromRGB(3, 3, 3))
-		weld(ball, pupil)
-		-- two slits for a nose, too close together
-		local slit = ellipsoid(model, "Slit", Vector3.new(0.022, 0.09, 0.03), hs(s * 0.032, -0.08, -0.525), SOCKET)
-		weld(half, slit)
-		-- two pale points deep inside, lit only when it attacks
-		local eye = part(model, "Eye" .. side, Vector3.new(0.07, 0.07, 0.03), hs(s * 0.07, 0.12, -0.49), Color3.fromRGB(230, 226, 214), Enum.Material.Neon)
-		eye.Transparency = 1
-		eye.CastShadow = false
-		weld(head, eye)
+		local along = Vector3.new(s, 0, 0)
+		local midX = s * (0.3 + wingLen / 2)
+		local upper = wedge(model, "Wing" .. side, 0.2, wingLen, 0.42, head.CFrame * CFrame.new(midX, bladeY - 9.0 + 0.1, 0), along, Vector3.new(0, 1, 0))
+		weld(head, upper)
+		local lower = wedge(model, "Wing" .. side, 0.5, wingLen, 0.42, head.CFrame * CFrame.new(midX, bladeY - 9.0 - 0.25, 0), along, Vector3.new(0, -1, 0))
+		weld(head, lower)
 	end
-	-- the seam: a hairline on the left half (it goes with the face when it opens)
-	local seam = part(model, "Seam", Vector3.new(0.016, 1.04, 0.02), hs(0, -0.03, -0.527), Color3.fromRGB(46, 30, 28))
-	weld(halves[-1], seam)
+	-- the narrow point under the middle of the head, running into the neck
+	local chin = part(model, "Chin", Vector3.new(0.5, 0.5, 0.42), head.CFrame * CFrame.new(0, -0.42, 0) * CFrame.Angles(0, 0, math.rad(45)))
+	weld(head, chin)
 
-	motor("RootJoint", root, lowerTorso, at(0, hipY + 0.35, 0))
-	motor("Waist", lowerTorso, upperTorso, at(0, hipY + 0.8, -0.1))
-	motor("NeckJoint", upperTorso, neck, at(0, hipY + 2.85, -0.45))
-	motor("HeadJoint", neck, head, at(0, hipY + 3.6, -0.85))
+	-- two small pale eyes with dark pupils, a little above the blade's line,
+	-- close to the middle; they turn (EyeTurnL / EyeTurnR)
+	for _, s in { -1, 1 } do
+		local side = if s < 0 then "L" else "R"
+		local eyeAt = head.CFrame * CFrame.new(s * 0.2, 0.1, -0.24)
+		local ball = part(model, "Eyeball" .. side, Vector3.new(0.17, 0.17, 0.17), eyeAt, EYE, Enum.Material.Neon)
+		ball.Shape = Enum.PartType.Ball
+		ball.CastShadow = false
+		motor("EyeTurn" .. side, head, ball, eyeAt)
+		local pupil = ellipsoid(model, "Pupil", Vector3.new(0.075, 0.08, 0.03), ball.CFrame * CFrame.new(0, 0.012, -0.075), PUPIL)
+		pupil.CastShadow = false
+		weld(ball, pupil)
+	end
+
+	motor("RootJoint", root, lowerTorso, at(0, hipY + 0.3, 0))
+	motor("Waist", lowerTorso, upperTorso, at(0, hipY + 0.7, 0))
+	motor("NeckJoint", upperTorso, neck, at(0, 7.6, 0))
+	motor("HeadJoint", neck, head, at(0, 8.55, 0))
 
 	for _, s in { -1, 1 } do
 		local side = if s < 0 then "Left" else "Right"
-		-- shoulders are narrow and high, arms impossibly long
-		local shoulderY = hipY + 2.75
-		local sx = s * 0.95
-		local upperArm = part(model, side .. "UpperArm", Vector3.new(0.32, 2.5, 0.32), at(sx, shoulderY - 1.2, -0.45, 6, 0, s * 4))
-		local lowerArm = part(model, side .. "LowerArm", Vector3.new(0.27, 2.5, 0.27), at(sx + s * 0.12, shoulderY - 3.65, -0.3, -4, 0, s * 2))
-		local hand = part(model, side .. "Hand", Vector3.new(0.34, 0.5, 0.18), at(sx + s * 0.16, shoulderY - 5.15, -0.32))
-		for f = -1, 1 do
-			-- two segments per finger, the second bent slightly inward
-			local first = part(model, side .. "Finger", Vector3.new(0.07, 0.75, 0.07), hand.CFrame * CFrame.new(f * 0.1, -0.6, 0) * CFrame.Angles(math.rad(f * 4), 0, math.rad(f * 5)))
-			weld(hand, first)
-			local second = part(model, side .. "Finger", Vector3.new(0.06, 0.6, 0.06), first.CFrame * CFrame.new(0, -0.62, -0.05) * CFrame.Angles(math.rad(-14), 0, 0))
-			weld(first, second)
-		end
-		motor(side .. "Shoulder", upperTorso, upperArm, at(sx, shoulderY, -0.45))
-		motor(side .. "Elbow", upperArm, lowerArm, at(sx + s * 0.1, shoulderY - 2.42, -0.35))
-		motor(side .. "Wrist", lowerArm, hand, at(sx + s * 0.16, shoulderY - 4.9, -0.32))
-
-		local lx = s * 0.4
-		local upperLeg = part(model, side .. "UpperLeg", Vector3.new(0.4, 2.35, 0.4), at(lx, hipY - 1.15, 0))
-		local lowerLeg = part(model, side .. "LowerLeg", Vector3.new(0.34, 2.15, 0.34), at(lx, hipY - 3.3, 0.05))
-		local foot = part(model, side .. "Foot", Vector3.new(0.36, 0.22, 1.1), at(lx, 0.11, -0.25))
+		-- arms: far too long, hanging to the middle of the shins
+		local sx = s * 1.1
+		local upperArm = part(model, side .. "UpperArm", Vector3.new(0.28, 2.9, 0.28), at(sx, 7.35 - 1.45, 0))
+		local lowerArm = part(model, side .. "LowerArm", Vector3.new(0.24, 2.6, 0.24), at(sx + s * 0.03, 4.45 - 1.3, 0))
+		local hand = part(model, side .. "Hand", Vector3.new(0.2, 0.6, 0.13), at(sx + s * 0.04, 1.85 - 0.3, 0))
+		motor(side .. "Shoulder", upperTorso, upperArm, at(sx, 7.35, 0))
+		motor(side .. "Elbow", upperArm, lowerArm, at(sx + s * 0.02, 4.45, 0))
+		motor(side .. "Wrist", lowerArm, hand, at(sx + s * 0.04, 1.85, 0))
+		-- legs: long and straight
+		local lx = s * 0.27
+		local upperLeg = part(model, side .. "UpperLeg", Vector3.new(0.36, 2.3, 0.36), at(lx, hipY - 1.15, 0))
+		local lowerLeg = part(model, side .. "LowerLeg", Vector3.new(0.3, 2.1, 0.3), at(lx, 2.3 - 1.05, 0))
+		local foot = part(model, side .. "Foot", Vector3.new(0.3, 0.2, 0.75), at(lx, 0.1, -0.15))
 		motor(side .. "Hip", lowerTorso, upperLeg, at(lx, hipY, 0))
-		motor(side .. "Knee", upperLeg, lowerLeg, at(lx, hipY - 2.3, 0.02))
-		motor(side .. "Ankle", lowerLeg, foot, at(lx, 0.25, 0.05))
+		motor(side .. "Knee", upperLeg, lowerLeg, at(lx, 2.3, 0))
+		motor(side .. "Ankle", lowerLeg, foot, at(lx, 0.2, 0))
 	end
 
 	-- appearing / vanishing: a burst of black ash (emitted on demand)
@@ -327,12 +305,14 @@ end
 	Segments without a mesh keep their parts, so a partial upload still works.
 ]]
 function ObserverRig.dress(model: Model): boolean
+	if not ObserverRig.UseSculptedBody then
+		return false
+	end
 	local folder = ReplicatedStorage:FindFirstChild(TEMPLATE_FOLDER)
 	if not folder or #folder:GetChildren() == 0 or model:GetAttribute("Sculpted") then
 		return false
 	end
 	local dressed = false
-	local hasHand = false
 	for _, p in model:GetChildren() do
 		local meshName = SEGMENT_MESH[p.Name]
 		local template = meshName and folder:FindFirstChild(meshName)
@@ -354,14 +334,11 @@ function ObserverRig.dress(model: Model): boolean
 			mesh.Parent = model
 			p.Transparency = 1
 			dressed = true
-			if meshName == "Hand" then
-				hasHand = true
-			end
 		end
 	end
 	if dressed then
 		for _, p in model:GetChildren() do
-			if p:IsA("BasePart") and MESH_DETAILS[p.Name] and (hasHand or not string.find(p.Name, "Finger")) then
+			if p:IsA("BasePart") and MESH_DETAILS[p.Name] then
 				p.Transparency = 1
 			end
 		end
@@ -378,7 +355,10 @@ end
 ]]
 -- How many Observer meshes have an id configured (mesh or model).
 function ObserverRig.configuredMeshes(): number
-	local n = 0
+	if not ObserverRig.UseSculptedBody then
+		return 0
+	end
+	local n = #(AssetIds.Observer.pool or {})
 	for meshName in MeshMeta do
 		if AssetIds.url(AssetIds.Observer.meshes[meshName]) or AssetIds.url(AssetIds.Observer.models[meshName]) then
 			n += 1
@@ -450,6 +430,61 @@ function ObserverRig.loadMeshes(): number
 			end
 		end
 	end
+	-- unnamed uploads (Studio may call every mesh "default"): recognised by
+	-- their exact size (the upper and lower arm share proportions, so shape
+	-- alone cannot tell them apart; Studio keeps OBJ studs as they are)
+	local taken = {}
+	if folder then
+		for _, t in (folder :: Folder):GetChildren() do
+			taken[t.Name] = true
+		end
+	end
+	for _, id in AssetIds.Observer.pool or {} do
+		local ok, mesh = pcall(function()
+			return game:GetService("AssetService"):CreateMeshPartAsync(Content.fromUri("rbxassetid://" .. string.format("%d", id)), {
+				CollisionFidelity = Enum.CollisionFidelity.Box,
+				RenderFidelity = Enum.RenderFidelity.Precise,
+			})
+		end)
+		if ok and mesh then
+			local okSize, native = pcall(function()
+				return mesh.MeshSize
+			end)
+			local size = if okSize and typeof(native) == "Vector3" and native.Magnitude > 0 then native else mesh.Size
+			local best, bestD = nil, 0.06
+			for meshName, meta in MeshMeta do
+				local d = (size - meta.size).Magnitude
+				if not taken[meshName] and d < bestD then
+					best, bestD = meshName, d
+				end
+			end
+			if best then
+				taken[best] = true
+				print(string.format("[ObserverRig] mesh %d -> %s (size difference %.3f)", id, best, bestD))
+				for _, d in mesh:GetChildren() do
+					d:Destroy()
+				end
+				mesh.Name = best
+				mesh.Size = MeshMeta[best].size
+				mesh.Color = SKIN
+				mesh.Material = Enum.Material.SmoothPlastic
+				mesh.Reflectance = 0
+				mesh.CastShadow = true
+				if not folder then
+					folder = Instance.new("Folder")
+					folder.Name = TEMPLATE_FOLDER
+					folder.Parent = ReplicatedStorage
+				end
+				mesh.Parent = folder
+				loaded += 1
+			else
+				warn(string.format("[ObserverRig] mesh %d (size %.2f x %.2f x %.2f) matches no Observer segment", id, size.X, size.Y, size.Z))
+				mesh:Destroy()
+			end
+		else
+			warn("[ObserverRig] could not load mesh " .. tostring(id) .. ": " .. tostring(mesh))
+		end
+	end
 	return loaded
 end
 
@@ -458,7 +493,12 @@ end
 ------------------------------------------------------------------------------------
 
 -- Between the eyes, on the face: what a jumpscare frames (head space).
-ObserverRig.FaceAnchor = CFrame.new(0, 0.05, -0.53)
+ObserverRig.FaceAnchor = CFrame.new(0, 0.1, -0.3)
+
+-- The jumpscare frames the whole head: its face this far from the lens, with
+-- this vertical field of view (the 4.6-stud blade fits across the screen).
+ObserverRig.ScareDistance = 3.0
+ObserverRig.ScareFov = 62
 
 local HEAD_CHAIN = { "RootJoint", "Waist", "NeckJoint", "HeadJoint" }
 
@@ -561,19 +601,21 @@ end
 	built-in -8 degrees, so the face is level: it looks straight into the lens.
 ]]
 local STAND = {
-	HeadJoint = CFrame.Angles(0, 0, math.rad(14)),
-	Waist = CFrame.Angles(math.rad(-4), 0, 0),
+	Waist = CFrame.Angles(math.rad(-3), 0, 0),
 }
 local LUNGE = {
+	-- folded down to eye level, leaning in; waist + neck + head pitch sum to
+	-- zero, so the face is level and looks straight into the lens
 	RootJoint = CFrame.new(0, -3.1, 0),
 	Waist = CFrame.Angles(math.rad(-16), 0, 0),
-	NeckJoint = CFrame.Angles(math.rad(14), 0, 0),
-	HeadJoint = CFrame.Angles(math.rad(10), 0, math.rad(12)),
-	-- arms forward and wide: the hands frame the face, never cover it
-	LeftShoulder = CFrame.Angles(math.rad(58), 0, math.rad(-48)),
-	RightShoulder = CFrame.Angles(math.rad(58), 0, math.rad(48)),
-	LeftElbow = CFrame.Angles(math.rad(34), 0, 0),
-	RightElbow = CFrame.Angles(math.rad(34), 0, 0),
+	NeckJoint = CFrame.Angles(math.rad(12), 0, 0),
+	HeadJoint = CFrame.Angles(math.rad(4), 0, math.rad(9)),
+	-- the long arms come up and open wide around you: the hands frame the
+	-- head, never cover it
+	LeftShoulder = CFrame.Angles(math.rad(34), 0, math.rad(-74)),
+	RightShoulder = CFrame.Angles(math.rad(34), 0, math.rad(74)),
+	LeftElbow = CFrame.Angles(math.rad(22), 0, 0),
+	RightElbow = CFrame.Angles(math.rad(22), 0, 0),
 	-- crouched: thighs forward (+X swings a hanging limb forward), shins back
 	LeftHip = CFrame.Angles(math.rad(50), 0, 0),
 	RightHip = CFrame.Angles(math.rad(50), 0, 0),
@@ -581,15 +623,11 @@ local LUNGE = {
 	RightKnee = CFrame.Angles(math.rad(-80), 0, 0),
 }
 
--- How wide the face halves swing open (degrees) at open = 1.
-ObserverRig.FaceOpenAngle = 34
+-- (kept for callers: the reference design has no opening face)
+ObserverRig.FaceOpenAngle = 0
 
--- Jaw transforms for the face opening (0 = closed .. 1 = wide open). Each
--- half turns about its outer hinge so its inner edge swings back into the
--- skull: the seam becomes a gap and the maw shows straight ahead.
-function ObserverRig.faceOpen(open: number): { [string]: CFrame }
-	local o = math.rad(math.clamp(open, 0, 1) * ObserverRig.FaceOpenAngle)
-	return { JawL = CFrame.Angles(0, -o, 0), JawR = CFrame.Angles(0, o, 0) }
+function ObserverRig.faceOpen(_open: number): { [string]: CFrame }
+	return {}
 end
 
 function ObserverRig.ScarePose(a: number, open: number?): { [string]: CFrame }

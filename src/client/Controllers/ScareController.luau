@@ -12,14 +12,15 @@
 	  3  the camera is whipped round to it in about a tenth of a second
 	  4  it is there, much too close, already lunging
 	  5  THE IMPACT. It crosses the last metres in a blink and folds down to
-	     your eye level, its face two studs from the lens, looking straight
-	     into it, its arms spread around you. The face is placed by forward
+	     your eye level, its face three studs from the lens (the whole wide
+	     blade of its head on screen, both small eyes on you), looking
+	     straight into it, its long arms opening around you. The face is placed by forward
 	     kinematics (ObserverRig.placeFace), not guessed: it is always in the
 	     middle of the screen, level, turned to the camera, never behind it.
 	     On that exact frame a cold light snaps on from your camera onto its
 	     face (and a low warm one from below), so you SEE it even in a level 4
-	     blackout; it flickers but never goes dark. Its eyes are on you. Then
-	     the face splits open along the seam. One loud hit and a scream; the
+	     blackout; it flickers but never goes dark. Its eyes are on you, and
+	     its head tilts, slowly. One loud hit and a scream; the
 	     shake and effects are kept small so they never hide the face.
 	  6  a hard cut to black, a ringing in your ears, a short line, then you
 	     watch the others
@@ -68,10 +69,11 @@ local active = false
 -- impact timing (seconds)
 local LUNGE = 0.2 -- the last metres: a blink
 local HOLD = 0.9 -- its face, lit, in yours (long enough to see it)
-local FRAME_DIST = 2.0 -- studs from the lens to its face at the impact
-local FRAME_FOV = 50 -- the face fills about two thirds of the screen
-local SPOT = 3.2 -- the scare light at full strength (brighter washes the face out)
-local UNDER = 1.1
+local FRAME_DIST = ObserverRig.ScareDistance -- studs from the lens to its face at the impact
+local FRAME_FOV = ObserverRig.ScareFov -- the whole blade of its head fits across the screen
+local SPOT = 2.2 -- the scare light at full strength: enough to read the head
+-- and its eyes, low enough that the black stays black
+local UNDER = 0.5
 
 --[[
 	The scare light: off until the exact frame of the impact, then a hard cold
