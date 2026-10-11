@@ -11,8 +11,8 @@
 	  DISTORTION  anomalies become clear; it starts to show itself far away;
 	              someone you know might be standing at the end of a corridor.
 	  DANGER      it hunts.
-	  COLLAPSE    the building turns hostile: more changes, a total blackout,
-	              shorter breathing room.
+	  COLLAPSE    the building turns hostile: more changes, a total blackout
+	              (with or without power), shorter breathing room.
 	  ESCAPE      get out.
 	Phases advance on a timer (per difficulty) or earlier with progress.
 
@@ -477,11 +477,15 @@ function HorrorDirector:TriggerOutage()
 end
 
 local function maybeBlackout(): boolean
-	-- only once the building has power again (before that it is already dark)
-	if not Registry.LightingService:IsPowered() or Registry.LightingService:GetBlackout() > 0 then
+	if Registry.LightingService:GetBlackout() > 0 or os.clock() - lastBlackoutAt < 110 then
 		return false
 	end
-	if os.clock() - lastBlackoutAt < 110 then
+	-- without power the building is already dark: the smaller blackouts would
+	-- change nothing. The collapse's total blackout still happens: on top of the
+	-- emergency lighting it kills half the battery lamps too (LightController),
+	-- leaving only the beacons, the exit signs and what is left of the lamps
+	local powered = Registry.LightingService:IsPowered()
+	if not powered and not (story == Story.Collapse and not totalBlackoutDone) then
 		return false
 	end
 	local level

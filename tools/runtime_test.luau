@@ -913,6 +913,19 @@ do
 	end
 end
 
+section("the collapse: its total blackout happens with or without power")
+do
+	local src = Server.Services.HorrorDirector.Source
+	local body = string.match(src, "local function maybeBlackout%(%)(.-)\nend\n")
+	check(body ~= nil, "maybeBlackout found")
+	if body then
+		check(string.find(body, "not Registry.LightingService:IsPowered() or", 1, true) == nil, "no power no longer cancels every blackout")
+		check(string.find(body, "story == Story.Collapse and not totalBlackoutDone", 1, true) ~= nil, "without power only the collapse's total blackout runs")
+	end
+	local lights = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.LightController.Source
+	check(string.find(lights, "local emergencyOn = emergency and not (level >= 4 and frac < 0.5)", 1, true) ~= nil, "a total blackout over the emergency lighting still takes half the battery lamps")
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")
