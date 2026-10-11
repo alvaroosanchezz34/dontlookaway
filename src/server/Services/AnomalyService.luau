@@ -13,6 +13,7 @@
 		anchors        { { pos = Vector3 | Instance, radius = number } } report targets
 		checkPoints?   points that must be unseen before activation (default anchors)
 		lifetime?      seconds before it is "missed"
+		noMiss?        running out is never a miss (the tutorial, the escape)
 		claim?         instance reserved while active
 		interactTarget? server instance players may interact with (INTERACT)
 		update?(inst, dt) -> "resolve" | "fail" | "expire" | nil
@@ -26,6 +27,8 @@
 	  * an anomaly only activates where no player in its scope is looking
 	  * the server alone decides whether a report hits an anomaly
 	  * every change is reversible and reverted on resolve / expire / round end
+	  * a miss only counts while the quota is still open and before the escape
+	    (CountsAsMissed): the round cannot be lost on the way out
 ]]
 
 local Players = game:GetService("Players")
@@ -543,6 +546,9 @@ function AnomalyService:TrySpawn(forcedId: string?, opts: { [string]: any }?)
 							end
 						end
 						if (opts.ignoreVisibility or isUnseen(points, players)) and safeAnchors(points) then
+							if opts.noMiss then
+								spec.noMiss = true
+							end
 							local inst = register(def, ctx, spec, scope, players)
 							-- reality must never trap anyone: solid geometry it created may not
 							-- overlap a player or fill a doorway (door anomalies excepted)
@@ -644,6 +650,18 @@ function AnomalyService:Resolve(inst, player: Player?, how: string?)
 	AnomalyService.Resolved:Fire(inst, player)
 end
 
+-- Whether an anomaly that ran out unreported is a miss. Misses exist to stop a
+-- team from ignoring the building on the way to the quota, so once the quota
+-- is met, and during the escape (when the only job is to get out), nothing
+-- more can be missed and the round cannot be lost to them.
+function AnomalyService:CountsAsMissed(inst): boolean
+	if inst.spec.noMiss or Registry.RoundService:IsEscape() then
+		return false
+	end
+	local objectives = Registry.ObjectiveService:GetState()
+	return not (objectives and objectives.locks.ANOMALIES)
+end
+
 function AnomalyService:Expire(inst)
 	if active[inst.def.id] ~= inst then
 		return
@@ -652,7 +670,7 @@ function AnomalyService:Expire(inst)
 	if inst.spec.onExpire then
 		pcall(inst.spec.onExpire, inst)
 	end
-	if inst.spec.noMiss then
+	if not AnomalyService:CountsAsMissed(inst) then
 		return
 	end
 	roundStats.missed += 1
@@ -868,6 +886,8 @@ function AnomalyService:SpawnTutorial()
 					local spec = def.create(ctx, painting)
 					if spec then
 						spec.lifetime = 240
+						-- a first lesson: a newcomer who misses it is not punished
+						spec.noMiss = true
 						spec.data = { tutorial = true }
 						spec.cue = false
 						register(def, ctx, spec, Enums.AnomalyScope.Global, alive)

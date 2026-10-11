@@ -324,7 +324,7 @@ local function startEscape()
 			if token ~= roundToken or state ~= RS.Escape then
 				return
 			end
-			Registry.AnomalyService:TrySpawn(id, { scope = Enums.AnomalyScope.Global, ignoreVisibility = true })
+			Registry.AnomalyService:TrySpawn(id, { scope = Enums.AnomalyScope.Global, ignoreVisibility = true, noMiss = true })
 			task.wait(4)
 		end
 	end)

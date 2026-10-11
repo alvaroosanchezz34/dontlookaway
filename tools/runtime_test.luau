@@ -776,6 +776,33 @@ do
 	end)
 end
 
+section("round rules: the round is not lost on the way out")
+do
+	local escape, quotaMet = false, false
+	withRegistry({
+		RoundService = { IsEscape = function()
+			return escape
+		end },
+		ObjectiveService = { GetState = function()
+			return { locks = { ANOMALIES = quotaMet } }
+		end },
+	}, function()
+		local Anomalies = requireModule(Server.Services.AnomalyService)
+		local plain, tutorial = { spec = {} }, { spec = { noMiss = true } }
+		check(Anomalies:CountsAsMissed(plain), "an anomaly nobody reported is a miss while the quota is open")
+		check(not Anomalies:CountsAsMissed(tutorial), "a noMiss anomaly (the tutorial, the escape) is never a miss")
+		quotaMet = true
+		check(not Anomalies:CountsAsMissed(plain), "once the quota is met nothing more is missed")
+		quotaMet, escape = false, true
+		check(not Anomalies:CountsAsMissed(plain), "nothing is missed during the escape")
+	end)
+	-- the escape's own anomalies, and none from the director while escaping
+	local roundSource = Server.Services.RoundService.Source
+	check(string.find(roundSource, "ignoreVisibility = true, noMiss = true", 1, true) ~= nil, "the building's escape anomalies are never misses")
+	local directorSource = Server.Services.HorrorDirector.Source
+	check(string.find(directorSource, "story ~= Story.Escape and Registry.AnomalyService:GetActiveCount()", 1, true) ~= nil, "the director spawns no anomalies during the escape")
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")

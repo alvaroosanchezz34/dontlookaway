@@ -772,8 +772,9 @@ local function step()
 	local now = os.clock()
 	dread = math.max(0, dread - 0.25)
 	storyStep()
-	-- anomalies (none during ARRIVAL: the tutorial one is handled by RoundService)
-	if story ~= Story.Arrival and Registry.AnomalyService:GetActiveCount() < targetActive() and now - lastSpawnAt > nextSpawnIn then
+	-- anomalies (none during ARRIVAL: the tutorial one is handled by RoundService;
+	-- none during the ESCAPE beyond the building's own, see RoundService)
+	if story ~= Story.Arrival and story ~= Story.Escape and Registry.AnomalyService:GetActiveCount() < targetActive() and now - lastSpawnAt > nextSpawnIn then
 		lastSpawnAt = now
 		nextSpawnIn = spawnInterval()
 		Registry.AnomalyService:TrySpawn()
