@@ -347,15 +347,19 @@ local function envFor(scriptInstance)
 	return setmetatable(env, { __index = _G })
 end
 
+-- Keyed by the module's path: newer Lune versions hand out a new userdata for
+-- the same instance on every access, so keying by the instance would load a
+-- module (and its state, e.g. the Registry) once per path it is reached by.
 function requireModule(target)
-	if cache[target] ~= nil then
-		return cache[target]
+	local key = target:GetFullName()
+	if cache[key] ~= nil then
+		return cache[key]
 	end
-	assert(target:IsA("ModuleScript"), "require target is not a ModuleScript: " .. target:GetFullName())
+	assert(target:IsA("ModuleScript"), "require target is not a ModuleScript: " .. key)
 	local source = target.Source
-	local fn = luau.load(source, { debugName = target:GetFullName(), environment = envFor(target) })
+	local fn = luau.load(source, { debugName = key, environment = envFor(target) })
 	local result = fn()
-	cache[target] = result
+	cache[key] = result
 	return result
 end
 
