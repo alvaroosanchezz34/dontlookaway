@@ -44,6 +44,14 @@ AssetIds.Decals = {
 	floor_dirt = 70997784546347,
 }
 
+-- Film grain (assets/film/*.png, tools/gen_film.py) for FilmController's old
+-- camera look. 0 = not uploaded: the grain is made at runtime with an
+-- EditableImage, or left out where that is not available.
+AssetIds.Film = {
+	grain_light = 0,
+	grain_dark = 0,
+}
+
 -- THE OBSERVER (assets/observer/*.obj and observer_skin_*.png).
 -- `models`: the Model asset Studio creates when a .obj is imported (Asset Manager,
 -- type "Modelo", named after the file). `meshes`: a raw mesh id, if preferred.

@@ -12,7 +12,7 @@ apis.roblox.com). Python 3.8+, no extra packages.
          set ROBLOX_API_KEY=...        (PowerShell: $env:ROBLOX_API_KEY="...")
          python tools/upload_assets.py --group 12345678 observer props audio
        Sets: observer (30 maps), props (~57 maps), audio (3 sounds),
-             textures (54 maps), decals. Default: observer props audio.
+             textures (54 maps), decals, film (2 grain sheets). Default: observer props audio.
        --dry-run lists what would be uploaded.
     4. It writes build/uploaded_ids.json and the ids into AssetIds.luau
        (tools/apply_ids.py), then runs sync_assets.py. Commit and push.
@@ -47,6 +47,7 @@ SETS = {
     "props": ("Decal", "assets/props/*/*.png"),
     "textures": ("Decal", "assets/textures/*/*.png"),
     "decals": ("Decal", "assets/decals/*.png"),
+    "film": ("Decal", "assets/film/*.png"),
     "audio": ("Audio", "assets/audio/dla_*.ogg"),
 }
 

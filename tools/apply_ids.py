@@ -106,6 +106,11 @@ def apply_json(src, mapping):
             src = set_plain(src, "AssetIds.Decals", m.group(1), value)
             done.append(p)
             continue
+        m = re.search(r"assets/film/(\w+)\.png$", p)
+        if m:
+            src = set_plain(src, "AssetIds.Film", m.group(1), value)
+            done.append(p)
+            continue
         m = re.search(r"assets/audio/dla_(\w+)\.(ogg|mp3)$", p)
         if m:
             src = set_plain(src, "AssetIds.Audio", m.group(1), value)
