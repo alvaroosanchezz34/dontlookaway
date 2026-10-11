@@ -8,9 +8,11 @@
 	  * the look: VisualStandards.MenuLook (a dim grey ambient, a little more
 	    exposure, the cold near-monochrome grade) over whatever the server's
 	    preset is; the server's own values are restored on leaving;
-	  * practical lights for each shot, so the light has a source you can see:
-	    a bare bulb on its cord that sways a little and breathes, dim and warm,
-	    with shadows. They exist only while the menu is open.
+	  * practical lights for the shots, so the light has a source you can see:
+	    bare bulbs on their cords that sway a little and breathe, dim and warm,
+	    with shadows; a cold shaft of moonlight slanting into the reception;
+	    a battery emergency lamp glowing amber on the basement wall. They exist
+	    only while the menu is open.
 
 	Nothing is replicated and nothing the server owns is changed for good.
 ]]
@@ -36,6 +38,10 @@ local BULBS = {
 	{ at = Vector3.new(134, 27.6, 16), brightness = 0.6 },
 }
 local BULB_COLOR = Color3.fromRGB(236, 224, 204)
+-- moonlight through the reception's front windows, slanting down onto the floor
+local MOON = { from = Vector3.new(80, 12, 102), to = Vector3.new(74, 0, 84), color = Color3.fromRGB(150, 172, 210), brightness = 0.9 }
+-- a battery emergency lamp on the basement corridor's wall
+local EMERGENCY = { at = Vector3.new(84, -8.6, 40.6), face = Vector3.new(0, 0, 1), color = Color3.fromRGB(255, 176, 120), brightness = 0.45 }
 local CORD = 2.4
 
 local PROPS = { "Ambient", "OutdoorAmbient", "ExposureCompensation" }
@@ -106,6 +112,46 @@ local function buildBulbs()
 		light.Parent = part
 		table.insert(bulbs, { part = part, light = light, anchor = b.at + Vector3.new(0, CORD, 0), phase = i * 1.7, base = b.brightness })
 	end
+	-- the moon's shaft (it casts shadows, so it stays inside the room)
+	local moonHolder = Instance.new("Part")
+	moonHolder.Name = "MenuMoon"
+	moonHolder.Size = Vector3.new(0.2, 0.2, 0.2)
+	moonHolder.Transparency = 1
+	moonHolder.Anchored = true
+	moonHolder.CanCollide = false
+	moonHolder.CanQuery = false
+	moonHolder.CanTouch = false
+	moonHolder.CFrame = CFrame.lookAt(MOON.from, MOON.to)
+	moonHolder.Parent = f
+	local moon = Instance.new("SpotLight")
+	moon.Face = Enum.NormalId.Front
+	moon.Angle = 28
+	moon.Range = 26
+	moon.Brightness = MOON.brightness
+	moon.Color = MOON.color
+	moon.Shadows = true
+	moon.Parent = moonHolder
+	-- the emergency lamp: a small glowing box on the wall, a warm, weak light
+	local box = Instance.new("Part")
+	box.Name = "MenuEmergencyLamp"
+	box.Size = Vector3.new(1.6, 0.5, 0.3)
+	box.Material = Enum.Material.Neon
+	box.Color = EMERGENCY.color
+	box.Anchored = true
+	box.CanCollide = false
+	box.CanQuery = false
+	box.CanTouch = false
+	box.CastShadow = false
+	box.CFrame = CFrame.lookAt(EMERGENCY.at, EMERGENCY.at + EMERGENCY.face)
+	box.Parent = f
+	local glow = Instance.new("SpotLight")
+	glow.Face = Enum.NormalId.Front
+	glow.Angle = 120
+	glow.Range = 14
+	glow.Brightness = EMERGENCY.brightness
+	glow.Color = EMERGENCY.color
+	glow.Shadows = true
+	glow.Parent = box
 	f.Parent = Workspace
 	folder = f
 end
