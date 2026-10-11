@@ -406,10 +406,17 @@ local function matchesMeta(mesh: MeshPart, meshName: string): boolean
 	return (native - MeshMeta[meshName].size).Magnitude < 0.1
 end
 
+-- Why the last loadMeshes() left segments part-built, so the warning names
+-- the real cause: { stale = { segment names from an older build },
+-- unmatched = { pool ids of no segment's size }, failed = { "name: error" } }
+ObserverRig.LastLoadReport = { stale = {}, unmatched = {}, failed = {} }
+
 function ObserverRig.loadMeshes(): number
 	if not RunService:IsServer() then
 		return 0
 	end
+	local report = { stale = {}, unmatched = {}, failed = {} }
+	ObserverRig.LastLoadReport = report
 	local folder = ReplicatedStorage:FindFirstChild(TEMPLATE_FOLDER)
 	local loaded = 0
 	for meshName in MeshMeta do
@@ -444,6 +451,7 @@ function ObserverRig.loadMeshes(): number
 			-- squeezed into this build's size it would look broken, so that
 			-- segment keeps its part-built body until the new .obj is uploaded
 			warn(string.format("[ObserverRig] mesh %s does not match this build: re-upload assets/observer/%s.obj (using the part-built %s meanwhile)", meshName, meshName, meshName))
+			table.insert(report.stale, meshName)
 			mesh:Destroy()
 		elseif meshUrl or AssetIds.url(modelId) then
 			if ok and mesh then
@@ -466,6 +474,7 @@ function ObserverRig.loadMeshes(): number
 				loaded += 1
 			else
 				warn("[ObserverRig] could not load mesh " .. meshName .. ": " .. tostring(mesh))
+				table.insert(report.failed, meshName .. ": " .. tostring(mesh))
 			end
 		end
 	end
@@ -515,10 +524,12 @@ function ObserverRig.loadMeshes(): number
 				loaded += 1
 			else
 				warn(string.format("[ObserverRig] mesh %d (size %.2f x %.2f x %.2f) matches no Observer segment", id, size.X, size.Y, size.Z))
+				table.insert(report.unmatched, tostring(id))
 				mesh:Destroy()
 			end
 		else
 			warn("[ObserverRig] could not load mesh " .. tostring(id) .. ": " .. tostring(mesh))
+			table.insert(report.failed, tostring(id) .. ": " .. tostring(mesh))
 		end
 	end
 	return loaded

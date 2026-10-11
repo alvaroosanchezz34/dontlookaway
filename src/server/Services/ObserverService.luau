@@ -1266,7 +1266,28 @@ function ObserverService:Start()
 		print(string.format("[ObserverService] loading sculpted Observer (%d meshes)...", wanted))
 		local count = ObserverRig.loadMeshes()
 		if count < wanted then
-			warn(string.format("[ObserverService] only %d of %d Observer meshes loaded: the place must be the published experience that owns them", count, wanted))
+			-- name the real cause: an old upload, an id of no segment, or a load
+			-- error (only a permission error means the place must be the
+			-- published experience, or group, that owns the meshes)
+			local r = ObserverRig.LastLoadReport
+			local causes = {}
+			if #r.stale > 0 then
+				table.insert(causes, string.format("%d from an older build, re-upload them (%s)", #r.stale, table.concat(r.stale, ", ")))
+			end
+			if #r.unmatched > 0 then
+				table.insert(causes, string.format("%d ids match no segment's size (%s)", #r.unmatched, table.concat(r.unmatched, ", ")))
+			end
+			if #r.failed > 0 then
+				local denied = false
+				for _, e in r.failed do
+					local lower = string.lower(e)
+					if string.find(lower, "not authorized", 1, true) or string.find(lower, "permission", 1, true) or string.find(lower, "not allowed", 1, true) or string.find(lower, "access", 1, true) then
+						denied = true
+					end
+				end
+				table.insert(causes, string.format("%d failed to load%s (first: %s)", #r.failed, if denied then ": the place must be the published experience (or group) that owns them" else "", r.failed[1]))
+			end
+			warn(string.format("[ObserverService] only %d of %d Observer meshes loaded; the rest stay part-built. %s", count, wanted, if #causes > 0 then table.concat(causes, "; ") else "see the [ObserverRig] warnings above"))
 		end
 		if count > 0 then
 			print(string.format("[ObserverService] sculpted Observer: %d meshes loaded", count))
