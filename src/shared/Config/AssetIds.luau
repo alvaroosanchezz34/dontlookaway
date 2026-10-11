@@ -84,16 +84,16 @@ AssetIds.Observer = {
 -- (assets/observer/<Segment>/<Segment>_{color,normal,roughness}.png).
 -- tools/sync_assets.py turns them into SurfaceAppearances.
 AssetIds.ObserverSkins = {
-	Head = { color = 0, normal = 0, roughness = 0 },
-	Neck = { color = 0, normal = 0, roughness = 0 },
-	UpperTorso = { color = 0, normal = 0, roughness = 0 },
-	LowerTorso = { color = 0, normal = 0, roughness = 0 },
-	UpperArm = { color = 0, normal = 0, roughness = 0 },
-	LowerArm = { color = 0, normal = 0, roughness = 0 },
-	Hand = { color = 0, normal = 0, roughness = 0 },
-	UpperLeg = { color = 0, normal = 0, roughness = 0 },
-	LowerLeg = { color = 0, normal = 0, roughness = 0 },
-	Foot = { color = 0, normal = 0, roughness = 0 },
+	Head = { color = 135470205180575, normal = 129359083176209, roughness = 117392982942263 },
+	Neck = { color = 75626620655069, normal = 93294371052921, roughness = 111084558855167 },
+	UpperTorso = { color = 131894779719076, normal = 73973987379599, roughness = 78047277810430 },
+	LowerTorso = { color = 132735708150552, normal = 139469232804434, roughness = 107820604862181 },
+	UpperArm = { color = 94634578716500, normal = 119017604814985, roughness = 105574518733257 },
+	LowerArm = { color = 131914779014404, normal = 74974105063782, roughness = 82448172802873 },
+	Hand = { color = 120526639518235, normal = 134383293198773, roughness = 126381330668995 },
+	UpperLeg = { color = 105644209922425, normal = 100894416082673, roughness = 76226604925138 },
+	LowerLeg = { color = 123934834005774, normal = 104920856499358, roughness = 114432188305509 },
+	Foot = { color = 121863038711795, normal = 130997545941585, roughness = 135471017525462 },
 }
 
 -- Original synthesised audio (assets/audio/dla_<sheet>.ogg): three files, each

@@ -34,6 +34,9 @@ for _, e in AssetIds.PropMeshes or {} do
 		if k ~= "model" and k ~= "mesh" then add(v) end
 	end
 end
+for _, e in AssetIds.ObserverSkins or {} do
+	for _, v in e do add(v) end
+end
 if AssetIds.Observer and type(AssetIds.Observer.skin) == "table" then
 	for _, v in AssetIds.Observer.skin do add(v) end
 end
