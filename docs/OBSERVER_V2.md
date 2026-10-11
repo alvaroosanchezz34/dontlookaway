@@ -70,12 +70,14 @@ siguiente y no aparecen bolas en codos y rodillas.
 **Ojos:** son piezas del rig con articulación (`EyeTurnL` y `EyeTurnR`) y
 siguen al jugador.
 
-- Gris oscuro apenas autoiluminado, de color (46, 43, 38), con una pupila
-  negra que ocupa casi todo el ojo. Los anteriores, gris claro con pupila
-  pequeña, parecían ojos de juguete en el susto.
+- Brillan como los de un animal en la oscuridad: el globo es oscuro (20, 18,
+  16) y no tiene luz propia; el iris es Neon ámbar apagado (92, 76, 46) y la
+  pupila, una ranura vertical. Se eligió entre dos propuestas renderizadas.
+  Los anteriores eran un aro claro alrededor de un disco negro y, de cerca,
+  parecían botones pegados.
 - El izquierdo mide 0,105 studs, es algo menor y está más alto; el derecho
   mide 0,115.
-- Leen en la oscuridad sin parecer focos.
+- Dejan un brillo leve en la oscuridad sin parecer focos.
 - Sus posiciones están compartidas entre `ObserverRig.EyeOffsets` y el
   script de Blender, para que caigan dentro de las cuencas.
 

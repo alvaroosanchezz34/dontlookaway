@@ -631,7 +631,7 @@ do
 			local weld = d:FindFirstChildOfClass("WeldConstraint")
 			check(weld ~= nil and weld.Part0 ~= nil and weld.Part0.Transparency == 1, "mesh welded to a hidden segment: " .. d.Name)
 			check(not d.Anchored and d.Massless and not d.CanCollide and d.Reflectance == 0, "mesh is cosmetic and matte: " .. d.Name)
-		elseif d:IsA("BasePart") and d.Transparency < 1 and not string.find(d.Name, "Eyeball") and d.Name ~= "Pupil" then
+		elseif d:IsA("BasePart") and d.Transparency < 1 and not string.find(d.Name, "Eyeball") and d.Name ~= "Pupil" and d.Name ~= "Iris" then
 			table.insert(visibleHard, d.Name)
 		end
 	end
@@ -718,9 +718,11 @@ do
 	for _, d in rig:GetDescendants() do
 		if d:IsA("BasePart") and d.Transparency < 1 then
 			if string.find(d.Name, "Eyeball") then
-				-- a dull self-lit grey (Neon): it reads in the dark, never a lamp,
-				-- never a toy's pale eye
-				check(lum(d.Color) > 0.1 and lum(d.Color) < 0.25 and d.Size.X < 0.2, "small dim eye: " .. d.Name)
+				-- eyeshine: a small dark eyeball, not lit by itself
+				check(lum(d.Color) < 0.1 and d.Material ~= env.roblox.Enum.Material.Neon and d.Size.X < 0.2, "small dark eyeball: " .. d.Name)
+			elseif d.Name == "Iris" then
+				-- a faint glow (Neon), never a lamp
+				check(d.Material == env.roblox.Enum.Material.Neon and lum(d.Color) > 0.05 and lum(d.Color) < 0.35, "faintly glowing iris")
 			elseif d.Name ~= "Pupil" and lum(d.Color) > 0.06 then
 				table.insert(bright, d.Name)
 			end
@@ -812,7 +814,7 @@ do
 		local solved = ObserverRig.solve(rig, ObserverRig.placeFace(m, pose, target, camCf), pose)
 		local blocking = {}
 		for part, cf in solved do
-			local onHead = headParts[part.Name] or string.find(part.Name, "Eyeball") or part.Name == "Pupil"
+			local onHead = headParts[part.Name] or string.find(part.Name, "Eyeball") or part.Name == "Pupil" or part.Name == "Iris"
 			if part.Transparency < 1 and not onHead then
 				local rel = cf.Position - eye
 				local along = rel:Dot(Vector3.new(0, 0, -1))

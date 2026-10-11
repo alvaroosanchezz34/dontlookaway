@@ -146,7 +146,22 @@ def lamp_lit(lamp, state):
     return state == "NORMAL" or lamp.get("circuit") == "EMERGENCY"
 
 
+def wet_material(color):
+    # Part.Reflectance > 0: a glossy surface that catches a highlight
+    name = "wet|%d,%d,%d" % tuple(color)
+    if name not in _mats:
+        mat = bpy.data.materials.new(name)
+        mat.use_nodes = True
+        bsdf = mat.node_tree.nodes["Principled BSDF"]
+        bsdf.inputs["Base Color"].default_value = (*lin(color), 1)
+        bsdf.inputs["Roughness"].default_value = 0.08
+        _mats[name] = mat
+    return _mats[name]
+
+
 def part_material(p, state="NORMAL"):
+    if p.get("reflectance", 0) > 0:
+        return wet_material(p["color"])
     if p.get("lamp") and not lamp_lit(p["lamp"], state):
         return special_material("Glass", LAMP_OFF, 0)
     if p["material"] == "Neon":

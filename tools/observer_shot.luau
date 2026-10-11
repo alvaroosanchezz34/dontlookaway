@@ -10,6 +10,7 @@
 	             head (arg 5: "lowside" = ScareController.Light, "low", "side")
 	  scareOld   the impact frame as the cinematic posed it before this pass
 	             (attack pose, feet 0.75 studs from the eye), for comparison
+	  scareEyes  the same hit frame through a long lens, on its eyes
 	  torch      standing 10 studs away in the black, lit only by your
 	             flashlight (GameConfig.Flashlight, held as FlashlightController
 	             holds it), at the default field of view
@@ -67,8 +68,9 @@ local function v3(v)
 end
 
 local parts, lights = {}, {}
-local function addPart(name, cf, size, color, material, shape)
+local function addPart(name, cf, size, color, material, shape, reflectance)
 	table.insert(parts, {
+		reflectance = reflectance or 0,
 		name = name,
 		pos = v3(cf.Position),
 		rx = v3(cf.RightVector),
@@ -121,7 +123,7 @@ local motors = ObserverRig.motors(rig)
 local transforms = {}
 local rootCf = rig.PrimaryPart.CFrame
 
-if shot == "scare" then
+if shot == "scare" or shot == "scareEyes" then
 	transforms = ObserverRig.ScarePose(1, open)
 	local face = eye + look * ObserverRig.ScareDistance
 	rootCf = ObserverRig.placeFace(motors, transforms, face, CFrame.new(eye))
@@ -133,7 +135,8 @@ if shot == "scare" then
 		local rel = rest:PointToObjectSpace(eye)
 		transforms["EyeTurn" .. side] = CFrame.Angles(math.atan2(rel.Y, math.sqrt(rel.X * rel.X + rel.Z * rel.Z)), math.atan2(-rel.X, -rel.Z), 0)
 	end
-	camera = { eye = v3(eye), target = v3(eye + look * 10), fov = 74 }
+	-- scareEyes: the same frame through a long lens, on the eyes
+	camera = { eye = v3(eye), target = v3(eye + look * 10), fov = if shot == "scareEyes" then 20 else 74 }
 	-- ScareController's light: one dim cold point light on its head, short reach
 	local headCf = world[rig:FindFirstChild("Head")]
 	local lightPos = (headCf * scareLight).Position
@@ -294,7 +297,7 @@ for part, cf in world do
 		elseif part.Shape == roblox.Enum.PartType.Ball or (mesh and mesh.MeshType == roblox.Enum.MeshType.Sphere) then
 			shape = "ball"
 		end
-		addPart(part.Name, cf, size, part.Color, part.Material.Name, shape)
+		addPart(part.Name, cf, size, part.Color, part.Material.Name, shape, part.Reflectance)
 	else
 		skipped += 1
 	end
