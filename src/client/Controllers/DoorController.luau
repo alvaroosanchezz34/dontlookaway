@@ -70,6 +70,43 @@ local function track(model: Instance)
 	end)
 end
 
+-- A closed door eases a hand's width open on its own and settles back (only
+-- on this screen: BlackoutFX's level 2). The server's door stays shut, so
+-- nothing changes for anyone else; an Open change on the server wins.
+function DoorController:Creak(model: Model, amount: number?): boolean
+	if model:GetAttribute("Open") == true or anims[model] then
+		return false
+	end
+	local closed = model:GetAttribute("ClosedCFrame")
+	local open = model:GetAttribute("OpenCFrame")
+	if typeof(closed) ~= "CFrame" or typeof(open) ~= "CFrame" then
+		return false
+	end
+	local ajar = closed:Lerp(open, amount or 0.14)
+	anims[model] = { model = model, from = closed, to = ajar, start = os.clock(), duration = 1.6, style = "slow" }
+	task.delay(2.6, function()
+		if model.Parent and model:GetAttribute("Open") ~= true and not anims[model] then
+			anims[model] = { model = model, from = visual[model] or ajar, to = closed, start = os.clock(), duration = 1.2, style = "slow" }
+		end
+	end)
+	return true
+end
+
+-- The closed door nearest `at` within `radius` studs, if any.
+function DoorController:NearestClosed(at: Vector3, radius: number): Model?
+	local best, bestD = nil, radius
+	for model in visual do
+		-- (a locked door never gives: it would tell the players it is not)
+		if model.Parent and model:GetAttribute("Open") ~= true and not model:GetAttribute("Locked") and not anims[model] then
+			local d = (model:GetPivot().Position - at).Magnitude
+			if d < bestD then
+				best, bestD = model, d
+			end
+		end
+	end
+	return best
+end
+
 function DoorController:Start()
 	for _, tag in { "Door", "SetPieceDoor" } do
 		for _, m in CollectionService:GetTagged(tag) do

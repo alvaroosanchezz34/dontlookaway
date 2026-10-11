@@ -3,14 +3,17 @@
 	What a blackout brings with it besides the light (LightController and
 	Shared/LightingRules do the lamps). Each level is more macabre, not darker:
 
-	  1 FAILS     a lamp near you buzzes and clicks now and then
-	  2 BREATHES  a door creaks somewhere close; for a moment, the shadow of
+	  1 FAILS     a lamp near you clicks and buzzes for a moment
+	  2 BREATHES  a door close by eases open on its own, creaking (locally:
+	              the server's door stays shut); for a moment, the shadow of
 	              someone standing in a pool of light who is not there
 	  3 BEATS     a heartbeat you can hear, in time with the lamps; between two
 	              beats a figure stands at the edge of a pool for one frame;
 	              whispers
-	  4 WATCHES   two white eyes in the dark at the edge of the light, gone
-	              the moment you look straight at them; the heartbeat
+	  4 WATCHES   The Observer's own eyes, white, in the dark at the edge of
+	              the light (a local copy of its rig with only the eyes
+	              showing), gone the moment you look straight at them; the
+	              heartbeat
 
 	All of it is paranoia, not anomalies: local to this player, never
 	reported, never counted, gone within seconds. With reduced effects there
@@ -18,9 +21,11 @@
 ]]
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local ObserverRig = require(ReplicatedStorage.Shared.ObserverRig)
 local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
 
@@ -112,8 +117,58 @@ local function figure(at: Vector3, duration: number)
 	end)
 end
 
--- Two white eyes in the dark, at a tall thing's height, at the edge of the
--- light ahead; gone when looked at straight or after a few seconds.
+-- The Observer's own eyes, from a local copy of its rig with everything but
+-- the eyes hidden, made white for the dark (MONOCHROME's two white eyes).
+-- Built once, kept out of the world until needed.
+local eyeRig: Model? = nil
+local eyeMid = Vector3.zero
+
+local function buildEyes(): Model?
+	if eyeRig then
+		return eyeRig
+	end
+	local ok, rig = pcall(ObserverRig.build, CFrame.new(), { localCopy = true })
+	if not ok or not rig then
+		return nil
+	end
+	local sum, n = Vector3.zero, 0
+	for _, d in rig:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+			d.Anchored = true
+			d.CastShadow = false
+			local name = d.Name
+			if string.find(name, "Eyeball") then
+				d.Color = Color3.fromRGB(150, 152, 156)
+				d.Material = Enum.Material.Neon
+				sum += d.CFrame.Position
+				n += 1
+			elseif name == "Iris" then
+				d.Color = EYE_COLOR
+				d.Material = Enum.Material.Neon
+			elseif name ~= "Pupil" then
+				d.Transparency = 1
+			end
+		elseif d:IsA("Decal") or d:IsA("Texture") then
+			d.Transparency = 1
+		elseif d:IsA("Light") or d:IsA("ParticleEmitter") or d:IsA("Sound") then
+			d:Destroy()
+		end
+	end
+	if n == 0 then
+		rig:Destroy()
+		return nil
+	end
+	-- where the eyes sit relative to the rig's pivot (built at the origin)
+	eyeMid = rig:GetPivot():PointToObjectSpace(sum / n)
+	eyeRig = rig
+	return rig
+end
+
+-- Its eyes in the dark at the edge of the light ahead, at its height,
+-- looking at you; gone when looked at straight or after a few seconds.
 local function eyes()
 	local cf = camera().CFrame
 	local flat = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
@@ -122,24 +177,27 @@ local function eyes()
 	end
 	flat = flat.Unit
 	local side = Vector3.new(-flat.Z, 0, flat.X) * random:NextNumber(-6, 6)
-	local at = cf.Position + flat * random:NextNumber(16, 24) + side + Vector3.new(0, 2.6, 0)
+	local floor = cf.Position + flat * random:NextNumber(16, 24) + side - Vector3.new(0, 5.5, 0)
+	local at = floor + Vector3.new(0, eyeMid.Y, 0)
 	if not seen(at, 0.5) then
 		return
 	end
-	local face = CFrame.lookAt(at, cf.Position)
-	local left = part("Eye", Vector3.new(0.16, 0.12, 0.05), face * CFrame.new(-0.2, 0, 0), EYE_COLOR, Enum.Material.Neon)
-	local right = part("Eye", Vector3.new(0.16, 0.12, 0.05), face * CFrame.new(0.2, 0.03, 0), EYE_COLOR, Enum.Material.Neon)
-	left.CastShadow = false
-	right.CastShadow = false
+	local rig = buildEyes()
+	if not rig or rig.Parent then
+		return
+	end
+	local facing = CFrame.lookAt(floor, Vector3.new(cf.Position.X, floor.Y, cf.Position.Z))
+	local rot = facing - facing.Position
+	rig:PivotTo(CFrame.new(at - rot * eyeMid) * rot)
+	rig.Parent = holder()
 	local born = os.clock()
 	local conn
 	conn = RunService.RenderStepped:Connect(function()
 		local view = camera().CFrame
 		local straight = (at - view.Position).Unit:Dot(view.LookVector) > 0.995
-		if straight or os.clock() - born > 4 or level() < 4 then
+		if straight or os.clock() - born > 4 or level() < 4 or not rig.Parent then
 			conn:Disconnect()
-			left:Destroy()
-			right:Destroy()
+			rig.Parent = nil
 		end
 	end)
 end
@@ -161,11 +219,20 @@ local function event(lv: number, reduced: boolean)
 		local at = nearbyLamp()
 		if at then
 			sound("LightFlicker", at)
+			-- and buzzes for a moment
+			local audio = Registry.AudioController
+			local buzz = audio and audio:Play("ElectricBuzz", at)
+			if buzz then
+				task.delay(random:NextNumber(1.2, 2.4), function()
+					buzz:Stop()
+				end)
+			end
 		end
 	elseif lv == 2 then
-		if random:NextNumber() < 0.5 then
-			local cf = camera().CFrame
-			sound("WoodCreak", cf.Position + Vector3.new(random:NextNumber(-12, 12), 2, random:NextNumber(-12, 12)))
+		local door = Registry.DoorController and Registry.DoorController:NearestClosed(camera().CFrame.Position, 26)
+		if random:NextNumber() < 0.5 and door and Registry.DoorController:Creak(door) then
+			-- a door nearby eases open on its own, creaking
+			sound("WoodCreak", door:GetPivot().Position)
 		else
 			local at = poolInView()
 			if at then
@@ -186,6 +253,11 @@ local function event(lv: number, reduced: boolean)
 	elseif lv >= 4 then
 		eyes()
 	end
+end
+
+-- The eyes' rig (built on first use; tests look at it).
+function BlackoutFX:EyesRig(): Model?
+	return buildEyes()
 end
 
 function BlackoutFX:Level(): number
@@ -217,6 +289,9 @@ function BlackoutFX:Start()
 	-- a blackout's end takes everything with it
 	Workspace:GetAttributeChangedSignal("Blackout"):Connect(function()
 		if level() == 0 and folder then
+			if eyeRig then
+				eyeRig.Parent = nil
+			end
 			folder:ClearAllChildren()
 		end
 	end)
