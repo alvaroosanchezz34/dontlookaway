@@ -52,16 +52,16 @@ AssetIds.Observer = {
 	-- the smooth body from tools/blender/build_observer.py (the old ribbed
 	-- sculpt was retired): import assets/observer/<Segment>.obj and paste ids
 	models = {
-		UpperTorso = 0,
-		LowerTorso = 0,
-		Neck = 0,
-		Head = 0,
-		UpperArm = 0,
-		LowerArm = 0,
-		Hand = 0,
-		UpperLeg = 0,
-		LowerLeg = 0,
-		Foot = 0,
+		UpperTorso = 97244717725403,
+		LowerTorso = 108430885179612,
+		Neck = 138805807062381,
+		Head = 119731447859184,
+		UpperArm = 129710772451390,
+		LowerArm = 111264511011221,
+		Hand = 104260930727812,
+		UpperLeg = 102059354054961,
+		LowerLeg = 89496003628542,
+		Foot = 98465170527253,
 	},
 	meshes = {
 		UpperTorso = 0,
