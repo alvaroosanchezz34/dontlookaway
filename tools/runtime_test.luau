@@ -980,6 +980,26 @@ do
 	check(string.find(src, "not Registry.PlayerService:CanAnyoneSee({ body.Position }, \"screen\", 60)", 1, true) ~= nil, "it only falls where nobody has it on screen")
 end
 
+section("lighting: inside the building nothing is lighter than NORMAL")
+do
+	local Lighting = requireModule(Server.Services.LightingService)
+	local P = Lighting.Presets
+	local function lum(c)
+		return (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) * 255
+	end
+	local normal = P.NORMAL
+	for _, name in { "EMERGENCY", "BLACKOUT", "CINEMATIC", "ESCAPE" } do
+		local p = P[name]
+		check(lum(p.Ambient) <= lum(normal.Ambient) + 0.01, string.format("%s ambient is no brighter than NORMAL (%.1f vs %.1f)", name, lum(p.Ambient), lum(normal.Ambient)))
+		check(p.ExposureCompensation <= normal.ExposureCompensation, name .. " exposure is no higher than NORMAL")
+		check(p.atmosphere.Haze <= normal.atmosphere.Haze + 0.01, string.format("%s adds no haze to grey the distance (%.1f)", name, p.atmosphere.Haze))
+	end
+	check(lum(P.EMERGENCY.Ambient) >= lum(P.BLACKOUT.Ambient) and P.EMERGENCY.ExposureCompensation >= P.BLACKOUT.ExposureCompensation, "a total blackout is a step down from the emergency lighting")
+	check(P.ESCAPE.cc.TintColor.R > P.ESCAPE.cc.TintColor.B, "the escape is tinted red")
+	check(P.CINEMATIC.cc.Contrast >= normal.cc.Contrast and P.CINEMATIC.cc.Saturation <= normal.cc.Saturation, "a scripted moment is harder and colder than NORMAL")
+	check(string.find(Server.Services.LightingService.Source, "never blind", 1, true) == nil, "no comment says the darkness is never blind")
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")

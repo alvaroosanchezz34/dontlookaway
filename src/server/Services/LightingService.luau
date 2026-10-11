@@ -46,8 +46,12 @@ local bloom: BloomEffect
 local atmosphere: Atmosphere
 local dof: DepthOfFieldEffect
 
--- Ambient values are the "never blind" floor. They are deliberately cold and
--- low-saturation so darkness still reads as darkness, just not as a black screen.
+-- Ambient values light nothing on their own inside the building: the fixtures
+-- do. Inside, every preset is NORMAL or darker, and each step of the power
+-- failing is a step down (NORMAL >= EMERGENCY >= BLACKOUT in ambient and in
+-- exposure). The escape and the scripted moments change the colour and the
+-- grade, never the amount of light. Only the places outside the building
+-- (LOBBY, OUTSIDE, RESULTS) are lighter.
 LightingService.Presets = {
 	LOBBY = {
 		Ambient = Color3.fromRGB(34, 32, 30),
@@ -67,7 +71,7 @@ LightingService.Presets = {
 	EMERGENCY = {
 		Ambient = Color3.fromRGB(5, 5, 7),
 		OutdoorAmbient = Color3.fromRGB(7, 8, 10),
-		ExposureCompensation = 0.05,
+		ExposureCompensation = 0,
 		cc = { Brightness = 0, Contrast = 0.2, Saturation = -0.5, TintColor = Color3.fromRGB(226, 234, 250) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(14, 15, 18), Decay = Color3.fromRGB(6, 6, 8) },
 	},
@@ -85,29 +89,32 @@ LightingService.Presets = {
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(26, 28, 32), Decay = Color3.fromRGB(10, 10, 12) },
 	},
 	-- scripted moments (cinematics, the Observer's reveal): the same building,
-	-- harder and colder, for a few seconds at a time
+	-- harder and colder, for a few seconds at a time. NORMAL's light, a
+	-- harsher, colder grade
 	CINEMATIC = {
-		Ambient = Color3.fromRGB(26, 26, 30),
-		OutdoorAmbient = Color3.fromRGB(30, 34, 44),
-		ExposureCompensation = 0.05,
-		cc = { Brightness = -0.01, Contrast = 0.18, Saturation = -0.32, TintColor = Color3.fromRGB(232, 236, 248) },
-		atmosphere = { Density = 0.32, Haze = 1.6, Glare = 0, Color = Color3.fromRGB(58, 62, 72), Decay = Color3.fromRGB(28, 30, 36) },
+		Ambient = Color3.fromRGB(6, 6, 8),
+		OutdoorAmbient = Color3.fromRGB(8, 9, 12),
+		ExposureCompensation = 0,
+		cc = { Brightness = 0, Contrast = 0.22, Saturation = -0.68, TintColor = Color3.fromRGB(220, 230, 252) },
+		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(24, 27, 33), Decay = Color3.fromRGB(9, 10, 12) },
 	},
 	-- a total blackout: the darkest the game gets. Only what glows and the
 	-- silhouettes right next to you; everything else needs the flashlight
 	BLACKOUT = {
 		Ambient = Color3.fromRGB(3, 3, 4),
 		OutdoorAmbient = Color3.fromRGB(4, 4, 6),
-		ExposureCompensation = 0.1,
+		ExposureCompensation = -0.05,
 		cc = { Brightness = 0, Contrast = 0.22, Saturation = -0.5, TintColor = Color3.fromRGB(236, 228, 232) },
 		atmosphere = { Density = 0.2, Haze = 0.1, Glare = 0, Color = Color3.fromRGB(8, 8, 10), Decay = Color3.fromRGB(4, 4, 5) },
 	},
+	-- the way out: NORMAL's light turned red and harder (the fixtures pulse,
+	-- the alarm beacons turn), not a brighter or hazier building
 	ESCAPE = {
-		Ambient = Color3.fromRGB(28, 20, 20),
-		OutdoorAmbient = Color3.fromRGB(36, 26, 26),
-		ExposureCompensation = 0.3,
-		cc = { Brightness = -0.01, Contrast = 0.22, Saturation = -0.35, TintColor = Color3.fromRGB(255, 226, 222) },
-		atmosphere = { Density = 0.44, Haze = 2.3, Glare = 0, Color = Color3.fromRGB(70, 56, 56), Decay = Color3.fromRGB(36, 26, 26) },
+		Ambient = Color3.fromRGB(8, 5, 5),
+		OutdoorAmbient = Color3.fromRGB(10, 7, 7),
+		ExposureCompensation = 0,
+		cc = { Brightness = 0, Contrast = 0.2, Saturation = -0.45, TintColor = Color3.fromRGB(255, 222, 216) },
+		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(32, 22, 22), Decay = Color3.fromRGB(12, 8, 8) },
 	},
 	RESULTS = {
 		Ambient = Color3.fromRGB(26, 26, 30),
