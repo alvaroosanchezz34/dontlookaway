@@ -5,6 +5,35 @@ creo que está, qué creo que lo causa y cómo comprobarlo en Studio. Son
 hipótesis sacadas de leer el código y de medir los archivos, no de verlo en
 Studio.
 
+## 0. Recursos subidos por otra cuenta (probable causa de varios fallos)
+
+**Visto en Studio:** con los modelos del Observer que subió la otra cuenta,
+en tu place solo cargó la cabeza que subiste tú. El cuerpo salió con el rig
+de piezas de emergencia. Ya está corregido: `AssetIds.Observer.models` apunta
+a los 10 modelos que has subido tú.
+
+**Dónde más pasa:** `src/shared/Config/AssetIds.luau`. Todos los grupos de
+IDs (`Materials`, `Decals`, `Audio`, `PropMeshes`, `PropMeshPool`) los subió
+la otra cuenta.
+
+**Causa probable:** un juego solo puede cargar con `InsertService` y
+`CreateMeshPartAsync` los modelos y mallas de su propio dueño, y el audio es
+privado por defecto. En tu place:
+
+- las mallas de los props no cargan, y cada prop se queda con sus piezas de
+  `SmoothPlastic`. Eso encaja con los «gráficos de plástico en casi todas las
+  habitaciones» (puntos 3 y 6);
+- el audio puede quedarse mudo.
+
+Las imágenes (texturas) suelen cargar desde cualquier cuenta, pero conviene
+comprobarlo igual.
+
+**Cómo comprobarlo:** dale a Play y busca en la Output `could not load mesh`,
+`not authorized`, `Failed to load` o `Asset is not approved`. Mira también si
+los muebles se ven como cajas. Si es así, la solución es la misma que con el
+Observer: subir desde tu cuenta (o la del grupo dueño del juego)
+`assets/props/*.obj` y los `.ogg` de `assets/audio/`, y pasarme los IDs.
+
 ## 1. Tirones de pantalla
 
 **Dónde**
