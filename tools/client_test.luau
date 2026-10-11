@@ -996,13 +996,82 @@ do
 	check(film:LayerCount() <= 2, "the grain is at most two layers")
 	local AssetIds = requireModule(RS.Shared.Config.AssetIds)
 	if AssetIds.Film.grain_light == 0 and AssetIds.Film.grain_dark == 0 and film:LayerCount() == 0 then
-		check(not film:IsAvailable(), "no grain textures and no runtime texture: the film is off")
+		-- no sheets and no EditableImage (as here): the speck field, needing nothing
+		check(film:IsAvailable() and film:Mode() == "specks", "without textures the grain falls back to specks (" .. film:Mode() .. ")")
+		local filmGui = playerGui:FindFirstChild("Film")
+		local holder = filmGui and filmGui:FindFirstChild("Specks")
+		check(holder ~= nil and #holder:GetChildren() <= 700, "a bounded speck field")
+		frames(4)
+		local shown = 0
+		for _, s in holder and holder:GetChildren() or {} do
+			if s.Visible then
+				shown += 1
+			end
+		end
+		check(shown > 0 and shown <= 700, "specks are scattered on screen (" .. shown .. ")")
+		State.settings.filmGrain = false
+		frames(4)
+		local still = 0
+		for _, s in holder and holder:GetChildren() or {} do
+			if s.Visible then
+				still += 1
+			end
+		end
+		check(still == 0, "turning film grain off hides every speck")
+		State.settings.filmGrain = true
 	end
 	local weave = film:Weave()
 	check(typeof(weave) == "CFrame", "the camera can always read the weave")
 	film:Spike(0.2)
 	frames(3)
 	check(true, "a scare spike does not break the film")
+end
+
+-- blackouts: a door eases open on its own (locally) and The Observer's eyes
+do
+	local door = Instance.new("Model")
+	door.Name = "TestDoor"
+	local leaf = Instance.new("Part")
+	leaf.Name = "Leaf"
+	leaf.Anchored = true
+	leaf.Size = Vector3.new(4, 7, 0.3)
+	leaf.CFrame = CFrame.new(300, 3.5, 300)
+	leaf.Parent = door
+	door.PrimaryPart = leaf
+	door:SetAttribute("ClosedCFrame", CFrame.new(300, 3.5, 300))
+	door:SetAttribute("OpenCFrame", CFrame.new(300, 3.5, 300) * CFrame.Angles(0, math.rad(90), 0))
+	door:SetAttribute("Open", false)
+	door.Parent = workspace
+	door:AddTag("Door")
+	env.tagAdded("Door", door)
+	task.wait(0.1)
+	local doors = Registry.DoorController
+	check(doors:NearestClosed(Vector3.new(300, 3.5, 305), 26) == door, "a closed door nearby is found")
+	check(doors:Creak(door), "it can creak open")
+	task.wait(1.8)
+	frames(2)
+	local turned = math.deg(math.acos(math.clamp(leaf.CFrame.LookVector:Dot(Vector3.new(0, 0, -1)), -1, 1)))
+	check(turned > 5 and turned < 20, string.format("it eased a hand's width open (%.1f degrees)", turned))
+	check(door:GetAttribute("Open") == false, "the server's door is untouched")
+	door:SetAttribute("Locked", true)
+	task.wait(1.6)
+	check(doors:NearestClosed(Vector3.new(300, 3.5, 305), 26) == nil, "a locked door never creaks open")
+	door:Destroy()
+	local rig = Registry.BlackoutFX:EyesRig()
+	check(rig ~= nil, "The Observer's eyes come from its own rig")
+	if rig then
+		local eyes, others = 0, 0
+		for _, d in rig:GetDescendants() do
+			if d:IsA("BasePart") and d.Transparency < 1 then
+				if string.find(d.Name, "Eyeball") or d.Name == "Iris" or d.Name == "Pupil" then
+					eyes += 1
+				else
+					others += 1
+				end
+			end
+		end
+		check(eyes >= 2 and others == 0, string.format("only its eyes show (%d eye parts, %d others)", eyes, others))
+	end
 end
 
 -- the menu cinematic again, with its own light (MenuLook)

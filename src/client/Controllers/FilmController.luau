@@ -11,9 +11,14 @@
 	        black grain that sinks it. 24 times a second both jump to a random
 	        offset, so the grain is new every frame. It shows more in the dark
 	        (no power, deep blackouts), with fear, and in a scare (Spike).
-	        Textures: AssetIds.Film (tools/gen_film.py). While those are 0 the
-	        grain is made at runtime with an EditableImage; if that is not
-	        available either, there is no grain and the Output says so once.
+	        Where the grain comes from, best first:
+	          texture  the uploaded sheets (AssetIds.Film, tools/gen_film.py)
+	          runtime  a noise texture made in the game (EditableImage: in a
+	                   published game the owner must be ID verified and turn
+	                   on Security -> Allow Mesh / Image APIs)
+	          specks   needs nothing: a field of single-pixel specks, white
+	                   and black, scattered anew every frame (a few hundred,
+	                   by graphics quality). Coarser than film, but always there
 	Dust    now and then a speck or a vertical scratch for one frame.
 	Flicker the grade's brightness wavers by +-0.01 at 24 Hz (not with
 	        reduced effects).
@@ -41,6 +46,10 @@ local NOISE = 128 -- runtime noise texture (EditableImage fallback)
 
 local gui: ScreenGui
 local layers: { ImageLabel } = {}
+local mode = "off" -- texture | runtime | specks | off
+local specks: { Frame } = {}
+-- how many specks by graphics quality (AccessibilityController:Quality())
+local SPECKS = { [1] = 220, [2] = 450, [3] = 700 }
 local dustLayer: Frame
 local flicker: ColorCorrectionEffect
 local available = false
@@ -87,6 +96,7 @@ local function makeLayer(name: string, light: boolean): ImageLabel?
 	local url = AssetIds.url(id)
 	if url then
 		label.Image = url
+		mode = "texture"
 	else
 		local ok, content = pcall(runtimeGrain, light)
 		if not ok then
@@ -94,6 +104,7 @@ local function makeLayer(name: string, light: boolean): ImageLabel?
 			return nil
 		end
 		label.ImageContent = content
+		mode = "runtime"
 	end
 	label.Parent = gui
 	return label
@@ -151,6 +162,43 @@ local function dirt()
 	end
 end
 
+-- The speck field: no texture needed. Each frame every speck jumps to a new
+-- place, with a new tone (white or black) and strength.
+local function makeSpecks()
+	local holder = Kit.frame({ Name = "Specks", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 1, Parent = gui })
+	for i = 1, SPECKS[3] do
+		local s = Instance.new("Frame")
+		s.Name = "S"
+		s.BorderSizePixel = 0
+		s.Size = UDim2.fromOffset(1, 1)
+		s.BackgroundTransparency = 1
+		s.ZIndex = 1
+		s.Parent = holder
+		specks[i] = s
+	end
+end
+
+local function scatter(alpha: number)
+	local access = Registry.AccessibilityController
+	local count = SPECKS[if access then access:Quality() else 2] or SPECKS[2]
+	local size = workspace.CurrentCamera.ViewportSize
+	for i, s in specks do
+		if i > count or alpha <= 0.005 then
+			s.Visible = false
+		else
+			s.Visible = true
+			local px = if random:NextNumber() < 0.25 then 2 else 1
+			s.Size = UDim2.fromOffset(px, px)
+			s.Position = UDim2.fromOffset(random:NextInteger(0, math.max(1, size.X)), random:NextInteger(0, math.max(1, size.Y)))
+			local light = random:NextNumber() < 0.5
+			s.BackgroundColor3 = if light then Color3.new(1, 1, 1) else Color3.new(0, 0, 0)
+			-- a speck is a single pixel: it must be stronger than a texture's
+			-- grain to read (the field is sparse)
+			s.BackgroundTransparency = 1 - math.clamp(alpha * 3 * random:NextNumber(0.7, 1.4), 0, 0.85)
+		end
+	end
+end
+
 local function frame()
 	clearTransient()
 	local on = enabled()
@@ -160,6 +208,9 @@ local function frame()
 		label.Visible = alpha > 0.005
 		label.ImageTransparency = 1 - alpha
 		label.Position = UDim2.fromOffset(-random:NextInteger(0, TILE), -random:NextInteger(0, TILE))
+	end
+	if mode == "specks" then
+		scatter(alpha)
 	end
 	if on and intensity > 0 then
 		dirt()
@@ -196,6 +247,11 @@ function FilmController:IsAvailable(): boolean
 	return available
 end
 
+-- Where the grain comes from: "texture", "runtime", "specks" (or "off").
+function FilmController:Mode(): string
+	return mode
+end
+
 function FilmController:LayerCount(): number
 	return #layers
 end
@@ -209,11 +265,16 @@ function FilmController:Init()
 			table.insert(layers, label)
 		end
 	end
-	available = #layers > 0
-	if not available and not warned then
-		warned = true
-		warn("[FilmController] no film grain: upload assets/film (tools/gen_film.py) and set AssetIds.Film; EditableImage is not available here")
+	if #layers == 0 then
+		-- no uploaded sheets and no runtime texture: the speck field
+		mode = "specks"
+		makeSpecks()
+		if not warned then
+			warned = true
+			print("[FilmController] film grain from specks (upload assets/film and set AssetIds.Film for finer grain)")
+		end
 	end
+	available = true
 	dustLayer = Kit.frame({ Name = "Dust", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2, Parent = gui })
 	flicker = Instance.new("ColorCorrectionEffect")
 	flicker.Name = "FilmFlicker"

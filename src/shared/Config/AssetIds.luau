@@ -46,7 +46,10 @@ AssetIds.Decals = {
 
 -- Film grain (assets/film/*.png, tools/gen_film.py) for FilmController's old
 -- camera look. 0 = not uploaded: the grain is made at runtime with an
--- EditableImage, or left out where that is not available.
+-- EditableImage where Roblox allows it, else drawn as specks (needs nothing).
+-- No API key needed to upload them: in Studio, Asset Manager -> Bulk Import
+-- (or the Creator Dashboard), then put the IMAGE id here, not the Decal id
+-- (tools/studio/check_image_ids.luau tells them apart).
 AssetIds.Film = {
 	grain_light = 0,
 	grain_dark = 0,

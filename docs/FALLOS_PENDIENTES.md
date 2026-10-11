@@ -343,11 +343,34 @@ Guion en `PROMPT_ILUMINACION_MONOCHROME.md`; medidas de antes y después en
 - El nivel 2 ya no oscurece una planta (`BlackoutZone` se guarda pero no
   apaga nada).
 
+**Completado después** (lo que estaba simplificado):
+
+- Nivel 2: una puerta cercana se entreabre sola y cruje (solo en tu
+  pantalla; la del servidor sigue cerrada; nunca una puerta cerrada con llave).
+- Nivel 4: los ojos son los del Observer (una copia local de su rig en la
+  que solo se ven los ojos, en blanco).
+- Nivel 1: además del chasquido, la lámpara zumba un momento.
+- Menú: un haz de luna en la recepción y una lámpara de emergencia en el
+  sótano, además de las bombillas.
+- Lámparas muertas: suciedad sobre el cristal (la calcomanía de mugre ya
+  subida).
+
+**El grano sin API key.** El juego elige solo, de mejor a peor:
+
+1. **Texturas subidas** (`AssetIds.Film`): el grano más fino. No hace falta
+   API key: en Studio, *Asset Manager → Bulk Import* con
+   `assets/film/grain_light.png` y `grain_dark.png` (o subirlas en el Creator
+   Dashboard), y poner en `AssetIds.Film` el ID de **imagen**, no el de la
+   calcomanía (`tools/studio/check_image_ids.luau` los distingue).
+2. **Textura creada en el juego** (`EditableImage`): en un juego publicado
+   Roblox solo la permite si el dueño tiene verificación de edad (13+) y de
+   identidad y activa *Game Settings → Security → Allow Mesh / Image APIs*.
+3. **Motas** (ahora mismo, por defecto): un campo de puntos de un píxel,
+   blancos y negros, que cambian 24 veces por segundo (220 / 450 / 700 según
+   la calidad gráfica). No necesita nada; es más grueso que la película.
+
 **Pendiente:**
 
-- Subir `assets/film/grain_light.png` y `grain_dark.png`
-  (`tools/upload_assets.py --group … film`). Hasta entonces el grano se
-  genera con `EditableImage` si Roblox lo permite; si no, no hay grano.
 - Las proporciones de luz son de un modelo aproximado: ajustar en Studio.
 
 **Comprobar en Studio:**
@@ -360,7 +383,10 @@ Guion en `PROMPT_ILUMINACION_MONOCHROME.md`; medidas de antes y después en
 3. El menú principal: luz tenue, bombillas que se mueven, y al pulsar PLAY
    no queda ninguna.
 4. El grano en PC y en móvil, con y sin «Film grain»; que el HUD quede
-   limpio por encima.
+   limpio por encima. Con las motas, mirar el coste en móvil (calidad baja:
+   220 puntos).
+7. Nivel 2: la puerta que se entreabre; nivel 4: los ojos del Observer en
+   la penumbra (que se lean a 16-24 studs).
 5. FPS con el MicroProfiler antes y después (sombras de 10 lámparas, grano
    a 24 fps).
 6. Con «Reduced flashes & glitches»: sin parpadeo de proyector, sin

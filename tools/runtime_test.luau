@@ -334,7 +334,7 @@ do
 	local map = MapBuilder.build(4242, holder)
 	local kinds = {}
 	for _, d in map.Root:GetDescendants() do
-		if d:IsA("Decal") then
+		if d:IsA("Decal") and d.Name ~= "Grime" then
 			kinds[d.Name] = (kinds[d.Name] or 0) + 1
 			local carrier = d.Parent :: BasePart
 			check(carrier.Transparency == 1 and not carrier.CanCollide and not carrier.CanQuery and not carrier.CanTouch, "decal carrier is invisible decoration")
@@ -1236,6 +1236,7 @@ do
 		check(string.find(src, 'Kit.screen("Film", 1', 1, true) ~= nil, "the film sits over the world and under the HUD (display order 1 < HUD 2)")
 		check(string.find(src, "State.settings.filmGrain ~= false", 1, true) ~= nil and string.find(src, "grainIntensity", 1, true) ~= nil, "the grain follows the player's settings")
 		check(string.find(src, "pcall(runtimeGrain", 1, true) ~= nil, "without uploaded grain it tries a runtime texture, safely")
+		check(string.find(src, 'mode = "specks"', 1, true) ~= nil, "and without either, specks that need nothing")
 		check(string.find(src, "not State.settings.reducedEffects then random:NextNumber(-0.01, 0.01)", 1, true) ~= nil, "no projector flicker with reduced effects")
 		check(string.find(src, "not State.settings.reduceMotion", 1, true) ~= nil, "no gate weave with reduced motion")
 	end
