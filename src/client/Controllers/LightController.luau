@@ -12,9 +12,11 @@
 	  Power, Blackout (0-4), BlackoutZone, BlackoutSeed, Escape
 
 	Blackout levels
-	  1 failing   a third of the lights stutter, everything a little dimmer
-	  2 partial   one floor goes dark; emergency lighting there
-	  3 major     most of the building dark; emergency turns red, beacons spin
+	  1 failing   a third of the lights stutter, everything clearly dimmer
+	  2 partial   one floor goes dark, emergency lighting there; the other
+	              floors drop to under half
+	  3 major     most of the building dark, the few lights left are dimmer
+	              and stutter; emergency turns red, beacons spin
 	  4 total     everything off except some red emergency lamps, the beacons
 	              and the battery-backed exit signs
 
@@ -50,6 +52,11 @@ local useMain = true
 local EMERGENCY_COLOR = Color3.fromRGB(255, 176, 120)
 local ALARM_COLOR = Color3.fromRGB(255, 64, 52)
 local DARK = Color3.fromRGB(38, 38, 36)
+-- Share of its brightness a fixture that still has main current keeps at each
+-- blackout level, so the states read apart at a glance, from brightest to
+-- darkest: normal > 1 > 2 > 3 / no power > 4. Emergency lamps running on
+-- their own battery are dimmed separately in evaluate.
+local BLACKOUT_SAG = { [1] = 0.7, [2] = 0.45, [3] = 0.7 }
 
 type LightEntry = { light: Light, ratio: number, solo: number, main: boolean }
 type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string }
@@ -174,18 +181,16 @@ local function evaluate(info: Info, camPos: Vector3, now: number)
 	local emergencyOn = emergency and not (level >= 4 and frac < 0.5)
 	local lit = mode ~= "dead" and override ~= "off" and (forceOn or (if emergency then (mainOn or emergencyOn) else mainOn))
 	local color = if typeof(tint) == "Color3" then tint elseif typeof(base) == "Color3" then base else Color3.new(1, 1, 1)
-	local brightness = baseBrightness
-	if level == 1 then
-		brightness *= 0.85
-	end
+	-- every level is a visible step down: whatever still has current sags
+	local brightness = baseBrightness * (BLACKOUT_SAG[level] or 1)
 	if lit and emergency and not mainOn and not forceOn then
 		-- emergency lighting: dim and warm, red when things are serious
 		if level >= 3 or escape then
 			color = if typeof(tint) == "Color3" then tint else ALARM_COLOR
-			brightness *= 0.5 * (0.7 + 0.3 * math.sin(now * (if level >= 4 then 3.2 else 1.6) + info.seed))
+			brightness = baseBrightness * 0.5 * (0.7 + 0.3 * math.sin(now * (if level >= 4 then 3.2 else 1.6) + info.seed))
 		else
 			color = if typeof(tint) == "Color3" then tint else EMERGENCY_COLOR
-			brightness *= 0.55
+			brightness = baseBrightness * 0.55
 		end
 	end
 	if lit and escape and not (emergency and not mainOn) then
