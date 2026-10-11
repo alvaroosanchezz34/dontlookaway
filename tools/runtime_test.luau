@@ -899,10 +899,9 @@ do
 	end)
 	viewer.Character:Destroy()
 	-- every system asks the same question
-	for _, name in { "ObserverService", "HorrorDirector" } do
-		local src = Server.Services[name].Source
-		check(string.find(src, "GetBlackout() >= 3", 1, true) == nil, name .. " has no darkness rule of its own")
-	end
+	-- what can be seen: one rule (the director may still pace by the blackout)
+	check(string.find(Server.Services.ObserverService.Source, "GetBlackout() >= 3", 1, true) == nil, "ObserverService has no darkness rule of its own")
+	check(string.find(Server.Services.HorrorDirector.Source, "IsDark(victimRoot and victimRoot.Position)", 1, true) ~= nil, "the director asks LightingService where it is dark")
 	local observer = Server.Services.ObserverService.Source
 	check(string.find(observer, "\"screen\", 140, model) and canMakeOut(p, pt)", 1, true) ~= nil, "The Observer is only held by someone who can make it out")
 end
