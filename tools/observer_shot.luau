@@ -137,7 +137,7 @@ if shot == "scare" then
 	-- ScareController's light: one dim cold point light on its head, short reach
 	local headCf = world[rig:FindFirstChild("Head")]
 	local lightPos = (headCf * scareLight).Position
-	local b, r = atSubject(4.5, 4, (lightPos - (headCf * ObserverRig.FaceAnchor).Position).Magnitude)
+	local b, r = atSubject(7, 4.5, (lightPos - (headCf * ObserverRig.FaceAnchor).Position).Magnitude)
 	addLight("PointLight", lightPos, Vector3.new(0, 1, 0), b, r, 180, roblox.Color3.fromRGB(196, 212, 255), true)
 elseif shot == "scareOld" then
 	-- attackPose(t = 1, rage = 1) as it was, placed as it was
@@ -305,7 +305,7 @@ for name, preset in LightingService.Presets do
 	presets[name] = { ambient = c3(preset.Ambient), exposure = preset.ExposureCompensation }
 end
 -- the jumpscare: Lighting's ambient at zero and its exposure (ScareController)
-presets.SCARE = { ambient = { 0, 0, 0 }, exposure = 0.8 }
+presets.SCARE = { ambient = { 0, 0, 0 }, exposure = 1.3 }
 fs.writeFile(out, serde.encode("json", {
 	room = shot,
 	seed = 0,

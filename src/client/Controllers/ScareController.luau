@@ -78,13 +78,13 @@ local FLASH_HOLD = 0.5
 -- (loses the face) in tools/observer_shot.luau renders.
 ScareController.Light = {
 	offset = CFrame.new(-0.9, -0.4, -0.45),
-	range = 4,
-	brightness = 4.5,
+	range = 4.5,
+	brightness = 7,
 	color = Color3.fromRGB(196, 212, 255),
 }
 -- the camera's exposure while its face is up: the lit half of a charcoal
 -- face reads, and the black (nothing lit, the black Neon box) stays black
-local SCARE_EXPOSURE = 0.8
+local SCARE_EXPOSURE = 1.3
 
 -- half the size of the black box around the lens (its face is ~1 stud away)
 local BOX = 3
@@ -322,7 +322,7 @@ local function blackout(eye: Vector3, keep: { Instance }): ({ Held }, () -> ())
 		g.Name = "ScareGrade"
 		g.Contrast = 0
 		g.Saturation = -0.45
-		g.TintColor = Color3.fromRGB(214, 224, 255)
+		g.TintColor = Color3.fromRGB(228, 236, 255)
 		g.Parent = Lighting
 		grade = g
 		State.scareDark = true
