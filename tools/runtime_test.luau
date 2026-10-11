@@ -653,6 +653,129 @@ do
 	folder:Destroy()
 end
 
+------------------------------------------------------------------------------------
+-- Round rules: the real services, with the services around them stubbed
+------------------------------------------------------------------------------------
+
+-- Stubs the Registry for one section and restores it afterwards.
+local function withRegistry(stubs, fn)
+	local Registry = requireModule(Server.Registry)
+	local saved = {}
+	for k, v in Registry do
+		saved[k] = v
+	end
+	for k, v in stubs do
+		Registry[k] = v
+	end
+	local ok, err = pcall(fn, Registry)
+	check(ok, "section ran: " .. tostring(err))
+	for k in Registry do
+		Registry[k] = nil
+	end
+	for k, v in saved do
+		Registry[k] = v
+	end
+end
+
+local function noop() end
+
+-- A player as far as the server services need one: a character with a root.
+local function fakePlayer(userId: number, at: Vector3)
+	local character = Instance.new("Model")
+	character.Name = "Character" .. userId
+	local rootPart = Instance.new("Part")
+	rootPart.Name = "HumanoidRootPart"
+	rootPart.CFrame = CFrame.new(at)
+	rootPart.Position = at
+	rootPart.Parent = character
+	character.Parent = workspace
+	return {
+		UserId = userId,
+		Name = "Tester" .. userId,
+		DisplayName = "Tester" .. userId,
+		Character = character,
+		Parent = game,
+		SetAttribute = noop,
+		GetAttribute = noop,
+	}
+end
+
+section("round rules: what the team needs is never lost with a player")
+do
+	local handlers = {}
+	local inside = true
+	withRegistry({
+		InteractionService = { Register = function(_, kind, fn)
+			handlers[kind] = fn
+		end },
+		AudioService = { Play2D = noop, PlayAt = noop, PlayAtFor = noop },
+		AnomalyService = { OnFlashlight = noop, OnFalseItemTaken = noop },
+		PlayerService = { IsAlive = function()
+			return true
+		end },
+		MapService = { GetMap = function()
+			return {
+				isInsideBuilding = function()
+					return inside
+				end,
+				roomAt = function()
+					return if inside then { id = "G_a" } else nil
+				end,
+			}
+		end },
+	}, function()
+		local Inventory = requireModule(Server.Services.InventoryService)
+		Inventory:Init()
+		local player = fakePlayer(9001, Vector3.new(20, 3, 20))
+		Inventory:Reset(player, nil)
+		local function take(id, at)
+			local model = Inventory:SpawnPickup(id, CFrame.new(at))
+			return handlers.Pickup(player, model:FindFirstChild("Hitbox"))
+		end
+		local function pickupsOf(id)
+			local list = {}
+			for _, m in Inventory:GetPickups() do
+				if m:GetAttribute("ItemId") == id then
+					table.insert(list, m)
+				end
+			end
+			return list
+		end
+		local home = Vector3.new(60, 1, -40)
+		check(take("MAINT_KEY", home) and take("FUSE", Vector3.new(5, 1, 5)) and take("FUSE", Vector3.new(6, 1, 5)) and take("BATTERY", Vector3.new(7, 1, 5)), "the carrier picks up a key, two fuses and a battery")
+		check(#pickupsOf("MAINT_KEY") == 0, "the key is in a pocket, not on the floor")
+		-- the carrier dies inside the building
+		local dropped = Inventory:DropImportant(player, "died")
+		check(dropped == 3, "the key and both fuses fall (" .. dropped .. ")")
+		check(not Inventory:Has(player, "MAINT_KEY") and not Inventory:Has(player, "FUSE"), "nothing important stays with the dead")
+		check(Inventory:Has(player, "BATTERY"), "a battery is personal: it is not dropped")
+		local key = pickupsOf("MAINT_KEY")[1]
+		local keyAt = key and key:GetAttribute("Home")
+		check(key ~= nil, "a Maintenance Key pickup exists")
+		if key then
+			local body = key.PrimaryPart
+			local flat = Vector3.new(body.CFrame.Position.X - 20, 0, body.CFrame.Position.Z - 20)
+			check(flat.Magnitude < 3, string.format("it lies where its carrier fell (%.1f studs away)", flat.Magnitude))
+			check(typeof(keyAt) == "CFrame" and (keyAt.Position - home).Magnitude < 0.01, "it remembers where it was first found")
+		end
+		check(#pickupsOf("FUSE") == 2, "both fuses lie there too")
+		-- somebody takes the key again and dies outside the building: it goes home
+		check(handlers.Pickup(player, key:FindFirstChild("Hitbox")), "the key can be picked up again")
+		inside = false
+		Inventory:DropImportant(player, "died")
+		local back = pickupsOf("MAINT_KEY")[1]
+		check(back ~= nil and (back.PrimaryPart.CFrame.Position - home).Magnitude < 1, "a key that cannot land where its carrier fell goes back to where it was found")
+		inside = true
+		-- a used fuse takes its home with it (no stale homes)
+		check(take("FUSE", Vector3.new(8, 1, 8)) and Inventory:Remove(player, "FUSE", 1), "a fuse is used up")
+		check(Inventory:DropImportant(player, "died") == 0, "a used-up fuse is not dropped again")
+		for _, m in Inventory:GetPickups() do
+			m:Destroy()
+		end
+		player.Character:Destroy()
+	end)
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")

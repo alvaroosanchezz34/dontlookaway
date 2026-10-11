@@ -24,7 +24,9 @@ InventoryService.ItemRemoved = Signal.new() -- (player, itemId)
 type Slot = { id: string, count: number }
 -- battery is kept in percent of the cell; a bigger cell (capacity) drains slower
 -- in percent and a spare battery restores fewer percent of it.
-type Inv = { slots: { Slot? }, selected: number, battery: number, light: boolean, lightSeconds: number, minBattery: number, capacity: number, drainMult: number }
+-- homes: where each important item that was picked up was first placed, so
+-- one that cannot be dropped where its carrier fell goes back there
+type Inv = { slots: { Slot? }, selected: number, battery: number, light: boolean, lightSeconds: number, minBattery: number, capacity: number, drainMult: number, homes: { [string]: { CFrame } } }
 
 local inventories: { [Player]: Inv } = {}
 local FL_REST_CAP = 12 -- percent a dead battery recovers to while switched off
@@ -32,7 +34,7 @@ local FL_REST_RATE = 0.2 -- percent per second
 local pickupsFolder: Folder? = nil
 
 local function newInv(): Inv
-	return { slots = {}, selected = 1, battery = GameConfig.Flashlight.MaxBattery, light = false, lightSeconds = 0, minBattery = GameConfig.Flashlight.MaxBattery, capacity = 100, drainMult = 1 }
+	return { slots = {}, selected = 1, battery = GameConfig.Flashlight.MaxBattery, light = false, lightSeconds = 0, minBattery = GameConfig.Flashlight.MaxBattery, capacity = 100, drainMult = 1, homes = {} }
 end
 
 local function get(player: Player): Inv
@@ -42,6 +44,11 @@ local function get(player: Player): Inv
 		inventories[player] = inv
 	end
 	return inv
+end
+
+local function popHome(inv: Inv, id: string): CFrame?
+	local list = inv.homes[id]
+	return list and table.remove(list)
 end
 
 function InventoryService:Push(player: Player)
@@ -130,6 +137,10 @@ function InventoryService:Remove(player: Player, id: string, count: number?): bo
 				inv.slots[i] = nil
 			end
 		end
+	end
+	-- used up (a fuse in the box, an offering on the table): its home goes too
+	for _ = 1, count or 1 do
+		popHome(inv, id)
 	end
 	InventoryService.ItemRemoved:Fire(player, id)
 	self:Push(player)
@@ -355,6 +366,8 @@ function InventoryService:SpawnPickup(id: string, cf: CFrame, opts: { [string]: 
 	end
 	model.PrimaryPart = body
 	model:SetAttribute("ItemId", id)
+	-- the first place this item was put in the building (a dropped one keeps it)
+	model:SetAttribute("Home", if opts and typeof(opts.home) == "CFrame" then opts.home else cf)
 	model:AddTag("Pickup")
 	model.Parent = opts.parent or pickupsFolder or workspace
 	return model
@@ -396,11 +409,99 @@ local function onPickup(player: Player, target: Instance): boolean
 		Registry.AudioService:Play2D({ player }, "UIError")
 		return false
 	end
+	local home = model:GetAttribute("Home")
+	if Items.get(id).important and typeof(home) == "CFrame" then
+		local homes = get(player).homes
+		homes[id] = homes[id] or {}
+		table.insert(homes[id], home)
+	end
 	model:Destroy()
 	Registry.AudioService:Play2D({ player }, "Pickup")
 	Net.fire(player, "Notify", { kind = "item", text = Items.get(id).name, item = id })
 	InventoryService.ItemPicked:Fire(player, id, model)
 	return true
+end
+
+-- A floor point for a dropped item near `at`, inside the building, or nil.
+local function dropPoint(at: Vector3, exclude: { Instance }): Vector3?
+	local map = Registry.MapService:GetMap()
+	if not map then
+		return nil
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = exclude
+	local hit = workspace:Raycast(at + Vector3.new(0, 2, 0), Vector3.new(0, -10, 0), params)
+	if not hit or not map:isInsideBuilding(hit.Position + Vector3.new(0, 2, 0)) then
+		return nil
+	end
+	local room = map:roomAt(hit.Position + Vector3.new(0, 2, 0))
+	if room and room.secret then
+		return nil
+	end
+	return hit.Position
+end
+
+--[[
+	Important items (keys, fuses, the cassette, the offerings) never leave the
+	round with a player who can no longer use them: when their carrier dies or
+	leaves they fall where the carrier was, in a small ring so they don't
+	overlap. One that cannot land there (the body was outside, in a secret room,
+	or there is no body) goes back to where it was first found.
+]]
+function InventoryService:DropImportant(player: Player, reason: string?): number
+	local inv = inventories[player]
+	if not inv then
+		return 0
+	end
+	local root = Util.getRoot(player)
+	local exclude: { Instance } = {}
+	for _, p in Players:GetPlayers() do
+		if p.Character then
+			table.insert(exclude, p.Character)
+		end
+	end
+	if pickupsFolder then
+		table.insert(exclude, pickupsFolder)
+	end
+	local dropped, names = 0, {}
+	for index = 1, GameConfig.Inventory.Slots do
+		local slot = inv.slots[index]
+		local def = slot and Items.get(slot.id)
+		if slot and def and def.important then
+			for _ = 1, slot.count do
+				local angle = dropped * 2.4
+				local ground = root and dropPoint(root.Position + Vector3.new(math.cos(angle), 0, math.sin(angle)) * (if dropped == 0 then 0 else 1.4), exclude)
+				local home = popHome(inv, slot.id)
+				local cf = if ground then CFrame.new(ground) * CFrame.Angles(0, math.rad(math.random(0, 359)), 0) else home
+				if cf then
+					self:SpawnPickup(slot.id, cf, { home = home })
+					dropped += 1
+				else
+					warn("[InventoryService] nowhere to put " .. slot.id .. " dropped by " .. player.Name)
+				end
+			end
+			if not table.find(names, def.name) then
+				table.insert(names, def.name)
+			end
+			inv.slots[index] = nil
+			InventoryService.ItemRemoved:Fire(player, slot.id)
+		end
+	end
+	if dropped > 0 then
+		local text = if reason == "left"
+			then string.format("%s left. Their %s stayed in the building.", player.DisplayName, table.concat(names, ", "))
+			else string.format("%s's %s lies where they fell.", player.DisplayName, table.concat(names, ", "))
+		for _, p in Players:GetPlayers() do
+			if p ~= player and Registry.PlayerService:IsAlive(p) then
+				Net.fire(p, "Notify", { kind = "team", text = text })
+			end
+		end
+		if player.Parent then
+			self:Push(player)
+		end
+	end
+	return dropped
 end
 
 local function dropSlot(player: Player, index: number)
@@ -427,7 +528,7 @@ local function dropSlot(player: Player, index: number)
 	if slot.count <= 0 then
 		inv.slots[index] = nil
 	end
-	InventoryService:SpawnPickup(id, CFrame.new(ground) * CFrame.Angles(0, math.rad(math.random(0, 359)), 0))
+	InventoryService:SpawnPickup(id, CFrame.new(ground) * CFrame.Angles(0, math.rad(math.random(0, 359)), 0), { home = popHome(inv, id) })
 	Registry.AudioService:PlayAt("Drop", ground)
 	InventoryService.ItemRemoved:Fire(player, id)
 	InventoryService:Push(player)
@@ -536,6 +637,10 @@ end
 
 function InventoryService:Start()
 	Players.PlayerRemoving:Connect(function(player)
+		-- what they carried for the team stays in the building
+		if Registry.RoundService:IsStillInside(player) then
+			InventoryService:DropImportant(player, "left")
+		end
 		inventories[player] = nil
 	end)
 	-- battery drain

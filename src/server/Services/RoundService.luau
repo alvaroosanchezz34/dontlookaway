@@ -78,6 +78,14 @@ function RoundService:IsParticipant(player: Player): boolean
 	return participants[player.UserId] ~= nil
 end
 
+-- A participant of the running round who has not died, escaped or been lost.
+-- Read from the round record, not the player's status: PlayerRemoving
+-- handlers run in no set order and PlayerService forgets the status in its own.
+function RoundService:IsStillInside(player: Player): boolean
+	local rec = participants[player.UserId]
+	return self:IsRunning() and rec ~= nil and rec.outcome == nil
+end
+
 local function setState(newState: string, data: { [string]: any }?)
 	state = newState
 	workspace:SetAttribute("RoundState", newState)
@@ -126,6 +134,7 @@ function RoundService:KillPlayer(player: Player, killerCF: CFrame?, info: { [str
 		rec.outcome = "DEAD"
 		rec.diedAt = self:GetElapsed()
 	end
+	Registry.InventoryService:DropImportant(player, "died")
 	Registry.PlayerService:SetStatus(player, Status.Dead)
 	Registry.InventoryService:SetFlashlight(player, false)
 	Registry.ProgressionService:PlayerDied(player)
@@ -626,7 +635,7 @@ function RoundService:Start()
 		if rec then
 			-- keep the record so a rejoining player can continue
 			rec.player = nil
-			rec.leftAlive = Registry.PlayerService:GetStatus(player) == Status.Alive
+			rec.leftAlive = rec.outcome == nil
 		end
 	end)
 end
