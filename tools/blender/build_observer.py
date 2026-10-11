@@ -24,9 +24,8 @@ Layers (each has a job):
                     wrinkles in the geometry; mottled near-black skin with
                     darker cavities and slightly lighter ridges in the maps;
                     roughness 0.75-0.95, a little lower in the deepest folds
-  focal detail      the head: a wide, drooping, asymmetric crescent (the
-                    left side longer, the right side lower), a heavy brow
-                    ridge, a cleft down the middle of a long faceless face,
+  focal detail      the head: long and narrow, no wings, a heavy bulge over
+                    each socket, a cleft down the middle of a long faceless face,
                     two deep sockets (left higher) for the two small eyes,
                     which are rig parts that turn to the player
 
@@ -196,33 +195,24 @@ def roughen(obj, seed, lumps=0.022, wrinkles=0.006):
 def head():
     s = Sculpt()
     hx, hy, hz = PART_CENTRE["Head"]
-    # face: long, faceless, leaning forward a little; skull mass behind
-    s.ell((0, 9.0, -0.03), (0.4, 0.46, 0.28), rot=(-6, 0, 0))
-    s.ell((0, 9.1, 0.14), (0.48, 0.4, 0.3))
-    # heavy brow ridge, higher on the right
-    s.ell((-0.17, 9.27, -0.22), (0.24, 0.08, 0.12), rot=(0, 0, 8))
-    s.ell((0.19, 9.22, -0.22), (0.25, 0.09, 0.12), rot=(0, 0, -12))
-    # the crescent: drooping wings, swept back. Left longer, right lower.
-    left = [(-0.3, 9.12, 0.02), (-0.8, 9.12, 0.06), (-1.35, 9.06, 0.12), (-1.85, 8.94, 0.2), (-2.3, 8.78, 0.28)]
-    right = [(0.3, 9.1, 0.02), (0.78, 9.06, 0.06), (1.28, 8.95, 0.13), (1.72, 8.8, 0.2), (2.05, 8.62, 0.27)]
-    s.chain(left, [0.27, 0.22, 0.15, 0.09, 0.035], flat=0.62)
-    s.chain(right, [0.27, 0.22, 0.15, 0.09, 0.035], flat=0.62)
-    # a fold along the top of each wing (a second, thinner layer)
-    s.chain([(-0.35, 9.3, 0.08), (-0.95, 9.27, 0.12), (-1.6, 9.17, 0.18)], [0.08, 0.06, 0.03], flat=0.8)
-    s.chain([(0.35, 9.28, 0.08), (0.9, 9.22, 0.12), (1.45, 9.1, 0.18)], [0.08, 0.06, 0.03], flat=0.8)
-    # membranes under the wings, joining them to the face (no hard joint)
-    for sx in (-1, 1):
-        s.ell((sx * 0.55, 8.84, 0.04), (0.38, 0.16, 0.06), rot=(0, 0, sx * 14))
-    # the point under the face, down into the neck
-    s.chain([(0, 8.72, -0.06), (0.02, 8.45, -0.04), (0.0, 8.22, 0.0)], [0.2, 0.12, 0.08], flat=0.9)
+    # long and narrow: a tall faceless face leaning forward a little, one
+    # long skull mass behind it rising into a high crown. No wings.
+    s.ell((0, 9.02, -0.04), (0.33, 0.66, 0.27), rot=(-6, 0, 3))
+    s.ell((0, 9.3, 0.1), (0.36, 0.62, 0.31), rot=(6, 0, -2))
+    # a heavy bulge over each socket (the right one higher), not one straight
+    # ridge: from below a straight ridge reads as the peak of a cap
+    s.ell((-0.17, 9.25, -0.2), (0.13, 0.08, 0.1), rot=(0, 0, 14))
+    s.ell((0.19, 9.21, -0.2), (0.14, 0.085, 0.1), rot=(0, 0, -18))
+    # the point under the long face, down into the neck
+    s.chain([(0, 8.48, -0.08), (0.01, 8.33, -0.04)], [0.15, 0.09], flat=0.9)
     # a few irregular lumps on the skull
-    s.ball((0.28, 9.32, 0.22), 0.1)
-    s.ball((-0.33, 9.28, 0.3), 0.08)
+    s.ball((0.22, 9.52, 0.22), 0.09)
+    s.ball((-0.25, 9.38, 0.28), 0.08)
     # carve: the two eye sockets (deep, the left higher) and the cleft
     for ex, ey, ez in (EYE_L, EYE_R):
         # a deep socket that opens to the front, a little hooded from above
         s.ell((hx + ex, hy + ey - 0.01, hz + ez - 0.1), (0.13, 0.11, 0.14), neg=True)
-    s.ell((0.0, 8.85, -0.3), (0.025, 0.2, 0.06), neg=True)
+    s.ell((0.0, 8.8, -0.3), (0.025, 0.28, 0.07), neg=True)
     return s
 
 

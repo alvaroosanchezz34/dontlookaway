@@ -639,6 +639,14 @@ do
 	check(#visibleHard == 0, "no hard-edged part left visible over the smooth body: " .. table.concat(visibleHard, ", "))
 	check(ObserverRig.dress(rig) == false, "dressing twice does nothing")
 	rig:Destroy()
+	-- a segment whose mesh was not loaded (an upload of an older build is
+	-- turned away by loadMeshes) keeps its part-built pieces, the rest is dressed
+	folder:FindFirstChild("Head"):Destroy()
+	local partial = ObserverRig.build(CFrame.new(0, 0, 0), { localCopy = true })
+	check(partial:FindFirstChild("HeadMesh") == nil and partial:FindFirstChild("UpperTorsoMesh") ~= nil, "without its mesh the head stays part-built")
+	check(partial:FindFirstChild("Head").Transparency == 0 and partial:FindFirstChild("Chin").Transparency == 0, "the part-built head and its chin stay visible")
+	check(partial:FindFirstChild("Flank").Transparency == 1, "the torso's part details hide under its mesh")
+	partial:Destroy()
 	folder:Destroy()
 end
 
@@ -668,8 +676,8 @@ do
 	check(#forbidden == 0, "no ribs, teeth, maw, fingers or seam: " .. table.concat(forbidden, ", "))
 	-- proportions, measured on the standing rig
 	local world = ObserverRig.solve(rig, rig.PrimaryPart.CFrame, {})
-	local headParts = { Head = true, Wing = true, WingL = true, WingR = true, Chin = true }
-	local headMin, headMax, armX, handLow, top = math.huge, -math.huge, 0, math.huge, -math.huge
+	local headParts = { Head = true, Chin = true }
+	local headMin, headMax, headLow, headTop, armX, handLow, top = math.huge, -math.huge, math.huge, -math.huge, 0, math.huge, -math.huge
 	for part, cf in world do
 		if part.Transparency < 1 then
 			local half = part.Size / 2
@@ -685,6 +693,7 @@ do
 				top = math.max(top, c.Y)
 				if headParts[part.Name] then
 					headMin, headMax = math.min(headMin, c.X), math.max(headMax, c.X)
+					headLow, headTop = math.min(headLow, c.Y), math.max(headTop, c.Y)
 				end
 				if string.find(part.Name, "Arm") then
 					armX = math.max(armX, math.abs(c.X))
@@ -695,9 +704,10 @@ do
 			end
 		end
 	end
-	local headWidth, shoulderWidth = headMax - headMin, armX * 2
-	print(string.format("  observer: head %.2f studs wide, shoulders %.2f, height %.2f, hands down to %.2f", headWidth, shoulderWidth, top, handLow))
-	check(headWidth > shoulderWidth * 1.8, string.format("the head is a wide horizontal blade (%.1f studs vs shoulders %.1f)", headWidth, shoulderWidth))
+	local headWidth, headHeight, shoulderWidth = headMax - headMin, headTop - headLow, armX * 2
+	print(string.format("  observer: head %.2f studs wide and %.2f tall, shoulders %.2f, height %.2f, hands down to %.2f", headWidth, headHeight, shoulderWidth, top, handLow))
+	check(headWidth < shoulderWidth * 0.5, string.format("the head is narrow, no wings (%.2f studs vs shoulders %.1f)", headWidth, shoulderWidth))
+	check(headHeight > headWidth * 1.5, string.format("the head is long (%.2f tall, %.2f wide)", headHeight, headWidth))
 	check(top > 9 and top < 10, string.format("very tall (%.1f studs)", top))
 	check(handLow < 2.3 and handLow > 0.6, string.format("the arms hang to the middle of the shins (hands down to %.1f)", handLow))
 	-- matte black body, two small pale eyes

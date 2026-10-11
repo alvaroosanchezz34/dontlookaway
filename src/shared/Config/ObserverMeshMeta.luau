@@ -5,7 +5,7 @@
 ]]
 
 return {
-	Head = { size = Vector3.new(4.4167, 1.3837, 0.7985), offset = Vector3.new(-0.1240, -0.1488, 0.0472), triangles = 6000 },
+	Head = { size = Vector3.new(0.7957, 1.6837, 0.7549), offset = Vector3.new(0.0023, 0.0755, 0.0420), triangles = 6000 },
 	Neck = { size = Vector3.new(1.2323, 1.5179, 0.4623), offset = Vector3.new(-0.0032, -0.0418, 0.0422), triangles = 2400 },
 	UpperTorso = { size = Vector3.new(2.4125, 3.3345, 0.9582), offset = Vector3.new(0.0030, -0.1383, 0.0740), triangles = 6000 },
 	LowerTorso = { size = Vector3.new(0.9254, 1.1534, 0.4850), offset = Vector3.new(-0.0030, 0.0948, 0.0016), triangles = 2400 },

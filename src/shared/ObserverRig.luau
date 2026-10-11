@@ -1,11 +1,9 @@
 --[[
 	ObserverRig
-	Builds THE OBSERVER, after the reference silhouette: a black figure,
-	extremely tall and thin, with
-	  * a head that is a wide horizontal blade (about 4.6 studs, two and a half
-	    times its shoulders): the top edge almost straight, the lower edge
-	    rising to a point at each end, and a narrow point in the middle that
-	    runs down into the neck
+	Builds THE OBSERVER: a dark figure, extremely tall and thin, with
+	  * a long, narrow head (about 0.8 studs wide and 1.85 tall, no wings): a
+	    tall faceless face with a cleft down the middle, a heavy brow, a high
+	    crown, and a narrow point that runs down into the neck
 	  * two small pale eyes with dark pupils, close to the middle, that turn to
 	    whoever it is watching
 	  * a long thin neck, sloping angular shoulders, a narrow torso with no
@@ -15,7 +13,7 @@
 	  * a uniform matte black that swallows light: no clothes, no ribs, no
 	    teeth, no shine. It is frightening by its shape and its stillness.
 	The eyes are the only light thing on it; they are a dim self-lit grey (not
-	a glow) so they read in the dark, as in the reference.
+	a glow) so they read in the dark.
 
 	Parts and Motor6D joints keep the names every system uses (RootJoint,
 	Waist, NeckJoint, HeadJoint, shoulders, elbows, wrists, hips, knees,
@@ -56,9 +54,9 @@ local SEGMENT_MESH = {
 	RightFoot = "Foot",
 }
 
--- Part-built details that the meshes already sculpt (ribs, spine, fingers...).
--- Part-built pieces the smooth meshes replace (fused into Head / UpperTorso).
-local MESH_DETAILS = { WingL = true, WingR = true, Chin = true, Flank = true, ShoulderPlate = true }
+-- Part-built pieces a smooth mesh replaces -> the rig part whose mesh does
+-- (hidden only when that part is dressed)
+local MESH_DETAILS = { Chin = "Head", Flank = "UpperTorso", ShoulderPlate = "UpperTorso" }
 
 local TEMPLATE_FOLDER = "ObserverMeshes"
 
@@ -179,8 +177,8 @@ function ObserverRig.build(base: CFrame?, opts: { [string]: any }?): Model
 	root.CastShadow = false
 	root.Anchored = opts.localCopy == true
 
-	-- feet at y = 0, front is -Z; hips at 4.6, shoulders at 7.35, the head's
-	-- blade at 9.05
+	-- feet at y = 0, front is -Z; hips at 4.6, shoulders at 7.35, the head
+	-- from 8.15 to 10
 	local hipY = 4.6
 	local lowerTorso = part(model, "LowerTorso", Vector3.new(0.85, 0.8, 0.45), at(0, hipY + 0.3, 0))
 	-- the torso: narrow at the waist, widening into sloped, angular shoulders
@@ -194,27 +192,15 @@ function ObserverRig.build(base: CFrame?, opts: { [string]: any }?): Model
 		weld(upperTorso, shoulder)
 	end
 	local neck = part(model, "Neck", Vector3.new(0.3, 1.0, 0.3), at(0, 8.05, 0))
-	local head = part(model, "Head", Vector3.new(0.7, 0.62, 0.5), at(0, 9.0, 0))
+	-- the head: long and narrow (the part stays centred at 9.0: the eyes, the
+	-- face anchor and the sculpted mesh are placed from it)
+	local head = part(model, "Head", Vector3.new(0.66, 1.4, 0.54), at(0, 9.0, 0))
 
-	-- the blade of the head: two tapering wings, each an upper wedge (low, so
-	-- the top edge stays almost straight) and a lower wedge (deep, so the
-	-- lower edge rises to the tip)
-	local bladeY = 9.08
-	local wingLen = 2.0
-	for _, s in { -1, 1 } do
-		local side = if s < 0 then "L" else "R"
-		local along = Vector3.new(s, 0, 0)
-		local midX = s * (0.3 + wingLen / 2)
-		local upper = wedge(model, "Wing" .. side, 0.2, wingLen, 0.42, head.CFrame * CFrame.new(midX, bladeY - 9.0 + 0.1, 0), along, Vector3.new(0, 1, 0))
-		weld(head, upper)
-		local lower = wedge(model, "Wing" .. side, 0.5, wingLen, 0.42, head.CFrame * CFrame.new(midX, bladeY - 9.0 - 0.25, 0), along, Vector3.new(0, -1, 0))
-		weld(head, lower)
-	end
-	-- the narrow point under the middle of the head, running into the neck
-	local chin = part(model, "Chin", Vector3.new(0.5, 0.5, 0.42), head.CFrame * CFrame.new(0, -0.42, 0) * CFrame.Angles(0, 0, math.rad(45)))
+	-- the narrow point under the long face, running into the neck
+	local chin = part(model, "Chin", Vector3.new(0.34, 0.34, 0.4), head.CFrame * CFrame.new(0, -0.74, -0.02) * CFrame.Angles(0, 0, math.rad(45)))
 	weld(head, chin)
 
-	-- two small pale eyes with dark pupils, a little above the blade's line,
+	-- two small pale eyes with dark pupils, in the upper half of the face,
 	-- close to the middle; they turn (EyeTurnL / EyeTurnR)
 	for _, s in { -1, 1 } do
 		local side = if s < 0 then "L" else "R"
@@ -323,7 +309,7 @@ function ObserverRig.dress(model: Model): boolean
 	if not folder or #folder:GetChildren() == 0 or model:GetAttribute("Sculpted") then
 		return false
 	end
-	local dressed = false
+	local dressed: { [string]: boolean } = {}
 	for _, p in model:GetChildren() do
 		local meshName = SEGMENT_MESH[p.Name]
 		local template = meshName and folder:FindFirstChild(meshName)
@@ -346,18 +332,19 @@ function ObserverRig.dress(model: Model): boolean
 			mesh:SetAttribute("RestOffset", p.CFrame:ToObjectSpace(mesh.CFrame))
 			mesh.Parent = model
 			p.Transparency = 1
-			dressed = true
+			dressed[p.Name] = true
 		end
 	end
-	if dressed then
-		for _, p in model:GetChildren() do
-			if p:IsA("BasePart") and MESH_DETAILS[p.Name] then
-				p.Transparency = 1
-			end
-		end
-		model:SetAttribute("Sculpted", true)
+	if next(dressed) == nil then
+		return false
 	end
-	return dressed
+	for _, p in model:GetChildren() do
+		if p:IsA("BasePart") and MESH_DETAILS[p.Name] and dressed[MESH_DETAILS[p.Name]] then
+			p.Transparency = 1
+		end
+	end
+	model:SetAttribute("Sculpted", true)
+	return true
 end
 
 --[[
@@ -394,6 +381,18 @@ local function applySkin(mesh: BasePart, meshName: string)
 	end
 end
 
+-- Is a loaded mesh the one this build describes (ObserverMeshMeta)? Studio
+-- keeps an .obj's studs, so its native size is the mesh's bounding box.
+local function matchesMeta(mesh: MeshPart, meshName: string): boolean
+	local okSize, native = pcall(function()
+		return mesh.MeshSize
+	end)
+	if not okSize or typeof(native) ~= "Vector3" or native.Magnitude == 0 then
+		return true -- cannot tell: trust the id
+	end
+	return (native - MeshMeta[meshName].size).Magnitude < 0.1
+end
+
 function ObserverRig.loadMeshes(): number
 	if not RunService:IsServer() then
 		return 0
@@ -427,7 +426,13 @@ function ObserverRig.loadMeshes(): number
 				return copy
 			end)
 		end
-		if meshUrl or AssetIds.url(modelId) then
+		if ok and mesh and not matchesMeta(mesh :: MeshPart, meshName) then
+			-- an upload of an older build (the head before it lost its wings):
+			-- squeezed into this build's size it would look broken, so that
+			-- segment keeps its part-built body until the new .obj is uploaded
+			warn(string.format("[ObserverRig] mesh %s does not match this build: re-upload assets/observer/%s.obj (using the part-built %s meanwhile)", meshName, meshName, meshName))
+			mesh:Destroy()
+		elseif meshUrl or AssetIds.url(modelId) then
 			if ok and mesh then
 				mesh.Name = meshName
 				mesh.Size = MeshMeta[meshName].size
