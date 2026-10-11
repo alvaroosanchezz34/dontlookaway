@@ -89,7 +89,9 @@ Enums.Ending = {
 	EscapedAlone = "ESCAPED_ALONE",
 	EveryoneSurvived = "EVERYONE_SURVIVED",
 	ObserverCaughtYou = "OBSERVER_CAUGHT_YOU",
-	FailedToIdentify = "FAILED_TO_IDENTIFY",
+	FailedToIdentify = "FAILED_TO_IDENTIFY", -- too many anomalies went unseen
+	LockedIn = "LOCKED_IN", -- the exit shutter came down with you inside
+	OutOfTime = "OUT_OF_TIME", -- the night ran out before the exit opened
 	Witness = "THE_WITNESS", -- secret ending
 }
 

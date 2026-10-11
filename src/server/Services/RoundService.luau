@@ -27,6 +27,7 @@ local Status = Enums.PlayerStatus
 local state = RS.Lobby
 local seed = 0
 local difficulty = Enums.Difficulty.Normal
+-- outcome: nil while inside, ESCAPED, DEAD (caught), LOCKED_IN (the shutter) or LOST
 local participants: { [number]: { player: Player?, name: string, outcome: string?, escapedAt: number?, diedAt: number?, witness: boolean?, lowBattery: boolean?, stats: any } } = {}
 local exploringStartedAt = 0
 local escapeStartedAt = 0
@@ -171,6 +172,34 @@ function RoundService:KillPlayer(player: Player, killerCF: CFrame?, info: { [str
 	end)
 end
 
+-- The exit shutter came down with this player still inside. Not a catch: no
+-- creature, no death cinematic, no CAUGHT achievement.
+function RoundService:ShutIn(player: Player)
+	if not Registry.PlayerService:IsAlive(player) then
+		return
+	end
+	local rec = participants[player.UserId]
+	if rec then
+		rec.outcome = "LOCKED_IN"
+		rec.diedAt = self:GetElapsed()
+	end
+	Registry.PlayerService:SetStatus(player, Status.Dead)
+	Registry.InventoryService:SetFlashlight(player, false)
+	Registry.AnalyticsService:Milestone(player, "LOCKED_IN", math.floor(self:GetElapsed()))
+	Net.fire(player, "Death", { cause = "lockedIn" })
+	for _, p in Players:GetPlayers() do
+		if p ~= player and Registry.PlayerService:IsAlive(p) then
+			Net.fire(p, "Notify", { kind = "danger", text = player.DisplayName .. " didn't make it out." })
+		end
+	end
+	local token = roundToken
+	task.delay(3.6, function()
+		if token == roundToken and player.Parent then
+			Registry.PlayerService:RemoveCharacter(player)
+		end
+	end)
+end
+
 function RoundService:PlayerEscaped(player: Player)
 	if not Registry.PlayerService:IsAlive(player) or state ~= RS.Escape then
 		return
@@ -227,7 +256,7 @@ function RoundService:FailRound(reason: string)
 	end
 	endingReason = reason
 	for _, p in aliveParticipants() do
-		Net.fire(p, "Effect", { name = "RealityCollapse" })
+		Net.fire(p, "Effect", { name = "RealityCollapse", reason = reason })
 		Registry.PlayerService:SetStatus(p, Status.Dead)
 		local rec = participants[p.UserId]
 		if rec then
@@ -248,16 +277,18 @@ end
 -- Endings
 ------------------------------------------------------------------------------------
 
-local function computeEndings()
+-- Personal and team endings from the round records and what ended the round
+-- (a reason passed to FailRound, or nil). Pure, so it can be tested.
+function RoundService.EndingsFor(records, reason: string?)
 	local count, escaped = 0, 0
-	for _, rec in participants do
+	for _, rec in records do
 		count += 1
 		if rec.outcome == "ESCAPED" then
 			escaped += 1
 		end
 	end
 	local personal = {}
-	for userId, rec in participants do
+	for userId, rec in records do
 		local ending
 		if rec.outcome == "ESCAPED" then
 			if rec.witness then
@@ -271,14 +302,25 @@ local function computeEndings()
 			end
 		elseif rec.outcome == "DEAD" then
 			ending = Enums.Ending.ObserverCaughtYou
+		elseif rec.outcome == "LOCKED_IN" then
+			ending = Enums.Ending.LockedIn
 		else
-			ending = Enums.Ending.FailedToIdentify
+			-- lost with the building: whatever ended the round
+			ending = reason or Enums.Ending.FailedToIdentify
 		end
 		personal[userId] = ending
 	end
+	local lockedIn = false
+	for _, rec in records do
+		if rec.outcome == "LOCKED_IN" then
+			lockedIn = true
+		end
+	end
 	local team
 	if escaped == 0 then
-		team = if endingReason == Enums.Ending.FailedToIdentify then Enums.Ending.FailedToIdentify else Enums.Ending.ObserverCaughtYou
+		-- what ended the night for everyone: the collapse or the clock, else the
+		-- shutter (it only comes down on whoever is still inside), else it
+		team = reason or (if lockedIn then Enums.Ending.LockedIn else Enums.Ending.ObserverCaughtYou)
 	elseif count > 1 and escaped == count then
 		team = Enums.Ending.EveryoneSurvived
 	elseif escaped == 1 then
@@ -287,6 +329,10 @@ local function computeEndings()
 		team = Enums.Ending.Escaped
 	end
 	return personal, team, count, escaped
+end
+
+local function computeEndings()
+	return RoundService.EndingsFor(participants, endingReason)
 end
 
 ------------------------------------------------------------------------------------
@@ -574,15 +620,15 @@ function RoundService:_startRound(players: { Player }, chosenDifficulty: string)
 					Net.fireList(aliveParticipants(), "Effect", { name = "EscapeClosing", exit = zone.Position })
 				end
 				if os.clock() - escapeStartedAt > GameConfig.Round.EscapeWindow then
-					-- the shutter comes down
+					-- the shutter comes down on whoever is still inside
 					Registry.DoorService:SetOpen(map.ExitShutter, false, { slam = true })
 					for _, p in aliveParticipants() do
-						self:KillPlayer(p, nil)
+						self:ShutIn(p)
 					end
 				end
 			end
 			if self:GetElapsed() > GameConfig.Round.MaxRoundTime and state ~= RS.Escape then
-				self:FailRound(Enums.Ending.FailedToIdentify)
+				self:FailRound(Enums.Ending.OutOfTime)
 			end
 			if everyoneDone() then
 				task.wait(4.5)

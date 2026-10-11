@@ -384,11 +384,16 @@ handlers.ObserverClose = function()
 	Registry.AudioController:Play("HeartbeatFast", nil, { volume = 0.8 })
 end
 
-handlers.RealityCollapse = function()
+handlers.RealityCollapse = function(p)
 	EffectsController:Glitch(1, 1)
 	Kit.tween(cc, 3, { Saturation = -1, Contrast = 0.6, Brightness = -0.2 })
 	EffectsController:Blur(18, 3)
-	EffectsController:Title("THE BUILDING FORGOT YOU", "Too many changes went unseen.", 4)
+	-- the same words as the results screen: what actually ended the night
+	if p.reason == "OUT_OF_TIME" then
+		EffectsController:Title("THE NIGHT RAN OUT", "The exit never opened.", 4)
+	else
+		EffectsController:Title("THE BUILDING FORGOT YOU", "Too many changes went unseen.", 4)
+	end
 	task.delay(2.5, function()
 		EffectsController:Fade(1, 1.5)
 	end)

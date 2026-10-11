@@ -803,6 +803,35 @@ do
 	check(string.find(directorSource, "story ~= Story.Escape and Registry.AnomalyService:GetActiveCount()", 1, true) ~= nil, "the director spawns no anomalies during the escape")
 end
 
+section("round rules: each ending says what really happened")
+do
+	local Enums = requireModule(RS.Shared.Enums)
+	local Round = requireModule(Server.Services.RoundService)
+	local E = Enums.Ending
+	local personal, team = Round.EndingsFor({ [1] = { outcome = "LOCKED_IN" }, [2] = { outcome = "LOCKED_IN" } }, nil)
+	check(team == E.LockedIn and personal[1] == E.LockedIn, "the shutter closing on everyone is LOCKED IN, not a catch (" .. tostring(team) .. ")")
+	personal, team = Round.EndingsFor({ [1] = { outcome = "DEAD" }, [2] = { outcome = "LOCKED_IN" } }, nil)
+	check(personal[1] == E.ObserverCaughtYou and personal[2] == E.LockedIn, "a catch and a shut-in each keep their own ending")
+	check(team == E.LockedIn, "the night ended with the shutter")
+	personal, team = Round.EndingsFor({ [1] = { outcome = "DEAD" } }, nil)
+	check(team == E.ObserverCaughtYou and personal[1] == E.ObserverCaughtYou, "caught by it is still THE OBSERVER CAUGHT YOU")
+	personal, team = Round.EndingsFor({ [1] = { outcome = "LOST" }, [2] = { outcome = "DEAD" } }, E.OutOfTime)
+	check(team == E.OutOfTime and personal[1] == E.OutOfTime and personal[2] == E.ObserverCaughtYou, "running out of time is THE NIGHT RAN OUT, not a failed identification")
+	personal, team = Round.EndingsFor({ [1] = { outcome = "LOST" } }, E.FailedToIdentify)
+	check(team == E.FailedToIdentify and personal[1] == E.FailedToIdentify, "too many unseen changes is FAILED TO IDENTIFY")
+	personal, team = Round.EndingsFor({ [1] = { outcome = "ESCAPED" }, [2] = { outcome = "LOCKED_IN" } }, nil)
+	check(team == E.EscapedAlone and personal[1] == E.EscapedAlone and personal[2] == E.LockedIn, "one out, one shut in")
+	-- the results screen and the collapse title know every ending
+	local results = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.ResultsController.Source
+	for _, id in E do
+		check(string.find(results, "\t" .. id .. " = {", 1, true) ~= nil, "the results screen has words for " .. id)
+	end
+	local effects = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.EffectsController.Source
+	check(string.find(effects, "OUT_OF_TIME", 1, true) ~= nil, "the collapse title tells running out of time apart")
+	local death = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.DeathController.Source
+	check(string.find(death, "lockedIn", 1, true) ~= nil, "being shut in has its own death sequence")
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")

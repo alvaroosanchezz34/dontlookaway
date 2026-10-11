@@ -288,6 +288,8 @@ function ProgressionService:RoundEnded(player: Player, info)
 		end
 	elseif info.outcome == "DEAD" then
 		add("Taken", 0, R.XPDeath)
+	elseif info.outcome == "LOCKED_IN" then
+		add("Shut in", 0, R.XPDeath)
 	end
 	local subtotalEchoes, subtotalXP = 0, 0
 	for _, row in breakdown do

@@ -35,6 +35,19 @@ local function deathSequence(payload)
 		end)
 		return
 	end
+	-- the exit shutter came down with you inside: nothing took you, nothing
+	-- pulls the view toward an attacker; the dark simply closes in
+	if payload.cause == "lockedIn" then
+		Registry.MusicController:Force("DEATH", 6)
+		cam:Shake(0.4)
+		fx:Blur(6, 2.5)
+		fx:Fade(1, 2.4)
+		task.delay(2.6, function()
+			fx:Title("LOCKED IN", "The shutter came down before you reached it.", 3, Kit.F.Title)
+		end)
+		afterDeath(6.2)
+		return
+	end
 	local start = os.clock()
 	local from = cam:GetCFrame()
 	local killer: CFrame? = payload.killer

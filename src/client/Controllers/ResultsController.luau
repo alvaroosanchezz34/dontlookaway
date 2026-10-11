@@ -25,10 +25,14 @@ local ENDINGS = {
 	EVERYONE_SURVIVED = { "EVERYONE SURVIVED", "You kept your eyes on each other. It was enough. Tonight." },
 	OBSERVER_CAUGHT_YOU = { "THE OBSERVER CAUGHT YOU", "You looked away." },
 	FAILED_TO_IDENTIFY = { "FAILED TO IDENTIFY THE ANOMALIES", "Reality drifted too far. The building kept you." },
+	LOCKED_IN = { "LOCKED IN", "The shutter came down before you reached it." },
+	OUT_OF_TIME = { "THE NIGHT RAN OUT", "The exit never opened. The building kept you." },
 	THE_WITNESS = { "THE WITNESS", "The photograph develops on the drive home: eleven people on the front steps, and Vale among them. Behind every window, something tall is watching. Count the people again. There are twelve." },
 }
 
-local OUTCOME = { ESCAPED = "ESCAPED", DEAD = "TAKEN", LOST = "LOST" }
+local OUTCOME = { ESCAPED = "ESCAPED", DEAD = "TAKEN", LOCKED_IN = "SHUT IN", LOST = "LOST" }
+-- endings nobody walked away from
+local LOSSES = { OBSERVER_CAUGHT_YOU = true, FAILED_TO_IDENTIFY = true, LOCKED_IN = true, OUT_OF_TIME = true }
 
 local function show(payload)
 	root:ClearAllChildren()
@@ -40,7 +44,7 @@ local function show(payload)
 	local bg = Kit.frame({ Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(), BackgroundTransparency = 1, Parent = root })
 	Kit.tween(bg, 1.5, { BackgroundTransparency = 0.25 })
 	local holder = Kit.frame({ Size = UDim2.fromOffset(1300, 860), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1, Parent = root })
-	local title = Kit.text({ Text = ending[1], Size = UDim2.new(1, 0, 0, 80), FontFace = Kit.F.Title, TextSize = 64, TextColor3 = if payload.ending == "OBSERVER_CAUGHT_YOU" or payload.ending == "FAILED_TO_IDENTIFY" then Color3.fromRGB(196, 170, 166) else C.Text, TextTransparency = 1, Parent = holder })
+	local title = Kit.text({ Text = ending[1], Size = UDim2.new(1, 0, 0, 80), FontFace = Kit.F.Title, TextSize = 64, TextColor3 = if LOSSES[payload.ending] then Color3.fromRGB(196, 170, 166) else C.Text, TextTransparency = 1, Parent = holder })
 	local sub = Kit.text({ Text = ending[2], Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(4, 84), FontFace = Kit.F.Light, TextSize = 22, TextColor3 = C.TextDim, TextTransparency = 1, Parent = holder })
 	Kit.tween(title, 1.2, { TextTransparency = 0 })
 	Kit.tween(sub, 2, { TextTransparency = 0 })
