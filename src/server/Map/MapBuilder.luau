@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Layout = require(script.Parent.Layout)
 local Build = require(script.Parent.Build)
 local Props = require(script.Parent.Props)
+local AssetIds = require(ReplicatedStorage.Shared.Config.AssetIds)
 local VisualStandards = require(ReplicatedStorage.Shared.VisualStandards)
 local MaterialLibrary = require(ReplicatedStorage.Shared.MaterialLibrary)
 local PropMeshes = require(ReplicatedStorage.Shared.PropMeshes)
@@ -771,6 +772,29 @@ local ensureWorkingLamps: (map: any) -> ()
 -- a dead lamp looks dead: grey, dirty glass, not just "off"
 local DEAD_LAMP = Color3.fromRGB(46, 42, 36)
 
+-- Grime on a dead lamp's glass (the uploaded grime decal), so the dark under
+-- it has a reason you can see. Nothing when the decal is not uploaded.
+local function dirtyLamp(part: BasePart, on: boolean)
+	for _, d in part:GetChildren() do
+		if d:IsA("Decal") and d.Name == "Grime" then
+			d:Destroy()
+		end
+	end
+	local url = AssetIds.url(AssetIds.Decals.grime_smudge)
+	if not on or not url then
+		return
+	end
+	for _, face in { Enum.NormalId.Bottom, Enum.NormalId.Front, Enum.NormalId.Back } do
+		local decal = Instance.new("Decal")
+		decal.Name = "Grime"
+		decal.Texture = url
+		decal.Face = face
+		decal.Color3 = Color3.fromRGB(70, 60, 46)
+		decal.Transparency = 0.15
+		decal.Parent = part
+	end
+end
+
 -- How far light from `position` travels inside its room before a wall or a
 -- doorway: the shortest of 8 directions, in half-stud steps. A light that
 -- casts no shadow goes through walls, so LightController never lets one
@@ -923,6 +947,7 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 	if mode == "dead" then
 		lampPart.Color = DEAD_LAMP
 		lampPart.Material = M.Glass
+		dirtyLamp(lampPart, true)
 	end
 	return fixture
 end
@@ -986,7 +1011,9 @@ local function setMode(fixture: Model, mode: string)
 			if mode == "dead" then
 				d.Color = DEAD_LAMP
 				d.Material = M.Glass
+				dirtyLamp(d, true)
 			else
+				dirtyLamp(d, false)
 				d.Color = fixture:GetAttribute("BaseColor") or d.Color
 				d.Material = M.Neon
 			end
