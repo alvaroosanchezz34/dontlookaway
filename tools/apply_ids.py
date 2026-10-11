@@ -86,22 +86,6 @@ def apply_json(src, mapping):
     for path, value in mapping.items():
         p = path.replace("\\", "/")
         value = int(value)
-        m = re.search(r"assets/fbx/(\w+)\.fbx$", p)
-        if m:
-            name = m.group(1)
-            if name in OBSERVER:
-                a, b = block_span(src, "AssetIds.Observer")
-                block = src[a:b]
-                for sub_name, val in (("models", value), ("meshes", 0)):
-                    ms = block.index("\t%s = {" % sub_name)
-                    me = block.index("\n\t}", ms)
-                    block = block[:ms] + re.sub(r"(\t\t%s = )\d+" % name, r"\g<1>%d" % val, block[ms:me], count=1) + block[me:]
-                src = src[:a] + block + src[b:]
-            else:
-                src = set_field(src, "AssetIds.PropMeshes", name, "model", value)
-                src = set_field(src, "AssetIds.PropMeshes", name, "mesh", 0)
-            done.append(p)
-            continue
         m = re.search(r"assets/observer/(\w+)/\1_(color|normal|roughness)\.png$", p)
         if m:
             src = set_field(src, "AssetIds.ObserverSkins", m.group(1), m.group(2), value)
