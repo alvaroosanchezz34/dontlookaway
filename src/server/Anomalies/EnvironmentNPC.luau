@@ -567,7 +567,7 @@ return {
 				lifetime = 14,
 				update = function(inst, dt)
 					local target = inst.players[1]
-					if Registry.PlayerService:IsLookingAt(target, c.pos + Vector3.new(0, 4, 0), 30, 60) then
+					if Registry.PlayerService:IsLookingAt(target, c.pos + Vector3.new(0, 4, 0), "focus", 60) then
 						seenFor += dt
 						if seenFor > 2.2 then
 							return "expire"
@@ -622,7 +622,7 @@ return {
 					if not head then
 						return nil
 					end
-					if Registry.PlayerService:CanAnyoneSee({ head.Position }, 62, 200, nil, inst.players) then
+					if Registry.PlayerService:CanAnyoneSee({ head.Position }, "periphery", 200, nil, inst.players) then
 						return nil
 					end
 					-- step toward the nearest player, never closer than 8 studs

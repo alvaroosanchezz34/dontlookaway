@@ -832,6 +832,71 @@ do
 	check(string.find(death, "lockedIn", 1, true) ~= nil, "being shut in has its own death sequence")
 end
 
+section("perception: one meaning of looking, one meaning of dark")
+do
+	local GameConfig = requireModule(RS.Shared.Config.GameConfig)
+	local P = GameConfig.Perception
+	check(GameConfig.Observer.WatchFOV == nil, "no second definition of the watch angle")
+	-- the fallback screen is FOV 74 on a 16:9 window
+	local half = math.deg(math.atan(math.tan(math.rad(GameConfig.Camera.DefaultFOV / 2)) * 16 / 9))
+	check(math.abs(half - P.Screen) < 1, string.format("the fallback screen half-angle is the default view's (%.1f vs %d)", half, P.Screen))
+	check(P.Screen + P.PeripheryMargin > P.Screen and P.Focus < P.Screen and P.Stare < P.Focus, "stare < focus < screen < periphery")
+	local lightOn, glows = false, {}
+	local viewer = fakePlayer(9101, Vector3.new(0, 3, 0))
+	local look = { origin = Vector3.new(0, 5, 0), dir = Vector3.new(0, 0, -1), time = os.clock() }
+	withRegistry({
+		PlayerService = {
+			GetAlive = function()
+				return { viewer }
+			end,
+			GetLook = function()
+				return look
+			end,
+			HasLineOfSight = function()
+				return true
+			end,
+		},
+		InventoryService = { IsLightOn = function()
+			return lightOn
+		end },
+		EquipmentService = { GetGlowLights = function()
+			return glows
+		end },
+		MapService = { GetMap = function()
+			return nil
+		end },
+	}, function()
+		local Players = requireModule(Server.Services.PlayerService)
+		check(Players:ViewAngle(viewer, "screen") == P.Screen, "a client that never reported its view gets the fallback screen")
+		check(Players:ViewAngle(viewer, "periphery") == P.Screen + P.PeripheryMargin, "the periphery is the screen plus its margin")
+		check(Players:ViewAngle(viewer, "focus") == P.Focus and Players:ViewAngle(viewer, "stare") == P.Stare, "focus and stare are the named angles")
+		local Lighting = requireModule(Server.Services.LightingService)
+		workspace:SetAttribute("Power", true)
+		check(not Lighting:IsDark(Vector3.new(0, 5, -30)), "with power and no blackout it is not dark")
+		check(Lighting:IsLit(Vector3.new(0, 5, -30)), "where it is not dark, everything is lit")
+		workspace:SetAttribute("Power", false)
+		local ahead, aside = Vector3.new(0, 5, -30), Vector3.new(30, 5, 0)
+		check(Lighting:IsDark(ahead), "without power the building is dark")
+		check(not Lighting:IsLit(ahead), "in the dark, without a light, nothing is lit")
+		lightOn = true
+		check(Lighting:IsLit(ahead), "a flashlight beam lights what it points at")
+		check(not Lighting:IsLit(aside), "but not what is beside it")
+		check(not Lighting:IsLit(Vector3.new(0, 5, -(GameConfig.Flashlight.Range + 10))), "nor beyond its range")
+		lightOn = false
+		glows = { { position = aside + Vector3.new(4, 0, 0), range = 13 } }
+		check(Lighting:IsLit(aside), "a glow stick lights what is around it")
+		workspace:SetAttribute("Power", nil)
+	end)
+	viewer.Character:Destroy()
+	-- every system asks the same question
+	for _, name in { "ObserverService", "HorrorDirector" } do
+		local src = Server.Services[name].Source
+		check(string.find(src, "GetBlackout() >= 3", 1, true) == nil, name .. " has no darkness rule of its own")
+	end
+	local observer = Server.Services.ObserverService.Source
+	check(string.find(observer, "\"screen\", 140, model) and canMakeOut(p, pt)", 1, true) ~= nil, "The Observer is only held by someone who can make it out")
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")

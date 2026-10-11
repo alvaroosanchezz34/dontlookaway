@@ -23,7 +23,8 @@ local PlayerService = {}
 PlayerService.CharacterSpawned = Signal.new() -- (player, character)
 PlayerService.StatusChanged = Signal.new() -- (player, status)
 
-type Look = { origin: Vector3, dir: Vector3, time: number }
+-- screen: the client's horizontal half field of view in degrees (see GameConfig.Perception)
+type Look = { origin: Vector3, dir: Vector3, time: number, screen: number? }
 
 local looks: { [Player]: Look } = {}
 local statuses: { [Player]: string } = {}
@@ -247,8 +248,24 @@ function PlayerService:HasLineOfSight(origin: Vector3, point: Vector3, ignore: I
 	return (result.Position - origin).Magnitude >= dist - 1.2
 end
 
+-- The half-angle (degrees) of a kind of looking for this player (GameConfig.Perception).
+function PlayerService:ViewAngle(player: Player, kind: string): number
+	local P = GameConfig.Perception
+	local look = looks[player]
+	local screen = if look and look.screen then look.screen else P.Screen
+	if kind == "screen" then
+		return screen
+	elseif kind == "periphery" then
+		return screen + P.PeripheryMargin
+	elseif kind == "stare" then
+		return P.Stare
+	end
+	return P.Focus
+end
+
 -- Is `player` looking at `point` within halfAngle degrees and maxDist, with LOS?
-function PlayerService:IsLookingAt(player: Player, point: Vector3, halfAngle: number?, maxDist: number?, ignore: Instance?): boolean
+-- halfAngle is a number or a kind of looking: "screen", "periphery", "focus", "stare".
+function PlayerService:IsLookingAt(player: Player, point: Vector3, halfAngle: (number | string)?, maxDist: number?, ignore: Instance?): boolean
 	if not self:IsAlive(player) then
 		return false
 	end
@@ -263,7 +280,8 @@ function PlayerService:IsLookingAt(player: Player, point: Vector3, halfAngle: nu
 	end
 	if dist > 0.01 then
 		local cos = look.dir:Dot(delta / dist)
-		if cos < math.cos(math.rad(halfAngle or GameConfig.Observer.WatchFOV)) then
+		local angle = if type(halfAngle) == "number" then halfAngle else self:ViewAngle(player, halfAngle or "screen")
+		if cos < math.cos(math.rad(angle)) then
 			return false
 		end
 	end
@@ -271,7 +289,7 @@ function PlayerService:IsLookingAt(player: Player, point: Vector3, halfAngle: nu
 end
 
 -- Any alive player able to see any of the sample points.
-function PlayerService:CanAnyoneSee(points: { Vector3 }, halfAngle: number?, maxDist: number?, ignore: Instance?, players: { Player }?): (boolean, Player?)
+function PlayerService:CanAnyoneSee(points: { Vector3 }, halfAngle: (number | string)?, maxDist: number?, ignore: Instance?, players: { Player }?): (boolean, Player?)
 	for _, player in players or self:GetAlive() do
 		for _, point in points do
 			if self:IsLookingAt(player, point, halfAngle, maxDist, ignore) then
@@ -282,7 +300,7 @@ function PlayerService:CanAnyoneSee(points: { Vector3 }, halfAngle: number?, max
 	return false, nil
 end
 
-local function onLookUpdate(player: Player, origin: any, dir: any)
+local function onLookUpdate(player: Player, origin: any, dir: any, screen: any)
 	if not Util.isFiniteVector(origin) or not Util.isFiniteVector(dir) then
 		return
 	end
@@ -308,7 +326,10 @@ local function onLookUpdate(player: Player, origin: any, dir: any)
 			dir = (flatLook.Unit + Vector3.new(0, dir.Y, 0)).Unit
 		end
 	end
-	looks[player] = { origin = origin, dir = dir, time = os.clock() }
+	-- the client's own half field of view, kept to a plausible range
+	local P = GameConfig.Perception
+	local half = if type(screen) == "number" and screen == screen then math.clamp(screen, P.ScreenMin, P.ScreenMax) else nil
+	looks[player] = { origin = origin, dir = dir, time = os.clock(), screen = half }
 	-- replicate pitch for other clients' flashlight beams (throttled)
 	local now = os.clock()
 	if not lastPitchPush[player] or now - lastPitchPush[player] > 0.2 then

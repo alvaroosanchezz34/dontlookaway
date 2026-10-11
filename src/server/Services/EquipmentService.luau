@@ -354,6 +354,20 @@ local function lookRay(player: Player, origin: any, dir: any): (Vector3?, Vector
 	return o, dir.Unit
 end
 
+-- The glow sticks lying in the building (LightingService:IsLit).
+function EquipmentService:GetGlowLights(): { { position: Vector3, range: number } }
+	local list = {}
+	if glowFolder then
+		for _, stick in glowFolder:GetChildren() do
+			local light = stick:FindFirstChildOfClass("PointLight")
+			if stick:IsA("BasePart") and light and light.Enabled then
+				table.insert(list, { position = stick.Position, range = light.Range })
+			end
+		end
+	end
+	return list
+end
+
 local USE = {}
 
 USE.GLOWSTICKS = function(player: Player, tool: Tool)
@@ -622,7 +636,7 @@ local function passiveStep(dt: number)
 				end
 				if mimic and mimic.PrimaryPart then
 					local head = Util.getHead(player)
-					if head and (mimic.PrimaryPart.Position - head.Position).Magnitude < 35 and Registry.PlayerService:IsLookingAt(player, mimic.PrimaryPart.Position, 30, 35, mimic) then
+					if head and (mimic.PrimaryPart.Position - head.Position).Magnitude < 35 and Registry.PlayerService:IsLookingAt(player, mimic.PrimaryPart.Position, "focus", 35, mimic) then
 						Registry.ProgressionService:Award(player, "COLD_SPOT")
 					end
 				end

@@ -245,6 +245,19 @@ local function isBlinking(player: Player): boolean
 	return (blinkingUntil[player] or 0) > os.clock()
 end
 
+-- In the dark it is only made out up close, or where a light reaches it: a
+-- player staring into a black corridor does not hold it in place.
+local function canMakeOut(viewer: Player, point: Vector3): boolean
+	if not Registry.LightingService:IsDark(point) then
+		return true
+	end
+	local eye = Registry.PlayerService:GetEye(viewer)
+	if eye and (eye - point).Magnitude <= GameConfig.Perception.DarkSightRange then
+		return true
+	end
+	return Registry.LightingService:IsLit(point)
+end
+
 -- Players currently holding the Observer in place.
 local function watchers(): { Player }
 	local list = {}
@@ -255,7 +268,7 @@ local function watchers(): { Player }
 	for _, p in Registry.PlayerService:GetAlive() do
 		if not isBlinking(p) then
 			for _, pt in points do
-				if Registry.PlayerService:IsLookingAt(p, pt, GameConfig.Observer.WatchFOV, 140, model) then
+				if Registry.PlayerService:IsLookingAt(p, pt, "screen", 140, model) and canMakeOut(p, pt) then
 					table.insert(list, p)
 					break
 				end
@@ -322,7 +335,7 @@ end
 
 local function unseenAt(spot: Vector3): boolean
 	local pts = { spot + Vector3.new(0, 8.5, 0), spot + Vector3.new(0, 4, 0) }
-	return not Registry.PlayerService:CanAnyoneSee(pts, 70, 240)
+	return not Registry.PlayerService:CanAnyoneSee(pts, "periphery", 240)
 end
 
 -- Is there a walkable path between two points? (true when pathfinding is unavailable)
@@ -535,7 +548,7 @@ local function chooseVariant(victim: Player, vroot: BasePart)
 		end
 	end
 	-- darkness
-	local dark = Registry.LightingService:GetBlackout() >= 3 or (not Registry.LightingService:IsPowered() and not Registry.InventoryService:IsLightOn(victim))
+	local dark = Registry.LightingService:IsDark(vroot.Position) and not Registry.InventoryService:IsLightOn(victim)
 	if dark then
 		table.insert(options, { item = "dark", weight = 2.5 })
 	end
@@ -1026,7 +1039,7 @@ local function tick(dt: number)
 			ObserverService:Vanish()
 			return
 		end
-		local seen = Registry.PlayerService:IsLookingAt(target, headPos(), 40, 200, model)
+		local seen = Registry.PlayerService:IsLookingAt(target, headPos(), "focus", 200, model) and canMakeOut(target, headPos())
 		if seen then
 			if not data.seenAt then
 				data.seenAt = os.clock()
@@ -1036,7 +1049,7 @@ local function tick(dt: number)
 		elseif data.seenAt then
 			data.lookAwayFor += dt
 			-- gone the moment they look away. Never let them see it leave.
-			if data.lookAwayFor > 0.3 and not Registry.PlayerService:CanAnyoneSee(samplePoints(), 70, 240, model) then
+			if data.lookAwayFor > 0.3 and not Registry.PlayerService:CanAnyoneSee(samplePoints(), "periphery", 240, model) then
 				park()
 				return
 			end
@@ -1116,7 +1129,7 @@ local function tick(dt: number)
 		end
 	end
 	-- the dark is on its side
-	local dark = Registry.LightingService:GetBlackout() >= 3 or not Registry.LightingService:IsPowered()
+	local dark = Registry.LightingService:IsDark(root.Position)
 	local cunning = cfg.ObserverCunning or 0
 	local speed = cfg.ObserverSpeed
 	if mode == "escape" then

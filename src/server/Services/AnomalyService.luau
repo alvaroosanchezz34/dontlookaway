@@ -311,7 +311,7 @@ end
 
 local function isUnseen(points: { Vector3 }, players: { Player }): boolean
 	-- slightly wider than the screen so peripheral vision counts as "looking"
-	local seen = Registry.PlayerService:CanAnyoneSee(points, 62, 240, nil, players)
+	local seen = Registry.PlayerService:CanAnyoneSee(points, "periphery", 240, nil, players)
 	return not seen
 end
 

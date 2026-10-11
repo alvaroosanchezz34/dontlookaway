@@ -175,9 +175,32 @@ GameConfig.Ping = {
 	MaxDistance = 140,
 }
 
+--[[
+	Perception: what "looking" means, in one place. Half-angles in degrees from
+	the centre of the view (PlayerService:IsLookingAt takes these names).
+	  screen     on screen: holds The Observer in place. Each client reports its
+	             own horizontal half field of view (it depends on the FOV
+	             setting and the window's shape); Screen is the fallback
+	             (FOV 74 on 16:9) and ScreenMin..ScreenMax the accepted range
+	  periphery  the screen plus a margin: nothing changes or moves where it
+	             could be glimpsed out of the corner of an eye
+	  focus      looking at it: noticing a sighting, a face in a mirror, a figure
+	  stare      looking right at it
+	In the dark (LightingService:IsDark) The Observer is only seen within
+	DarkSightRange or where a light reaches it (LightingService:IsLit).
+]]
+GameConfig.Perception = {
+	Screen = 53,
+	ScreenMin = 35,
+	ScreenMax = 75,
+	PeripheryMargin = 12,
+	Focus = 30,
+	Stare = 18,
+	DarkSightRange = 12,
+}
+
 GameConfig.Observer = {
 	CatchDistance = 4.2,
-	WatchFOV = 64, -- half-angle in degrees used to decide whether a player is looking
 	SightingMinDistance = 38,
 	SightingMaxDistance = 110,
 	PresenceRadius = 48, -- flashlight interference radius

@@ -256,7 +256,12 @@ local function step(dt: number)
 	local now = os.clock()
 	if State.status == "ALIVE" and now - lastLookSend > 0.1 then
 		lastLookSend = now
-		Net.event("LookUpdate"):FireServer(final.Position, final.LookVector)
+		-- with the horizontal half field of view, so the server knows what is
+		-- on this screen (GameConfig.Perception)
+		local size = camera.ViewportSize
+		local aspect = if size.Y > 0 then size.X / size.Y else 16 / 9
+		local halfFov = math.deg(math.atan(math.tan(math.rad(currentFov / 2)) * aspect))
+		Net.event("LookUpdate"):FireServer(final.Position, final.LookVector, halfFov)
 	end
 end
 

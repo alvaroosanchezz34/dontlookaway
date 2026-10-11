@@ -742,7 +742,7 @@ function Mimic.tick(dt: number)
 	local headPos = if head then head.Position else data.root.Position + Vector3.new(0, 2, 0)
 	local look = if alive then Registry.PlayerService:GetLook(viewer) else nil
 	local los = look ~= nil and Registry.PlayerService:HasLineOfSight(look.origin, headPos, m)
-	local seen = alive and Registry.PlayerService:IsLookingAt(viewer, data.root.Position + Vector3.new(0, 1.5, 0), 25, 90, m)
+	local seen = alive and Registry.PlayerService:IsLookingAt(viewer, data.root.Position + Vector3.new(0, 1.5, 0), "focus", 90, m)
 	if los then
 		data.lastLos = now
 	end

@@ -415,7 +415,7 @@ return {
 					if r and (r.Position - c.pos).Magnitude < 16 then
 						return "expire"
 					end
-					if Registry.PlayerService:IsLookingAt(inst.players[1], head, 25, 140) then
+					if Registry.PlayerService:IsLookingAt(inst.players[1], head, "focus", 140) then
 						seen += dt
 						if seen > 3 then
 							return "expire"
@@ -469,7 +469,7 @@ return {
 				update = function(inst, dt)
 					local limit = stareLimit()
 					for _, p in inst.players do
-						if Registry.PlayerService:IsLookingAt(p, head, 18, 90) then
+						if Registry.PlayerService:IsLookingAt(p, head, "stare", 90) then
 							stare[p] = (stare[p] or 0) + dt
 							if stare[p] >= limit then
 								inst.data.victim = p
@@ -662,7 +662,7 @@ return {
 						stepTimer = 0
 						Registry.AudioService:PlayAtFor({ target }, "FootstepsBehind", pos)
 					end
-					local isLooking = Registry.PlayerService:IsLookingAt(target, pos + Vector3.new(0, 2, 0), 50, 40)
+					local isLooking = Registry.PlayerService:IsLookingAt(target, pos + Vector3.new(0, 2, 0), "screen", 40)
 					if isLooking and not looking then
 						looks += 1
 						inst.data.looks = looks

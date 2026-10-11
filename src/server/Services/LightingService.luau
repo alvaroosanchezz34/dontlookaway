@@ -33,6 +33,7 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Signal = require(ReplicatedStorage.Shared.Util.Signal)
 local Registry = require(script.Parent.Parent.Registry)
 
@@ -189,6 +190,50 @@ end
 
 function LightingService:IsPowered(): boolean
 	return workspace:GetAttribute("Power") == true
+end
+
+-- THE definition of "it is dark here", for every system that cares (The
+-- Observer's speed and blinks, what it takes to see it, the director's fear
+-- events): no main power, a major or total blackout, or a partial one on this
+-- position's floor. Without a position: dark for the whole building.
+function LightingService:IsDark(position: Vector3?): boolean
+	if blackoutLevel >= 3 or not self:IsPowered() then
+		return true
+	end
+	if blackoutLevel == 2 and position and Registry.MapService then
+		local map = Registry.MapService:GetMap()
+		local floor = map and map:floorAtY(position.Y)
+		return floor ~= nil and floor.id == workspace:GetAttribute("BlackoutZone")
+	end
+	return false
+end
+
+-- Can light reach `point`? Always where it is not dark; in the dark only the
+-- flashlights (anyone's beam, with line of sight) and glow sticks light it.
+function LightingService:IsLit(point: Vector3): boolean
+	if not self:IsDark(point) then
+		return true
+	end
+	local F = GameConfig.Flashlight
+	local cosBeam = math.cos(math.rad(F.Angle / 2 + 6))
+	for _, p in Registry.PlayerService:GetAlive() do
+		if Registry.InventoryService:IsLightOn(p) then
+			local look = Registry.PlayerService:GetLook(p)
+			if look then
+				local delta = point - look.origin
+				local dist = delta.Magnitude
+				if dist < 2 or (dist <= F.Range and look.dir:Dot(delta / dist) >= cosBeam and Registry.PlayerService:HasLineOfSight(look.origin, point)) then
+					return true
+				end
+			end
+		end
+	end
+	for _, glow in Registry.EquipmentService:GetGlowLights() do
+		if (glow.position - point).Magnitude <= glow.range then
+			return true
+		end
+	end
+	return false
 end
 
 function LightingService:GetBlackout(): number

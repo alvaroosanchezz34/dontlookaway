@@ -327,7 +327,7 @@ end
 SCARES.mirror_flash = function(player, root)
 	for _, mirror in CollectionService:GetTagged("Mirror") do
 		local glass = mirror:FindFirstChild("Glass")
-		if glass and (glass.Position - root.Position).Magnitude < 16 and Registry.PlayerService:IsLookingAt(player, glass.Position, 30, 20) then
+		if glass and (glass.Position - root.Position).Magnitude < 16 and Registry.PlayerService:IsLookingAt(player, glass.Position, "focus", 20) then
 			local figure = glass:FindFirstChild("Figure", true)
 			if figure then
 				local token = Registry.RealityService:Apply({ { t = "Prop", target = figure, prop = "Visible", value = true } }, Enums.AnomalyScope.Player, { player })
@@ -574,7 +574,8 @@ function HorrorDirector:EnterFear(forced: Player?)
 	end
 	setPhase(Phase.Fear, 40)
 	local agg = aggression()
-	local dark = Registry.LightingService:GetBlackout() >= 3
+	local victimRoot = Util.getRoot(victim)
+	local dark = Registry.LightingService:IsDark(victimRoot and victimRoot.Position)
 	-- hunts: from DANGER on (sooner after the previous one when it is dark)
 	if self:Reached(Story.Danger) then
 		local interval = rng:Range(c.HuntInterval) / agg * (if dark then 0.6 else 1)
