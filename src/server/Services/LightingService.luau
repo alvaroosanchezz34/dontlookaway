@@ -5,12 +5,14 @@
 	depth. Per-player effects (fear tint, blur, blink, dark adaptation) are handled
 	on clients.
 
-	Darkness is dark. With power, only the fixtures light anything: each throws a
-	pool that fades out and the space between them is dark. Without power
-	(EMERGENCY) and in a total blackout (BLACKOUT) there is no ambient fill and
-	no light follows the camera: what you see without the flashlight is what
-	glows (tubes still on, exit signs, beacon domes) and the silhouettes right
-	next to you. Low light means you need the flashlight. The only lift is the
+	Darkness is a deep grey, MONOCHROME's dark (docs/LIGHTING_MONOCHROME.md).
+	With power, the fixtures do the lighting: each throws a pool that fades out
+	and the space between two still reads, dimly; a room with no lamp is a deep
+	grey where silhouettes show up close. Blackouts change how the light
+	behaves, not how much there is (LightingRules). Without power (EMERGENCY)
+	what you see without the flashlight is what glows (emergency lamps, exit
+	signs, beacon domes) and the silhouettes right next to you: you need the
+	flashlight. No light follows the camera. The only lift is the
 	player's brightness setting (AccessibilityController), kept to a small range
 	so it helps a dark screen without erasing the dark. Fully black happens
 	once, on purpose and only on one screen: the jumpscare (ScareController)

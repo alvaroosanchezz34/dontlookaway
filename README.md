@@ -180,13 +180,16 @@ indicators, reduced flashes & glitches, reduced motion, head bob, camera shake,
 colour modes (deuteranopia, protanopia, tritanopia, high contrast), brightness,
 graphics quality and flashlight effects.
 
-Darkness is dark, on purpose. With power only the fixtures light anything; without
-it and in blackouts what you see without the flashlight is what glows (tubes still
-on, exit signs, beacon domes) and the silhouettes right next to you: the flashlight
-is how you see. The brightness setting lifts a dark screen a little (a ±0.04 grade)
-without erasing the dark. The one moment that goes fully black is deliberate and
-local to your screen: a jumpscare blacks out every light around the lens for about a
-second (`ScareController`).
+The look is MONOCHROME's (`docs/LIGHTING_MONOCHROME.md`): nearly colourless, hard
+contrast, an old camera's film grain. The dark is a deep grey, never a dead screen:
+with power the lamps light pools whose edges still read, and a room with no lamp
+shows silhouettes up close; without power only what glows (emergency lamps, exit
+signs, beacons) and what is right next to you can be seen, so the flashlight is how
+you see. Blackouts get more macabre level by level, not darker. The brightness
+setting lifts a dark screen a little (a ±0.04 grade); **Film grain** and its
+intensity are in Settings → Graphics. The one moment that goes fully black is
+deliberate and local to your screen: a jumpscare blacks out every light around the
+lens for about a second (`ScareController`).
 
 ## Adding an anomaly
 

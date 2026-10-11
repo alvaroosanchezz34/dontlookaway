@@ -309,3 +309,59 @@ con Lune 0.10 la sección «the observer: reference silhouette» de
 las tablas indexadas por `Instance` no coinciden (Lune devuelve un objeto
 nuevo en cada acceso). Lune 0.8.x se cuelga al cargar el place.
 
+
+## 10. Pasada de luz, sombras y película (referencia MONOCHROME)
+
+Guion en `PROMPT_ILUMINACION_MONOCHROME.md`; medidas de antes y después en
+`LIGHTING_MONOCHROME.md`. Verificado con `runtime_test` (secciones «light»,
+«blackouts», «film»), `client_test` (menú, película), `light_probe`,
+`validate_map` y `zfight`, y sin errores nuevos de `luau-lsp`.
+
+| Punto | Commit | Qué cambia |
+|---|---|---|
+| A5 | `cfc70d5` | `Shared/LightingRules`: una sola regla de qué lámpara luce; el `IsDark` del servidor lee las lámparas encendidas de verdad. |
+| — | `fbb63d2` | `tools/light_probe` y la línea base; `light_study` gradúa la imagen final (antes aplastaba los oscuros a 0). |
+| A1 + A2 | `5caba29` | Las lámparas más cercanas (2 / 10 / 14 según calidad) proyectan sombras; el resto se recorta a su sala (`WallDist`) y nunca ilumina a través de una pared; la luna sin sombras acaba en la sala; las lámparas lejanas se desvanecen; ninguna sala ni tramo de pasillo queda a oscuras por azar. |
+| A3 | `d34f17d` | La oscuridad es gris profundo: exposición +0,8 y negros levantados. Entre dos lámparas: 0,16 (antes 0). |
+| A4 | `a565246` | La linterna: un solo haz con sombra; halo corto sin sombra; solo las 2 linternas de compañeros más cercanas con sombra. |
+| B | `5e5326b` | Menú: luz tenue local (`MenuLook`) con bombillas que se balancean. |
+| C | `ac68fb7` | Blackouts 1-4 más macabros, no más oscuros (falla, respira, late, mira); lámparas que se apagan cerca del Observer. |
+| D | `236ecf4`, `4126e8a` | Grano de película (`FilmController`), polvo y arañazos, parpadeo, gate weave, viñeta, casi monocromo, halo. |
+
+**Decisiones tomadas (DECIDIR):**
+
+- Saturación del interior entre -0,75 y -0,86 (NORMAL -0,82). El rojo de
+  emergencia sigue leyéndose (probado).
+- Las lámparas rojas de emergencia con corriente en los niveles 3-4 son un
+  rojo algo menos saturado (255, 96, 80) y 3 veces más fuertes, para que el
+  rojo no oscurezca la escena (el rojo lleva un cuarto de la luminancia del
+  blanco).
+- Con corriente, ningún blackout hace «oscuro» para el juego: el Observer
+  solo tiene ventaja en la oscuridad sin corriente o donde no hay lámpara.
+  El director sigue adelantando las cacerías en los blackouts 3-4 (ritmo, no
+  visión).
+- El nivel 2 ya no oscurece una planta (`BlackoutZone` se guarda pero no
+  apaga nada).
+
+**Pendiente:**
+
+- Subir `assets/film/grain_light.png` y `grain_dark.png`
+  (`tools/upload_assets.py --group … film`). Hasta entonces el grano se
+  genera con `EditableImage` si Roblox lo permite; si no, no hay grano.
+- Las proporciones de luz son de un modelo aproximado: ajustar en Studio.
+
+**Comprobar en Studio:**
+
+1. Recorrer un pasillo y dos salas contiguas (G-01 / G-02) en NORMAL y en
+   cada blackout (panel F8 → Blackout 1-4): ninguna sala iluminada a través
+   de la pared, nada negro absoluto junto a un charco de luz, y cada nivel
+   igual de visible pero más inquietante.
+2. Que las sombras de las lámparas no salten al andar (LOD de sombras).
+3. El menú principal: luz tenue, bombillas que se mueven, y al pulsar PLAY
+   no queda ninguna.
+4. El grano en PC y en móvil, con y sin «Film grain»; que el HUD quede
+   limpio por encima.
+5. FPS con el MicroProfiler antes y después (sombras de 10 lámparas, grano
+   a 24 fps).
+6. Con «Reduced flashes & glitches»: sin parpadeo de proyector, sin
+   siluetas de un fotograma, pulsos lentos.
