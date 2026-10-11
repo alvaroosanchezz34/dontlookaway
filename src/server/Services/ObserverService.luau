@@ -1108,26 +1108,6 @@ local function tick(dt: number)
 	local cfg = Registry.RoundService:GetDifficultyConfig()
 	-- no tell before a catch: it keeps coming at the same gait
 	setBehavior(if targetDist < 40 then "STALKING" else "REPOSITIONING")
-	-- warnings first: you always hear it before it can reach you
-	for _, p in Registry.PlayerService:GetAlive() do
-		local pr = Util.getRoot(p)
-		if pr then
-			local d = (pr.Position - root.Position).Magnitude
-			if d < 14 and (warned[p] or 0) < os.clock() - 8 then
-				warned[p] = os.clock()
-				strikeAfter[p] = Registry.HorrorDirector:Rng():Number(0.3, 0.8)
-				Registry.AudioService:PlayAtFor({ p }, "ObserverInhale", headPos(), { volume = 1 })
-				Net.fire(p, "Effect", { name = "ObserverClose" })
-			end
-			-- catch anyone in reach who has heard it breathe: at once, never
-			-- standing beside them waiting
-			local heard = warned[p] and os.clock() - warned[p] >= (strikeAfter[p] or 0.5)
-			if d <= GameConfig.Observer.CatchDistance + 1.5 and heard then
-				attack(p)
-				return
-			end
-		end
-	end
 	-- the dark is on its side
 	local dark = Registry.LightingService:IsDark(root.Position)
 	local cunning = cfg.ObserverCunning or 0
@@ -1140,6 +1120,31 @@ local function tick(dt: number)
 	end
 	if threatening then
 		speed *= 0.55
+	end
+	-- warnings first: you always hear it with time to turn round. It breathes
+	-- once it is one reaction time (per difficulty) from reaching you, and it
+	-- cannot strike until that time is up, whatever its speed or a blink step
+	local reach = GameConfig.Observer.CatchDistance + 1.5
+	local reaction = cfg.ReactionTime or 1
+	local warnRadius = reach + speed * reaction
+	for _, p in Registry.PlayerService:GetAlive() do
+		local pr = Util.getRoot(p)
+		if pr then
+			local d = (pr.Position - root.Position).Magnitude
+			if d < warnRadius and (warned[p] or 0) < os.clock() - 8 then
+				warned[p] = os.clock()
+				strikeAfter[p] = reaction + Registry.HorrorDirector:Rng():Number(0, 0.25)
+				Registry.AudioService:PlayAtFor({ p }, "ObserverInhale", headPos(), { volume = 1 })
+				Net.fire(p, "Effect", { name = "ObserverClose" })
+			end
+			-- catch anyone in reach who has heard it breathe and had their time
+			-- to turn: at once, never standing beside them waiting
+			local heard = warned[p] and os.clock() - warned[p] >= (strikeAfter[p] or reaction)
+			if d <= reach and heard then
+				attack(p)
+				return
+			end
+		end
 	end
 	moveToward(tr.Position, speed)
 	-- "it got closer": a jump along its path, only while nobody watches, and

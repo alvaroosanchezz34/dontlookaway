@@ -39,12 +39,17 @@ GameConfig.Round = {
 
 --[[
 	Difficulty
-	  NORMAL     a gentle first night: long arrival, more batteries, slower and
-	             more readable Observer, generous hints
-	  HARD       less light, more anomalies, a smarter Observer, fewer hints
+	  NORMAL     a gentle first night: long arrival, more batteries, the slowest
+	             Observer and the longest warning before it can strike, generous
+	             hints. It still outwalks you (ObserverSpeed > walk speed):
+	             keeping it in sight, not running, is what saves you
+	  HARD       less light, more anomalies, a faster and smarter Observer, a
+	             shorter warning, fewer hints
 	  NIGHTMARE  maximum tension: short arrival, scarce batteries, complex
-	             anomalies, the Observer uses the dark and blinks closer; hints
-	             stop at gentle nudges
+	             anomalies, the Observer uses the dark and blinks closer, the
+	             breath gives you barely time to turn; hints stop at gentle nudges
+	ReactionTime: seconds between hearing it breathe and the earliest moment it
+	can catch you (ObserverService breathes one reaction time away).
 	Phase durations are in seconds (ARRIVAL ends with the power failure; the
 	later phases also advance early with progress).
 ]]
@@ -59,6 +64,7 @@ GameConfig.Difficulty = {
 		HuntDuration = { 22, 32 },
 		ObserverSpeed = 13.5,
 		BlinkAfter = 11,
+		ReactionTime = 1.2, -- seconds between hearing it breathe and the earliest catch
 		MisreportDread = 3,
 		BatteryDrain = 0.18,
 		DangerousWeight = 0.5,
@@ -81,6 +87,7 @@ GameConfig.Difficulty = {
 		HuntDuration = { 30, 42 },
 		ObserverSpeed = 15.5,
 		BlinkAfter = 8.5,
+		ReactionTime = 0.9, -- seconds between hearing it breathe and the earliest catch
 		MisreportDread = 6,
 		BatteryDrain = 0.26,
 		DangerousWeight = 1.2,
@@ -103,6 +110,7 @@ GameConfig.Difficulty = {
 		HuntDuration = { 36, 50 },
 		ObserverSpeed = 17.5,
 		BlinkAfter = 6.5,
+		ReactionTime = 0.6, -- seconds between hearing it breathe and the earliest catch
 		MisreportDread = 8,
 		BatteryDrain = 0.32,
 		DangerousWeight = 1.8,

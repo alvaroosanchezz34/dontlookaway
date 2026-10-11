@@ -897,6 +897,22 @@ do
 	check(string.find(observer, "\"screen\", 140, model) and canMakeOut(p, pt)", 1, true) ~= nil, "The Observer is only held by someone who can make it out")
 end
 
+section("the observer: its breath leaves time to turn")
+do
+	local GameConfig = requireModule(RS.Shared.Config.GameConfig)
+	local D = GameConfig.Difficulty
+	check(D.NORMAL.ReactionTime >= 1.2 and D.HARD.ReactionTime >= 0.9 and D.NIGHTMARE.ReactionTime >= 0.6, "at least 1.2 / 0.9 / 0.6 s between the breath and a catch")
+	check(D.NORMAL.ReactionTime > D.HARD.ReactionTime and D.HARD.ReactionTime > D.NIGHTMARE.ReactionTime, "the warning shortens with difficulty")
+	check(D.NORMAL.ObserverSpeed < D.HARD.ObserverSpeed and D.HARD.ObserverSpeed < D.NIGHTMARE.ObserverSpeed, "NORMAL has the slowest Observer")
+	local src = Server.Services.ObserverService.Source
+	check(string.find(src, "local warnRadius = reach + speed * reaction", 1, true) ~= nil, "it breathes one reaction time away at its current speed")
+	check(string.find(src, "strikeAfter[p] = reaction +", 1, true) ~= nil, "and cannot strike before that time is up")
+	for name, c in D do
+		local warn = GameConfig.Observer.CatchDistance + 1.5 + c.ObserverSpeed * c.ReactionTime
+		check(warn > 14, string.format("%s: it is heard further than before (%.1f studs, was 14)", name, warn))
+	end
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")
