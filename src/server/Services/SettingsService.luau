@@ -23,6 +23,7 @@ local NUMBERS = {
 	fov = { GameConfig.Camera.MinFOV, GameConfig.Camera.MaxFOV },
 	brightness = { 0, 1 },
 	subtitleSize = { 0, 1 },
+	grainIntensity = { 0, 1 },
 }
 
 local BOOLS = {
@@ -35,6 +36,7 @@ local BOOLS = {
 	flashlightEffects = true,
 	audioIndicators = true,
 	reduceMotion = true,
+	filmGrain = true,
 }
 
 -- enumerated string settings

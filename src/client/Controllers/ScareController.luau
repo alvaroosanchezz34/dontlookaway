@@ -344,6 +344,10 @@ local function blackout(eye: Vector3, keep: { Instance }): ({ Held }, () -> ())
 		g.Parent = Lighting
 		grade = g
 		State.scareDark = true
+		-- the film's grain jumps over the hit (FilmController)
+		if Registry.FilmController then
+			Registry.FilmController:Spike(1.6, 0.9)
+		end
 		Registry.AudioController:ApplyVolumes()
 	end)
 	if not ok then

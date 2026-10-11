@@ -30,6 +30,8 @@ local State = {
 		flashlightEffects = true,
 		audioIndicators = false,
 		reduceMotion = false,
+		filmGrain = true,
+		grainIntensity = 0.5,
 		graphics = "AUTO",
 		colorMode = "NORMAL",
 	},

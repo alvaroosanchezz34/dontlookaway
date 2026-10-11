@@ -105,6 +105,8 @@ local TEMPLATE = {
 		flashlightEffects = true,
 		audioIndicators = false,
 		reduceMotion = false,
+		filmGrain = true,
+		grainIntensity = 0.5,
 		graphics = "AUTO",
 		colorMode = "NORMAL",
 	},
@@ -342,7 +344,8 @@ local function validate(data)
 	s.fov = num(s.fov, GameConfig.Camera.DefaultFOV, GameConfig.Camera.MinFOV, GameConfig.Camera.MaxFOV)
 	s.brightness = num(s.brightness, 0.5, 0, 1)
 	s.subtitleSize = num(s.subtitleSize, 0.5, 0, 1)
-	for _, b in { "headBob", "cameraShake", "reducedEffects", "flashingAccepted", "subtitles", "invertY", "flashlightEffects", "audioIndicators", "reduceMotion" } do
+	s.grainIntensity = num(s.grainIntensity, 0.5, 0, 1)
+	for _, b in { "headBob", "cameraShake", "reducedEffects", "flashingAccepted", "subtitles", "invertY", "flashlightEffects", "audioIndicators", "reduceMotion", "filmGrain" } do
 		if type(s[b]) ~= "boolean" then
 			s[b] = TEMPLATE.settings[b]
 		end

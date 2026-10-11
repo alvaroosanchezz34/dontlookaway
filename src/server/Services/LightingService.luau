@@ -61,7 +61,9 @@ local dof: DepthOfFieldEffect
 -- exposure). The escape and the scripted moments change the colour and the
 -- grade, never the amount of light. Only the places outside the building
 -- (LOBBY, OUTSIDE, RESULTS) are lighter.
--- The black is a deep grey, never a dead screen (MONOCHROME): ColorCorrection
+-- Colour: near monochrome, like MONOCHROME's grey (saturation -0.75 to -0.86
+-- inside): the red of the emergency lamps and of danger is what is left of
+-- colour. The black is a deep grey, never a dead screen (MONOCHROME): ColorCorrection
 -- pivots contrast round mid grey, so without a lift every dark tone below a
 -- threshold is crushed to 0 and the stretch between two lamps reads as a hole
 -- right next to the pool. Each interior grade lifts its blacks by half its
@@ -77,14 +79,14 @@ LightingService.Presets = {
 		Ambient = Color3.fromRGB(34, 32, 30),
 		OutdoorAmbient = Color3.fromRGB(40, 42, 48),
 		ExposureCompensation = 0.2,
-		cc = { Brightness = 0.02, Contrast = 0.12, Saturation = -0.22, TintColor = Color3.fromRGB(255, 244, 232) },
+		cc = { Brightness = 0.02, Contrast = 0.12, Saturation = -0.45, TintColor = Color3.fromRGB(255, 244, 232) },
 		atmosphere = { Density = 0.3, Haze = 1.3, Glare = 0, Color = Color3.fromRGB(70, 76, 86), Decay = Color3.fromRGB(40, 42, 48) },
 	},
 	OUTSIDE = {
 		Ambient = Color3.fromRGB(30, 33, 40),
 		OutdoorAmbient = Color3.fromRGB(46, 52, 64),
 		ExposureCompensation = 0.35,
-		cc = { Brightness = 0.0, Contrast = 0.14, Saturation = -0.3, TintColor = Color3.fromRGB(226, 234, 255) },
+		cc = { Brightness = 0.0, Contrast = 0.14, Saturation = -0.6, TintColor = Color3.fromRGB(226, 234, 255) },
 		atmosphere = { Density = 0.4, Haze = 2.1, Glare = 0, Color = Color3.fromRGB(70, 78, 92), Decay = Color3.fromRGB(36, 40, 50) },
 	},
 	-- main power lost: emergency lamps, exit signs, the flashlight
@@ -92,7 +94,7 @@ LightingService.Presets = {
 		Ambient = Color3.fromRGB(18, 18, 20),
 		OutdoorAmbient = Color3.fromRGB(20, 21, 24),
 		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.5, TintColor = Color3.fromRGB(226, 234, 250) },
+		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.75, TintColor = Color3.fromRGB(226, 234, 250) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(14, 15, 18), Decay = Color3.fromRGB(6, 6, 8) },
 	},
 	-- NORMAL: the building with power and no event. The reference for play: a
@@ -105,7 +107,7 @@ LightingService.Presets = {
 		Ambient = Color3.fromRGB(22, 22, 23),
 		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
 		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.6, TintColor = Color3.fromRGB(228, 236, 250) },
+		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.82, TintColor = Color3.fromRGB(228, 236, 250) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(26, 28, 32), Decay = Color3.fromRGB(10, 10, 12) },
 	},
 	-- scripted moments (cinematics, the Observer's reveal): the same building,
@@ -115,7 +117,7 @@ LightingService.Presets = {
 		Ambient = Color3.fromRGB(20, 20, 22),
 		OutdoorAmbient = Color3.fromRGB(22, 23, 27),
 		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.18), Contrast = 0.18, Saturation = -0.68, TintColor = Color3.fromRGB(220, 230, 252) },
+		cc = { Brightness = lifted(0.18), Contrast = 0.18, Saturation = -0.86, TintColor = Color3.fromRGB(220, 230, 252) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(24, 27, 33), Decay = Color3.fromRGB(9, 10, 12) },
 	},
 	-- The blackouts with power (LightingRules: more macabre, not darker): the
@@ -126,35 +128,35 @@ LightingService.Presets = {
 		Ambient = Color3.fromRGB(22, 22, 23),
 		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
 		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.75, TintColor = Color3.fromRGB(232, 240, 222) },
+		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.85, TintColor = Color3.fromRGB(232, 240, 222) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(26, 28, 26), Decay = Color3.fromRGB(10, 11, 10) },
 	},
 	HEARTBEAT = {
 		Ambient = Color3.fromRGB(22, 22, 23),
 		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
 		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.7, TintColor = Color3.fromRGB(246, 228, 226) },
+		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.78, TintColor = Color3.fromRGB(246, 228, 226) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(30, 24, 24), Decay = Color3.fromRGB(12, 9, 9) },
 	},
 	BLACKOUT = {
 		Ambient = Color3.fromRGB(22, 22, 23),
 		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
 		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.2), Contrast = 0.2, Saturation = -0.78, TintColor = Color3.fromRGB(236, 228, 232) },
+		cc = { Brightness = lifted(0.2), Contrast = 0.2, Saturation = -0.86, TintColor = Color3.fromRGB(236, 228, 232) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(20, 20, 22), Decay = Color3.fromRGB(8, 8, 9) },
 	},
 	ESCAPE = {
 		Ambient = Color3.fromRGB(22, 17, 17),
 		OutdoorAmbient = Color3.fromRGB(24, 19, 19),
 		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.45, TintColor = Color3.fromRGB(255, 222, 216) },
+		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.6, TintColor = Color3.fromRGB(255, 222, 216) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(32, 22, 22), Decay = Color3.fromRGB(12, 8, 8) },
 	},
 	RESULTS = {
 		Ambient = Color3.fromRGB(26, 26, 30),
 		OutdoorAmbient = Color3.fromRGB(36, 38, 46),
 		ExposureCompensation = 0.3,
-		cc = { Brightness = 0.02, Contrast = 0.1, Saturation = -0.35, TintColor = Color3.fromRGB(240, 242, 255) },
+		cc = { Brightness = 0.02, Contrast = 0.1, Saturation = -0.6, TintColor = Color3.fromRGB(240, 242, 255) },
 		atmosphere = { Density = 0.3, Haze = 1.2, Glare = 0, Color = Color3.fromRGB(80, 84, 96), Decay = Color3.fromRGB(46, 48, 56) },
 	},
 }
@@ -424,9 +426,11 @@ function LightingService:Init()
 	cc.Parent = Lighting
 	bloom = Instance.new("BloomEffect")
 	bloom.Name = "Bloom"
-	bloom.Intensity = 0.4
-	bloom.Size = 24
-	bloom.Threshold = 1.5
+	-- film halation: a soft glow round the lamps' tubes and bulbs (the
+	-- emissive parts), never over the lit walls
+	bloom.Intensity = 0.5
+	bloom.Size = 30
+	bloom.Threshold = 1.25
 	bloom.Parent = Lighting
 	dof = Instance.new("DepthOfFieldEffect")
 	dof.Name = "DOF"

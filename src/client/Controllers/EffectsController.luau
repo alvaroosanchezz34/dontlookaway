@@ -37,6 +37,8 @@ local cc: ColorCorrectionEffect
 local blur: BlurEffect
 local presence = 0
 local vignetteBase = 0.35
+-- the old lens's extra corner darkening (FilmController:SetFilmVignette)
+local filmVignette = 0
 local handlers: { [string]: (any) -> () } = {}
 
 local function reduced(): boolean
@@ -403,6 +405,11 @@ handlers.OpenPanel = function(p)
 	Registry.MenuController:OpenPanel(p.panel, p.tab)
 end
 
+-- One vignette for everything: the film adds its old lens to it.
+function EffectsController:SetFilmVignette(extra: number)
+	filmVignette = extra
+end
+
 function EffectsController:Register(name: string, fn: (any) -> ())
 	handlers[name] = fn
 end
@@ -472,7 +479,7 @@ local function update(dt: number)
 	local sat = -presence * 0.45
 	cc.Saturation += (sat - cc.Saturation) * Util.damp(3, dt)
 	cc.Contrast += (presence * 0.25 - cc.Contrast) * Util.damp(3, dt)
-	local vig = vignetteBase + presence * 0.5 + State.fear * 0.1
+	local vig = vignetteBase + filmVignette + presence * 0.5 + State.fear * 0.1
 	for _, child in vignette:GetChildren() do
 		if child:IsA("Frame") then
 			child.BackgroundTransparency = 1 - math.clamp(vig, 0, 0.95)

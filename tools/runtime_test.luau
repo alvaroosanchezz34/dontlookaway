@@ -1207,6 +1207,41 @@ do
 	check(string.find(client.BlackoutFX.Source, "elseif not reduced then", 1, true) ~= nil, "no one-frame figures with reduced effects")
 end
 
+section("film: the old camera, near monochrome, red still reads")
+do
+	local Lighting = requireModule(Server.Services.LightingService)
+	local LightingRules = requireModule(RS.Shared.LightingRules)
+	-- colour: inside, the grade is near grey ...
+	for _, name in { "NORMAL", "BREATH", "HEARTBEAT", "BLACKOUT", "CINEMATIC", "EMERGENCY" } do
+		check(Lighting.Presets[name].cc.Saturation <= -0.75, name .. " is near monochrome (" .. Lighting.Presets[name].cc.Saturation .. ")")
+	end
+	-- ... and the emergency red is still red through it (saturation round luminance)
+	local function through(c, sat)
+		local lum = 0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B
+		return lum + (c.R - lum) * (1 + sat), lum + (c.G - lum) * (1 + sat)
+	end
+	for _, name in { "HEARTBEAT", "BLACKOUT" } do
+		local r, g = through(LightingRules.ALARM_LIT, Lighting.Presets[name].cc.Saturation)
+		check(r - g > 0.06, string.format("%s: the emergency red still reads (R-G %.3f)", name, r - g))
+	end
+	-- the grain textures exist and tile; their ids wait for an upload
+	local AssetIds = requireModule(RS.Shared.Config.AssetIds)
+	check(AssetIds.Film and AssetIds.Film.grain_light ~= nil and AssetIds.Film.grain_dark ~= nil, "AssetIds.Film has the two grain layers")
+	local fs = require("@lune/fs")
+	check(fs.isFile("assets/film/grain_light.png") and fs.isFile("assets/film/grain_dark.png"), "tools/gen_film.py wrote the grain sheets")
+	local client = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers
+	local film = client:FindFirstChild("FilmController")
+	check(film ~= nil, "a film controller")
+	if film then
+		local src = film.Source
+		check(string.find(src, 'Kit.screen("Film", 1', 1, true) ~= nil, "the film sits over the world and under the HUD (display order 1 < HUD 2)")
+		check(string.find(src, "State.settings.filmGrain ~= false", 1, true) ~= nil and string.find(src, "grainIntensity", 1, true) ~= nil, "the grain follows the player's settings")
+		check(string.find(src, "pcall(runtimeGrain", 1, true) ~= nil, "without uploaded grain it tries a runtime texture, safely")
+		check(string.find(src, "not State.settings.reducedEffects then random:NextNumber(-0.01, 0.01)", 1, true) ~= nil, "no projector flicker with reduced effects")
+		check(string.find(src, "not State.settings.reduceMotion", 1, true) ~= nil, "no gate weave with reduced motion")
+	end
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")

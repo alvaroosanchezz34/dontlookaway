@@ -989,6 +989,22 @@ fire("RoundState", { state = "LOBBY", difficulty = "NORMAL", seed = 7, elapsed =
 localPlayer:SetAttribute("Status", "LOBBY")
 frames(5)
 
+-- the film (FilmController): at most two grain layers; with the grain ids at 0
+-- and no EditableImage (as here) it switches itself off instead of breaking
+do
+	local film = Registry.FilmController
+	check(film:LayerCount() <= 2, "the grain is at most two layers")
+	local AssetIds = requireModule(RS.Shared.Config.AssetIds)
+	if AssetIds.Film.grain_light == 0 and AssetIds.Film.grain_dark == 0 and film:LayerCount() == 0 then
+		check(not film:IsAvailable(), "no grain textures and no runtime texture: the film is off")
+	end
+	local weave = film:Weave()
+	check(typeof(weave) == "CFrame", "the camera can always read the weave")
+	film:Spike(0.2)
+	frames(3)
+	check(true, "a scare spike does not break the film")
+end
+
 -- the menu cinematic again, with its own light (MenuLook)
 do
 	local VS = requireModule(RS.Shared.VisualStandards)

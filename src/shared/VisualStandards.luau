@@ -128,7 +128,7 @@ VisualStandards.MenuLook = {
 	ambient = Color3.fromRGB(34, 34, 36),
 	outdoorAmbient = Color3.fromRGB(36, 38, 42),
 	exposure = 1.0,
-	cc = { Brightness = 0.04, Contrast = 0.06, Saturation = -0.7, TintColor = Color3.fromRGB(236, 238, 244) },
+	cc = { Brightness = 0.04, Contrast = 0.06, Saturation = -0.8, TintColor = Color3.fromRGB(236, 238, 244) },
 }
 
 VisualStandards.Quality = {

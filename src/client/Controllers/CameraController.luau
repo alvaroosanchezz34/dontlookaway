@@ -19,6 +19,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
 local State = require(script.Parent.Parent.State)
+local Registry = require(script.Parent.Parent.Registry)
 
 local CameraController = {}
 
@@ -269,7 +270,9 @@ local function step(dt: number)
 	if not cf then
 		cf = lastCF
 	end
-	local final = (cf :: CFrame) * shakeOffset(dt)
+	-- the old camera's gate weave (FilmController), after the shake
+	local film = Registry.FilmController
+	local final = (cf :: CFrame) * shakeOffset(dt) * (if film then film:Weave() else CFrame.new())
 	camera.CFrame = final
 	lastCF = final
 	-- fov

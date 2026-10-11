@@ -341,6 +341,8 @@ local function settings(body: Frame)
 		return string.format("%+d", math.floor((v - 0.5) * 20 + 0.5))
 	end)
 	toggle("Flashlight effects (dust, beam)", "flashlightEffects")
+	toggle("Film grain (old camera)", "filmGrain")
+	slider("Film grain intensity", "grainIntensity", pct)
 
 	heading("ACCESSIBILITY")
 	toggle("Subtitles", "subtitles")
