@@ -178,8 +178,15 @@ Observer.
 Settings → Accessibility / Graphics: subtitles and subtitle size, sound direction
 indicators, reduced flashes & glitches, reduced motion, head bob, camera shake,
 colour modes (deuteranopia, protanopia, tritanopia, high contrast), brightness,
-graphics quality and flashlight effects. Darkness never goes fully black: the eye
-adapts and emergency lighting always leaves something to read.
+graphics quality and flashlight effects.
+
+Darkness is dark, on purpose. With power only the fixtures light anything; without
+it and in blackouts what you see without the flashlight is what glows (tubes still
+on, exit signs, beacon domes) and the silhouettes right next to you: the flashlight
+is how you see. The brightness setting lifts a dark screen a little (a ±0.04 grade)
+without erasing the dark. The one moment that goes fully black is deliberate and
+local to your screen: a jumpscare blacks out every light around the lens for about a
+second (`ScareController`).
 
 ## Adding an anomaly
 

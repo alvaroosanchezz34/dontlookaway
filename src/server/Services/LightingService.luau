@@ -12,7 +12,9 @@
 	glows (tubes still on, exit signs, beacon domes) and the silhouettes right
 	next to you. Low light means you need the flashlight. The only lift is the
 	player's brightness setting (AccessibilityController), kept to a small range
-	so it helps a dark screen without erasing the dark.
+	so it helps a dark screen without erasing the dark. Fully black happens
+	once, on purpose and only on one screen: the jumpscare (ScareController)
+	blacks out every light around the lens for about a second.
 
 	Power
 	  workspace "Power" (bool)        MAIN circuit fixtures need it
