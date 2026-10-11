@@ -14,21 +14,24 @@
 	    the mouse does nothing. It is the one that moves: its face is put
 	    right in front of wherever you were looking (ObserverRig.placeFace,
 	    pitch included).
-	  * Everything else is black on that same frame: every light in the
-	    building and your flashlight off, Lighting's ambient and environment
-	    light at zero, no sky, no HUD, no other players, and a local box of
-	    black Neon around the lens (black Neon stays black whatever light hits
-	    it, and hides the emissive signs and screens of the building). All of
-	    it comes back exactly as it was afterwards.
+	  * Everything else is black on that same frame: every light that could
+	    reach its face and your flashlight off, Lighting's ambient and
+	    environment light at zero, no HUD, no other players, and a local box
+	    of black Neon around the lens (black Neon stays black whatever light
+	    hits it; it hides the sky and the emissive signs and screens of the
+	    building). All of it comes back exactly as it was afterwards.
 	  * Its face fills two thirds of the screen's height at your own field of
 	    view (ObserverRig.scareDistance, from the measured head).
-	  * One dim cold light on its head, low and to one side, with a short
-	    reach: it pulls out the relief and the eyes and leaves half the face in
-	    the black. It breathes slowly like a dying bulb, never strobes (steady
-	    with reduced effects).
+	  * One cold light on its head, low and to one side, with a short reach,
+	    and the exposure up while its face is there: the lit half of the
+	    charcoal face reads, the other half stays in the black. It breathes
+	    slowly like a dying bulb, never strobes (steady with reduced effects).
 	  * It moves, not you: dry jerks of the head and neck, pose jumps with no
 	    interpolation, the eyes on you the whole time, a tilt no neck allows
 	    held frozen for a moment, then in at you.
+	  * No hitch: the local rig is built ahead of time and reused, a pose is
+	    solved and moved in one go (Workspace:BulkMoveTo) only when it jumps,
+	    and between jumps a frame only touches the light.
 	  * Silence on the hit frame except the hit (ObserverImpact, ObserverScreech
 	    and JumpSting together, loud, through their own group). Nothing else
 	    sounds until the cut. Reduced effects never lowers the hit.
@@ -93,16 +96,16 @@ end
 --[[
 	What it does, as poses held until the next key: no interpolation, every
 	change is a jump. head / neck multiply onto ScarePose(1) (joint frames:
-	-X pitch leans toward you, Z rolls in the plane of the face). twitch:
-	random rolls up to this many degrees, a new one every 60 ms.
+	-X pitch leans toward you, Z rolls in the plane of the face). A few
+	deliberate jumps: fast flickering ones read as the game stuttering.
 ]]
-type Key = { at: number, head: CFrame?, neck: CFrame?, twitch: number? }
+type Key = { at: number, head: CFrame?, neck: CFrame? }
 local DEATH_KEYS: { Key } = {
 	{ at = 0 }, -- the hit: dead level, both eyes on you
 	{ at = 0.15, head = deg(-6, 0, 26) }, -- a dry jerk to one side
 	{ at = 0.27, neck = deg(0, 10, -16), head = deg(4, -8, -34) }, -- and the other, from the neck
 	{ at = 0.4, neck = deg(0, 0, -18), head = deg(0, 0, 98) }, -- folded flat on its side, frozen
-	{ at = 0.76, head = deg(-4, 0, 6), twitch = 7 }, -- back, twitching
+	{ at = 0.76, head = deg(-4, 0, 6) }, -- back, all at once
 	{ at = 1.02, neck = deg(-14, 0, 0), head = deg(10, 0, -4) }, -- and in, at you
 }
 local FLASH_KEYS: { Key } = {
@@ -244,18 +247,30 @@ local function blackout(eye: Vector3, keep: { Instance }): ({ Held }, () -> ())
 			end
 		end
 		for _, d in effects do
-			if d:IsA("Sky") then
-				hold(held, d, "Parent", nil)
-			elseif d:IsA("Atmosphere") then
+			-- (the sky stays: the black box hides it, and swapping the sky
+			-- makes the engine relight the whole environment, a hitch)
+			if d:IsA("Atmosphere") then
 				hold(held, d, "Density", 0)
 			elseif d:IsA("ColorCorrectionEffect") or d:IsA("BlurEffect") or d:IsA("DepthOfFieldEffect") then
 				-- grades lift the black (dark adaptation, the presets); no blur
 				hold(held, d, "Enabled", false)
 			end
 		end
+		-- every light that could reach its face (it is within a stud or two of
+		-- the lens); the rest of the map is behind the black box anyway
 		for light in lights do
-			local ok, inWorld = pcall(light.IsDescendantOf, light, Workspace)
-			if ok and inWorld then
+			local ok, near = pcall(function()
+				if not light:IsDescendantOf(Workspace) then
+					return false
+				end
+				local holder = light.Parent
+				local at = if holder and holder:IsA("BasePart")
+					then holder.CFrame.Position
+					elseif holder and holder:IsA("Attachment") then holder.WorldPosition
+					else nil
+				return at == nil or (at - eye).Magnitude < light.Range + BOX * 2
+			end)
+			if ok and near then
 				hold(held, light, "Enabled", false)
 			end
 		end
@@ -335,10 +350,36 @@ local function setServerObserverHidden(hidden: boolean)
 	end
 end
 
--- A local copy that is posed by hand: every part anchored, the joints off,
--- each frame's CFrames solved from the pose (ObserverRig.solve). A pose
--- change shows on the very frame it is set, with nothing in between.
-local function spawnRig(): (Model, { [string]: Motor6D })
+--[[
+	The local copy, posed by hand: every part anchored, the joints off, the
+	CFrames solved from the pose (ObserverRig.solver) and moved in one go. It
+	is built ahead of time and reused (parked outside the workspace between
+	scares): building ~70 parts and 16 meshes on the hit frame was a hitch.
+	Rebuilt once the sculpted meshes arrive.
+]]
+type ScareRig = {
+	model: Model,
+	motors: { [string]: Motor6D },
+	solve: (CFrame, { [string]: CFrame }) -> ({ BasePart }, { CFrame }),
+	head: BasePart,
+	lightPart: BasePart,
+	light: PointLight,
+}
+local cachedRig: ScareRig? = nil
+
+local function meshesAvailable(): boolean
+	local folder = ReplicatedStorage:FindFirstChild("ObserverMeshes")
+	return folder ~= nil and #folder:GetChildren() > 0
+end
+
+local function scareRig(): ScareRig
+	local cached = cachedRig
+	if cached and cached.model.Parent == nil and (cached.model:GetAttribute("Sculpted") == true or not meshesAvailable()) then
+		return cached
+	end
+	if cached and cached.model.Parent == nil then
+		cached.model:Destroy()
+	end
 	local rig = ObserverRig.build(CFrame.new(), { localCopy = true })
 	for _, d in rig:GetDescendants() do
 		if d:IsA("BasePart") then
@@ -348,7 +389,39 @@ local function spawnRig(): (Model, { [string]: Motor6D })
 			d.Enabled = false
 		end
 	end
-	return rig, ObserverRig.motors(rig)
+	local lightPart = darkPart("ScareLight", Vector3.new(0.1, 0.1, 0.1), CFrame.new(), rig)
+	lightPart.Transparency = 1
+	lightPart.CastShadow = false
+	local light = Instance.new("PointLight")
+	light.Range = ScareController.Light.range
+	light.Color = ScareController.Light.color
+	light.Shadows = true
+	light.Parent = lightPart
+	rig.Parent = nil
+	local built: ScareRig = {
+		model = rig,
+		motors = ObserverRig.motors(rig),
+		solve = ObserverRig.solver(rig),
+		head = rig:FindFirstChild("Head") :: BasePart,
+		lightPart = lightPart,
+		light = light,
+	}
+	cachedRig = built
+	return built
+end
+
+-- Moves the rig's parts in one call where the engine has it.
+local canBulkMove = pcall(function()
+	return (Workspace :: any).BulkMoveTo
+end)
+local function moveParts(parts: { BasePart }, cframes: { CFrame })
+	if canBulkMove then
+		Workspace:BulkMoveTo(parts, cframes, Enum.BulkMoveMode.FireCFrameChanged)
+	else
+		for i, part in parts do
+			part.CFrame = cframes[i]
+		end
+	end
 end
 
 local function keyAt(keys: { Key }, t: number): Key
@@ -361,19 +434,13 @@ local function keyAt(keys: { Key }, t: number): Key
 	return key
 end
 
--- The joint transforms at `t`: ScarePose(1) with the key on top.
-local function poseAt(base: { [string]: CFrame }, keys: { Key }, t: number, seed: number): { [string]: CFrame }
-	local key = keyAt(keys, t)
+-- The joint transforms of a key: ScarePose(1) with the key on top.
+local function poseOf(base: { [string]: CFrame }, key: Key): { [string]: CFrame }
 	local transforms = table.clone(base)
 	if key.neck then
 		transforms.NeckJoint = (base.NeckJoint or CFrame.identity) * key.neck
 	end
-	local head = key.head or CFrame.identity
-	if key.twitch then
-		local step = math.floor(t / 0.06)
-		head *= deg(0, 0, math.noise(step * 0.73, seed) * 2 * key.twitch)
-	end
-	transforms.HeadJoint = (base.HeadJoint or CFrame.identity) * head
+	transforms.HeadJoint = (base.HeadJoint or CFrame.identity) * (key.head or CFrame.identity)
 	return transforms
 end
 
@@ -403,36 +470,32 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 	local camCf = cam:GetCFrame()
 	local fov = camera.FieldOfView
 	local eye = camCf.Position
-	local rig, m = spawnRig()
-	local headPart = rig:FindFirstChild("Head") :: BasePart
+	local sr = scareRig()
+	local rig, m, light = sr.model, sr.motors, sr.light
+	local headPart = sr.head
 	local base = ObserverRig.ScarePose(1, 0)
 	local distance = ObserverRig.scareDistance(fov)
 	local rootCf = ObserverRig.placeFace(m, base, eye + camCf.LookVector * distance, camCf)
-
-	local lightPart = darkPart("ScareLight", Vector3.new(0.1, 0.1, 0.1), CFrame.new(eye), rig)
-	lightPart.Transparency = 1
-	lightPart.CastShadow = false
-	local light = Instance.new("PointLight")
 	light.Range = ScareController.Light.range
-	light.Brightness = ScareController.Light.brightness
 	light.Color = ScareController.Light.color
-	light.Shadows = true
-	light.Parent = lightPart
 
 	local held, restore
 	local start = os.clock()
+	local shown: Key? = nil
 	local function frame()
 		local t = os.clock() - start
-		local transforms = poseAt(base, keys, t, seed)
-		-- both eyes on you, from the head as it is this frame
-		local headCf = rootCf * ObserverRig.headFromRoot(m, transforms)
-		for k, v in ObserverRig.eyesAt(rig, m, eye, 40, headCf) do
-			transforms[k] = v
+		local key = keyAt(keys, t)
+		if key ~= shown then
+			-- a jump: the new pose, both eyes on you, the light on its head
+			shown = key
+			local transforms = poseOf(base, key)
+			local headCf = rootCf * ObserverRig.headFromRoot(m, transforms)
+			for k, v in ObserverRig.eyesAt(rig, m, eye, 40, headCf) do
+				transforms[k] = v
+			end
+			moveParts(sr.solve(rootCf, transforms))
+			sr.lightPart.CFrame = headCf * ScareController.Light.offset
 		end
-		for part, cf in ObserverRig.solve(rig, rootCf, transforms) do
-			part.CFrame = cf
-		end
-		lightPart.CFrame = headCf * ScareController.Light.offset
 		-- a bulb that will not quite die: slow, uneven, never a strobe
 		local breathe = if reduced() then 1 else 0.8 + 0.2 * math.clamp(0.5 + math.noise(t * 1.3, seed * 3.1), 0, 1)
 		light.Brightness = ScareController.Light.brightness * breathe
@@ -445,6 +508,7 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 		if restore then
 			restore()
 		end
+		cachedRig = nil
 		rig:Destroy()
 		error(err, 0)
 	end
@@ -483,7 +547,8 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 			conn:Disconnect()
 		end
 		restore()
-		rig:Destroy()
+		-- parked for the next scare
+		rig.Parent = nil
 		if name ~= "Death" then
 			cam:ClearOverride(name)
 		end
@@ -657,6 +722,21 @@ function ScareController:Start()
 		track(d)
 	end
 	Workspace.DescendantAdded:Connect(track)
+	-- the rig is ready long before anyone is caught, and again once the
+	-- sculpted meshes arrive (the server loads them after start)
+	task.defer(scareRig)
+	local function watch(folder: Instance)
+		if folder.Name == "ObserverMeshes" then
+			folder.ChildAdded:Connect(function()
+				task.defer(scareRig)
+			end)
+			task.defer(scareRig)
+		end
+	end
+	for _, c in ReplicatedStorage:GetChildren() do
+		watch(c)
+	end
+	ReplicatedStorage.ChildAdded:Connect(watch)
 end
 
 return ScareController

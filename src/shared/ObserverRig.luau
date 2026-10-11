@@ -586,38 +586,72 @@ function ObserverRig.placeFace(motors: { [string]: Motor6D }, transforms: { [str
 	return face * h:Inverse()
 end
 
+--[[
+	A solver for one rig: the order to walk its parts from the root (joints
+	and welds' rest offsets) is worked out once, then each call places every
+	part in a single pass. Returns the parts and their world CFrames as two
+	arrays (ready for Workspace:BulkMoveTo). For posing without physics every
+	frame (the jumpscare).
+]]
+function ObserverRig.solver(model: Model): (CFrame, { [string]: CFrame }) -> ({ BasePart }, { CFrame })
+	local root = model.PrimaryPart :: BasePart
+	local children: { [BasePart]: { any } } = {}
+	local function link(p0: BasePart, step)
+		children[p0] = children[p0] or {}
+		table.insert(children[p0], step)
+	end
+	for _, d in model:GetDescendants() do
+		if d:IsA("Motor6D") and d.Part0 and d.Part1 then
+			link(d.Part0 :: BasePart, { part = d.Part1, name = d.Name, c0 = d.C0, c1inv = d.C1:Inverse() })
+		elseif d:IsA("WeldConstraint") and d.Part0 and d.Part1 then
+			local rest = (d.Part1 :: BasePart):GetAttribute("RestOffset")
+			if typeof(rest) == "CFrame" then
+				link(d.Part0 :: BasePart, { part = d.Part1, rest = rest })
+			end
+		end
+	end
+	-- breadth first from the root: every part after the part it hangs from
+	local order, index, seen = {}, {}, { [root] = true }
+	local queue, head = { root }, 1
+	while queue[head] do
+		local p0 = queue[head]
+		head += 1
+		for _, step in children[p0] or {} do
+			if not seen[step.part] then
+				seen[step.part] = true
+				step.from = p0
+				table.insert(order, step)
+				table.insert(queue, step.part)
+			end
+		end
+	end
+	local parts = { root }
+	for i, step in order do
+		parts[i + 1] = step.part
+		index[step.part] = i + 1
+	end
+	index[root] = 1
+	return function(rootCf: CFrame, transforms: { [string]: CFrame }): ({ BasePart }, { CFrame })
+		local cframes = { rootCf }
+		for i, step in order do
+			local base = cframes[index[step.from]]
+			if step.rest then
+				cframes[i + 1] = base * step.rest
+			else
+				cframes[i + 1] = base * step.c0 * (transforms[step.name] or CFrame.identity) * step.c1inv
+			end
+		end
+		return parts, cframes
+	end
+end
+
 -- World CFrames of every part for a root CFrame and joint transforms, from
 -- the joints and the welds' rest offsets (no physics needed).
 function ObserverRig.solve(model: Model, rootCf: CFrame, transforms: { [string]: CFrame }): { [BasePart]: CFrame }
+	local parts, cframes = ObserverRig.solver(model)(rootCf, transforms)
 	local world: { [BasePart]: CFrame } = {}
-	local root = model.PrimaryPart :: BasePart
-	world[root] = rootCf
-	local motors, welds = {}, {}
-	for _, d in model:GetDescendants() do
-		if d:IsA("Motor6D") and d.Part0 and d.Part1 then
-			table.insert(motors, d)
-		elseif d:IsA("WeldConstraint") and d.Part0 and d.Part1 then
-			table.insert(welds, d)
-		end
-	end
-	local progress = true
-	while progress do
-		progress = false
-		for _, m in motors do
-			local p0, p1 = m.Part0 :: BasePart, m.Part1 :: BasePart
-			if world[p0] and not world[p1] then
-				world[p1] = world[p0] * m.C0 * (transforms[m.Name] or CFrame.identity) * m.C1:Inverse()
-				progress = true
-			end
-		end
-		for _, w in welds do
-			local p0, p1 = w.Part0 :: BasePart, w.Part1 :: BasePart
-			local rest = p1:GetAttribute("RestOffset")
-			if world[p0] and not world[p1] and typeof(rest) == "CFrame" then
-				world[p1] = world[p0] * rest
-				progress = true
-			end
-		end
+	for i, part in parts do
+		world[part] = cframes[i]
 	end
 	return world
 end

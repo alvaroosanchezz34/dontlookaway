@@ -563,7 +563,7 @@ section("death cinematics")
 	delivers the death (no frame of warning); the camera keeps the exact
 	CFrame and field of view it had, whatever the pitch; every light around
 	is off locally and the scare's own light is the only one that reaches its
-	head; Lighting, sky, HUD and sound go dark; the face is in front of the
+	head; Lighting, HUD and sound go dark; the face is in front of the
 	lens at the distance for the player's field of view; and everything comes
 	back exactly as it was, even when a server tween lands mid-scare.
 ]]
@@ -700,7 +700,7 @@ do
 			local v = (Lighting :: any)[prop]
 			check(v == 0 or v == Color3.new(0, 0, 0), label .. ": Lighting." .. prop .. " is zero")
 		end
-		check(sky.Parent == nil, label .. ": no sky")
+		check(sky.Parent == Lighting, label .. ": the sky is left alone (the black box hides it)")
 		check(Lighting.ExposureCompensation > 0.5, label .. ": exposure raised for its lit face")
 		check(not serverGrade.Enabled, label .. ": no grade lifting the black")
 		for _, g in playerGui:GetChildren() do
