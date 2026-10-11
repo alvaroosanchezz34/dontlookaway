@@ -201,13 +201,15 @@ def shade(data, state, eye, target, w, h, fov, pos, R, half, alb, emit, glass, s
         # emissive (Neon) parts: use their colour bright; dead lamps are Glass in game
         col[em] = alb[idx[em]] / 0.7 * 2.2
     col *= 2 ** preset["exposure"]
-    disp = aces(col)
+    # tonemap to the display, then grade it there: ColorCorrection works on the
+    # final (sRGB) image; grading linear values crushed every dark tone to 0
+    disp = srgb(aces(col))
     # grade: contrast around mid grey, saturation, tint
     disp = (disp - 0.5) * (1 + preset["contrast"]) + 0.5 + preset["brightness"]
     lum = (disp * [0.2126, 0.7152, 0.0722]).sum(1, keepdims=True)
     disp = lum + (disp - lum) * (1 + preset["saturation"])
     disp *= np.array(preset["tint"]) / 255.0
-    img = srgb(np.clip(disp, 0, 1)).reshape(h, w, 3)
+    img = np.clip(disp, 0, 1).reshape(h, w, 3)
     stats = {
         "lights": len(lights),
         "mean": float(img.mean()),
