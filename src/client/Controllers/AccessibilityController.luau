@@ -90,6 +90,8 @@ local function apply()
 	for key, color in palette do
 		Kit.C[key] = color
 	end
+	-- an LCD's "wrong" is the danger red lit, in every colour mode (Theme)
+	Kit.C.LcdError = Kit.C.Danger:Lerp(Color3.new(1, 1, 1), 0.4)
 	if s.graphics ~= lastGraphics then
 		lastGraphics = s.graphics
 		applyShadows()
