@@ -20,6 +20,8 @@
 		speed     playback speed, number or {min, max} for variation
 		looped    boolean
 		effects   list of { class, props } SoundEffects applied to the Sound
+		          (from an uploaded sheet only the spatial ones are kept)
+		sheetEffects  extra effects only for the uploaded sheet recording
 		min, max  RollOffMinDistance / RollOffMaxDistance for 3D sounds
 ]]
 
@@ -85,7 +87,18 @@ AudioLibrary.Sounds = {
 	AmbientDrone = { id = S.swim, group = "Ambient", volume = 0.55, speed = 0.18, looped = true, effects = { lowpass(-40, -12), reverb(6, 0) } },
 	AmbientAir = { id = S.swoosh, group = "Ambient", volume = 0.18, speed = 0.12, looped = true, effects = { lowpass(-25, -6), reverb(4, -4), tremolo(0.2, 0.5) } },
 	AmbientHum = { id = S.ping, group = "Ambient", volume = 0.12, speed = 0.05, looped = true, effects = { lowpass(-30, -2), tremolo(8, 0.25) } },
-	AmbientRain = { id = S.swim, group = "Ambient", volume = 0.35, speed = 0.55, looped = true, effects = { lowpass(-14, -4), chorus() } },
+	-- the uploaded rain is band-passed noise (400-7000 Hz): three quarters of
+	-- its energy above 2 kHz, a constant hiss under everything; its sheet copy
+	-- keeps the low drumming and only a soft patter
+	AmbientRain = {
+		id = S.swim,
+		group = "Ambient",
+		volume = 0.35,
+		speed = 0.55,
+		looped = true,
+		effects = { lowpass(-14, -4), chorus() },
+		sheetEffects = { { "EqualizerSoundEffect", { HighGain = -24, MidGain = -9, LowGain = 2, MidRange = NumberRange.new(350, 2500) } } },
+	},
 	DistantPipe = { id = S.collide, group = "Ambient", volume = 0.5, speed = { 0.18, 0.28 }, effects = { reverb(5, 0), echo(0.5, 0.5, -6), lowpass(-18, -2) }, min = 10, max = 140 },
 	DistantKnock = { id = S.hit, group = "Ambient", volume = 0.5, speed = { 0.35, 0.45 }, effects = { reverb(4, -1), lowpass(-16, -4) }, min = 10, max = 120 },
 	DistantMetal = { id = S.rocket, group = "Ambient", volume = 0.22, speed = { 0.12, 0.2 }, effects = { reverb(7, 0), lowpass(-22, -6) }, min = 20, max = 180 },

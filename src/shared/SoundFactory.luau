@@ -157,9 +157,17 @@ function SoundFactory.create(key: string, parent: Instance?, opts: { [string]: a
 	if group then
 		sound.SoundGroup = group
 	end
-	if def.effects then
-		for i, effect in def.effects do
-			if customUrl and not SPATIAL[effect[1]] then
+	-- a sheet sound keeps only the spatial effects, plus its own sheetEffects
+	local effects = def.effects or {}
+	if customUrl and def.sheetEffects then
+		effects = table.clone(effects)
+		for _, e in def.sheetEffects do
+			table.insert(effects, { e[1], e[2], sheet = true })
+		end
+	end
+	if #effects > 0 then
+		for i, effect in effects do
+			if customUrl and not SPATIAL[effect[1]] and not effect.sheet then
 				continue
 			end
 			local ok, instance = pcall(Instance.new, effect[1])
