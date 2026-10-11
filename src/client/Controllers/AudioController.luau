@@ -39,6 +39,9 @@ local lastHeartbeat = 0
 local lastBreath = 0
 local nextDistantAt = 0
 local random = Random.new()
+-- the jumpscare's hit: the one thing you hear while State.scareDark silences
+-- every other group (only the master volume applies to it)
+local scareGroup: SoundGroup
 
 -- Meaningful sounds get a caption (when subtitles are on) and an on-screen
 -- direction indicator (when audio indicators are on).
@@ -93,12 +96,16 @@ function AudioController:ApplyVolumes()
 			if groupName == "Ambient" then
 				v *= duck
 			end
-			group.Volume = v
+			group.Volume = if State.scareDark then 0 else v
 		end
+	end
+	if scareGroup then
+		scareGroup.Volume = s.master or 1
 	end
 end
 
 -- Plays a sound. at: Vector3 (world), Instance (attached) or nil (2D).
+-- opts.hit: through the jumpscare's own group, heard over the silence.
 function AudioController:Play(key: string, at: any, opts: { [string]: any }?): Sound?
 	local parent: Instance = SoundService
 	local temp: Instance? = nil
@@ -117,6 +124,9 @@ function AudioController:Play(key: string, at: any, opts: { [string]: any }?): S
 			temp:Destroy()
 		end
 		return nil
+	end
+	if opts and opts.hit then
+		sound.SoundGroup = scareGroup
 	end
 	sound:Play()
 	if typeof(at) == "Vector3" or (typeof(at) == "Instance" and at:IsA("BasePart")) then
@@ -343,6 +353,9 @@ end
 
 function AudioController:Init()
 	SoundFactory.ensureGroups()
+	scareGroup = Instance.new("SoundGroup")
+	scareGroup.Name = "ScareHit"
+	scareGroup.Parent = SoundService
 	task.spawn(SoundFactory.validate)
 	duckValue.Changed:Connect(function(v)
 		duck = v

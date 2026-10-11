@@ -558,62 +558,300 @@ do
 end
 
 section("death cinematics")
--- every situation with its default sequence, then every sequence at both
--- ends of its rhythm (beat 0 and 1)
-local scareCases = {}
-for _, variant in { "behind", "side", "front", "dark", "door", "mirror", "mimic" } do
-	table.insert(scareCases, { variant = variant })
-end
-for _, pair in { { "turn", "behind" }, { "turn", "side" }, { "stillness", "front" }, { "drop", "front" }, { "drop", "behind" }, { "lightsout", "dark" }, { "peek", "side" }, { "peek", "door" }, { "mirror", "mirror" }, { "mimic", "mimic" } } do
-	for _, beat in { 0, 1 } do
-		table.insert(scareCases, { variant = pair[2], sequence = pair[1], beat = beat })
+--[[
+	The rules of the hit (ScareController): it lands on the very call that
+	delivers the death (no frame of warning); the camera keeps the exact
+	CFrame and field of view it had, whatever the pitch; every light around
+	is off locally and the scare's own light is the only one that reaches its
+	head; Lighting, sky, HUD and sound go dark; the face is in front of the
+	lens at the distance for the player's field of view; and everything comes
+	back exactly as it was, even when a server tween lands mid-scare.
+]]
+do
+	local Lighting = game:GetService("Lighting")
+	local SoundService = game:GetService("SoundService")
+	local ScareController = Registry.ScareController
+	local camera = workspace.CurrentCamera
+	-- the death fired earlier in this test clears the "Death" camera override
+	-- 6.2 s later (DeathController): let it finish before these start
+	task.wait(6.5)
+	frames(3)
+	-- Lune stores CFrames as 32-bit floats: compare a view within a hair
+	local function sameView(a: CFrame, b: CFrame): boolean
+		return (a.Position - b.Position).Magnitude < 1e-4 and a.LookVector:Dot(b.LookVector) > 1 - 1e-4 and a.UpVector:Dot(b.UpVector) > 1 - 1e-4
 	end
-end
-local impactTimes = {}
-for _, case in scareCases do
-	local variant = case.variant
-	local label = variant .. "/" .. tostring(case.sequence or "default") .. (if case.beat then "@" .. case.beat else "")
-	local finished = false
-	local ok, err = pcall(function()
-		Registry.ScareController:Death({ variant = variant, sequence = case.sequence, beat = case.beat, position = Vector3.new(0, 3, 0), side = 1, door = Vector3.new(6, 0, 2), mirror = Vector3.new(0, 6, -8), mimicUserId = 2, mimicName = "Friend" }, function()
-			finished = true
-		end)
+	-- a building around the camera: a lit fixture (LightController), a static
+	-- lamp, a lamp that is off, a sky, a server grade that lifts the black
+	local fixture = Instance.new("Model")
+	fixture.Name = "TestFixture"
+	local housing = Instance.new("Part")
+	housing.Anchored = true
+	housing.Position = Vector3.new(0, 10, -4)
+	housing.Parent = fixture
+	local fixtureLight = Instance.new("PointLight")
+	fixtureLight.Name = "Light"
+	fixtureLight.Range = 30
+	fixtureLight.Parent = housing
+	fixture.PrimaryPart = housing
+	fixture:SetAttribute("Mode", "on")
+	fixture:SetAttribute("Circuit", "MAIN")
+	fixture:SetAttribute("BaseBrightness", 1)
+	fixture.Parent = workspace
+	fixture:AddTag("Fixture")
+	env.tagAdded("Fixture", fixture)
+	local lampPart = Instance.new("Part")
+	lampPart.Name = "TestLamp"
+	lampPart.Anchored = true
+	lampPart.Position = Vector3.new(3, 4, -2)
+	lampPart.Parent = workspace
+	local lamp = Instance.new("SpotLight")
+	lamp.Range = 25
+	lamp.Enabled = true
+	lamp.Parent = lampPart
+	local deadLamp = Instance.new("SurfaceLight")
+	deadLamp.Enabled = false
+	deadLamp.Parent = lampPart
+	-- Lune does not fire DescendantAdded: tell the light index by hand
+	for _, l in { fixtureLight, lamp, deadLamp } do
+		signalFor(workspace, "DescendantAdded"):Fire(l)
+	end
+	local sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky")
+	sky.Parent = Lighting
+	local serverGrade = Instance.new("ColorCorrectionEffect")
+	serverGrade.Name = "TestGrade"
+	serverGrade.Brightness = 0.03
+	serverGrade.Parent = Lighting
+	local prevPower = workspace:GetAttribute("Power")
+	workspace:SetAttribute("Power", true)
+	Lighting.Ambient = Color3.fromRGB(44, 42, 40)
+	Lighting.OutdoorAmbient = Color3.fromRGB(34, 38, 46)
+	Lighting.Brightness = 0.6
+	Lighting.EnvironmentDiffuseScale = 0.45
+	Lighting.EnvironmentSpecularScale = 1
+	localPlayer:SetAttribute("Flashlight", true)
+	-- stand under the fixture (light LOD)
+	Registry.CameraController:SetOverride("TestView", 49, function()
+		return CFrame.new(0, 4.5, 2), 74
 	end)
-	check(ok, "death cinematic " .. label .. ": " .. tostring(err))
-	local deadline = os.clock() + 6
-	while not finished and os.clock() < deadline do
-		frames(2)
-		task.wait(0.05)
+	task.wait(0.1)
+	frames(5)
+	check(fixtureLight.Enabled, "test fixture lit before the scare")
+
+	local LIGHTING = { "Ambient", "OutdoorAmbient", "Brightness", "EnvironmentDiffuseScale", "EnvironmentSpecularScale" }
+	local function snapshot()
+		local snap = {}
+		for _, prop in LIGHTING do
+			snap["Lighting." .. prop] = tostring((Lighting :: any)[prop])
+		end
+		snap.sky = tostring(sky.Parent)
+		snap.grade = tostring(serverGrade.Enabled)
+		snap.lamp = tostring(lamp.Enabled)
+		snap.deadLamp = tostring(deadLamp.Enabled)
+		for _, g in playerGui:GetChildren() do
+			if g:IsA("LayerCollector") then
+				snap["gui." .. g.Name] = tostring(g.Enabled)
+			end
+		end
+		for _, g in SoundService:GetChildren() do
+			if g:IsA("SoundGroup") then
+				snap["group." .. g.Name] = string.format("%.3f", g.Volume)
+			end
+		end
+		snap.workspace = tostring(#workspace:GetChildren())
+		snap.lightingChildren = tostring(#Lighting:GetChildren())
+		return snap
 	end
-	frames(4)
-	task.wait(0.3)
-	check(finished, "death cinematic " .. label .. " reaches the black screen")
-	-- the face, at the impact: close, in front of the lens, centred, looking into it
-	local f = Registry.ScareController.LastFrame
-	check(f ~= nil and f.variant == variant and (case.sequence == nil or f.sequence == case.sequence), "death cinematic " .. label .. " measured its impact frame")
-	if f then
-		check(f.inFront, "death cinematic " .. label .. ": the face is in front of the camera")
-		check(math.abs(f.distance - 3) < 0.15, string.format("death cinematic %s: face %.2f studs from the lens", label, f.distance))
-		check(f.centred > 0.995, string.format("death cinematic %s: face centred (%.3f)", label, f.centred))
-		check(f.facing > 0.95, string.format("death cinematic %s: face turned to the camera (%.3f)", label, f.facing))
-		impactTimes[string.format("%.2f", f.impactAt)] = true
-	end
-	check(not Registry.ScareController:IsActive(), "death cinematic " .. label .. " cleans up")
-	local leftovers = 0
-	for _, d in workspace:GetChildren() do
-		if d.Name == "ObserverScare" then
-			leftovers += 1
+	local function restored(before, label)
+		local after = snapshot()
+		for k, v in before do
+			check(after[k] == v, label .. ": " .. k .. " restored (" .. v .. " -> " .. tostring(after[k]) .. ")")
 		end
 	end
-	check(leftovers == 0, "no scare rig left behind after " .. label)
-	Registry.CameraController:ClearOverride("Death")
+	local function scareRig(): Model?
+		for _, d in workspace:GetChildren() do
+			if d.Name == "ObserverScare" then
+				return d
+			end
+		end
+		return nil
+	end
+	-- during the scare: only its own light, and it reaches the head
+	local function onlyItsLight(label)
+		local rig = scareRig()
+		local head = rig and rig:FindFirstChild("Head")
+		local others, its = {}, nil
+		for _, d in workspace:GetDescendants() do
+			if d:IsA("Light") and d.Enabled then
+				if rig and d:IsDescendantOf(rig) and d.Parent.Name == "ScareLight" then
+					its = d
+				else
+					table.insert(others, d:GetFullName())
+				end
+			end
+		end
+		check(#others == 0, label .. ": no other light on: " .. table.concat(others, ", "))
+		check(its ~= nil and head ~= nil and (its.Parent.CFrame.Position - head.CFrame.Position).Magnitude < its.Range, label .. ": the scare light reaches its head")
+		check(its ~= nil and its.Range <= 3, label .. ": the scare light has a short reach")
+	end
+	local function darkNow(label)
+		check(State.scareDark, label .. ": the scare owns the screen")
+		for _, prop in LIGHTING do
+			local v = (Lighting :: any)[prop]
+			check(v == 0 or v == Color3.new(0, 0, 0), label .. ": Lighting." .. prop .. " is zero")
+		end
+		check(sky.Parent == nil, label .. ": no sky")
+		check(not serverGrade.Enabled, label .. ": no grade lifting the black")
+		for _, g in playerGui:GetChildren() do
+			if g:IsA("LayerCollector") and g.Name ~= "Overlay" then
+				check(not g.Enabled, label .. ": HUD hidden (" .. g.Name .. ")")
+			end
+		end
+		for _, g in SoundService:GetChildren() do
+			if g:IsA("SoundGroup") and g.Name ~= "ScareHit" then
+				check(g.Volume == 0, label .. ": " .. g.Name .. " is silent")
+			end
+		end
+		check(workspace:FindFirstChild("ScareDark") ~= nil, label .. ": the black box is up")
+		onlyItsLight(label)
+	end
+
+	local cases = {}
+	for _, variant in { "behind", "side", "front", "dark", "door", "mirror", "mimic" } do
+		table.insert(cases, { variant = variant, pitch = 0, beat = 0.5 })
+	end
+	for _, pitch in { -75, 60 } do
+		for _, beat in { 0, 1 } do
+			table.insert(cases, { variant = "front", pitch = pitch, beat = beat })
+		end
+	end
+	for i, case in cases do
+		local label = string.format("%s, pitch %d, beat %.1f", case.variant, case.pitch, case.beat)
+		-- the player's view, held by an override just under the death's (no character in Lune)
+		local view = CFrame.new(Vector3.new(i * 0.7, 4.5, 2)) * CFrame.Angles(0, math.rad(i * 37), 0) * CFrame.Angles(math.rad(case.pitch), 0, 0)
+		Registry.CameraController:SetOverride("TestView", 49, function()
+			return view, 74
+		end)
+		frames(3)
+		-- what the player is seeing right now (any shake from earlier effects included)
+		local seen = camera.CFrame
+		local fov = camera.FieldOfView
+		local before = snapshot()
+		local finished = false
+		local ok, err = pcall(function()
+			ScareController:Death({ variant = case.variant, beat = case.beat, sequence = "turn", position = view.Position - Vector3.new(0, 1.5, 0), mimicName = "Friend" }, function()
+				finished = true
+			end)
+		end)
+		check(ok, "death " .. label .. ": " .. tostring(err))
+		-- the hit is already there: no frame has run since the death arrived
+		local f = ScareController.LastFrame
+		check(f ~= nil and f.variant == case.variant and f.impactAt == 0, "death " .. label .. ": the hit lands on the first frame")
+		check(scareRig() ~= nil, "death " .. label .. ": its face is there before the first frame")
+		if f then
+			check(f.inFront, "death " .. label .. ": the face is in front of the camera")
+			check(math.abs(f.distance - f.expected) < 0.01, string.format("death %s: face %.3f studs from the lens (want %.3f)", label, f.distance, f.expected))
+			check(f.centred > 0.9999, string.format("death %s: face dead centre (%.5f)", label, f.centred))
+			check(f.facing > 0.999, string.format("death %s: face looking into the lens (%.4f)", label, f.facing))
+			check(sameView(f.camera, seen), "death " .. label .. ": the scare used the player's own view (" .. tostring(f.camera) .. " vs " .. tostring(seen) .. ")")
+		end
+		darkNow("death " .. label)
+		-- a server tween lands mid-scare: it is what comes back afterwards
+		Lighting.Ambient = Color3.fromRGB(50, 40, 30)
+		before["Lighting.Ambient"] = tostring(Color3.fromRGB(50, 40, 30))
+		local moved, fovMoved, steps = false, false, 0
+		local deadline = os.clock() + 4
+		while not finished and os.clock() < deadline do
+			frames(1)
+			steps += 1
+			if camera.CFrame ~= seen then
+				moved = true
+			end
+			if math.abs(camera.FieldOfView - fov) > 1e-4 then
+				fovMoved = true
+			end
+			if steps % 10 == 1 and not finished then
+				darkNow("death " .. label .. " (frame " .. steps .. ")")
+			end
+			task.wait(1 / 60)
+		end
+		check(finished, "death " .. label .. " reaches the black screen")
+		check(not moved, "death " .. label .. ": the camera never moved")
+		check(not fovMoved, "death " .. label .. ": the field of view never changed")
+		task.wait(0.25)
+		frames(3)
+		check(not ScareController:IsActive() and not State.scareDark, "death " .. label .. " cleans up")
+		check(scareRig() == nil and workspace:FindFirstChild("ScareDark") == nil, "death " .. label .. ": rig and black box gone")
+		Registry.CameraController:ClearOverride("Death")
+		Registry.CameraController:ClearOverride("TestView")
+		restored(before, "death " .. label)
+		Registry.EffectsController:Fade(0, 0)
+	end
+
+	-- its motion: jumps between held poses, starting on the hit
+	check(#ScareController.DeathKeys >= 5 and ScareController.DeathKeys[1].at == 0, "the death has its keyed motion, starting on the hit")
+
+	-- the short scare: same rules, half a second, then the camera is yours again
+	do
+		local view = CFrame.new(2, 4.5, 3) * CFrame.Angles(0, math.rad(20), 0) * CFrame.Angles(math.rad(-30), 0, 0)
+		Registry.CameraController:SetOverride("TestView", 49, function()
+			return view, 74
+		end)
+		frames(3)
+		local seen = camera.CFrame
+		local before = snapshot()
+		ScareController:Flash("test")
+		local f = ScareController.LastFrame
+		check(f ~= nil and f.variant == "flash" and math.abs(f.distance - f.expected) < 0.01 and f.inFront, "short scare: its face in front of the lens on the first frame")
+		darkNow("short scare")
+		local moved = false
+		for _ = 1, 10 do
+			frames(1)
+			moved = moved or camera.CFrame ~= seen
+		end
+		check(not moved, "short scare: the camera never moved")
+		task.wait(0.6)
+		frames(3)
+		check(not ScareController:IsActive() and not Registry.CameraController:IsRegistered("Scare"), "short scare gives the camera back")
+		Registry.CameraController:ClearOverride("TestView")
+		restored(before, "short scare")
+	end
+
+	-- cut short: a death arriving during the short scare replaces it, and
+	-- everything still comes back
+	do
+		local before = snapshot()
+		ScareController:Flash("test")
+		local finished = false
+		ScareController:Death({ variant = "front", beat = 0 }, function()
+			finished = true
+		end)
+		local deadline = os.clock() + 4
+		while not finished and os.clock() < deadline do
+			frames(1)
+			task.wait(1 / 60)
+		end
+		task.wait(0.3)
+		frames(3)
+		check(finished and not State.scareDark and scareRig() == nil, "a death cutting a short scare cleans up")
+		check(not Registry.CameraController:IsRegistered("Scare"), "the cut short scare let go of the camera")
+		Registry.CameraController:ClearOverride("Death")
+		restored(before, "death over a short scare")
+		Registry.EffectsController:Fade(0, 0)
+	end
+
+	-- the hit is heard over the silence, through its own group
+	local group = SoundService:FindFirstChild("ScareHit")
+	check(group ~= nil and group:IsA("SoundGroup") and group.Volume > 0, "the hit has its own audible group")
+
+	-- out of the workspace first, so LightController lets go of it
+	fixture.Parent = nil
+	frames(2)
+	fixture:Destroy()
+	lampPart:Destroy()
+	serverGrade:Destroy()
+	workspace:SetAttribute("Power", prevPower)
+	localPlayer:SetAttribute("Flashlight", false)
 end
--- the impact never comes at one fixed moment
-local distinct = 0
-for _ in impactTimes do
-	distinct += 1
-end
-check(distinct >= 8, "the impact comes at many different moments (" .. distinct .. ")")
 -- the admin scare test: plays, gives the camera back, reports the frame
 do
 	Registry.CameraController:ClearOverride("Death")
@@ -629,9 +867,9 @@ do
 	task.wait(0.8)
 	frames(3)
 	check(not Registry.ScareController:IsActive(), "admin scare test finishes")
-	check(not Registry.CameraController:IsRegistered("Death"), "admin scare test gives the camera back")
+	check(not Registry.CameraController:IsRegistered("Death"), "admin scare test gives the camera back (active " .. tostring(Registry.ScareController:IsActive()) .. ")")
 	local f = Registry.ScareController.LastFrame
-	check(f ~= nil and f.facing > 0.95 and f.inFront, "admin scare test framed the face")
+	check(f ~= nil and f.facing > 0.95 and f.inFront and math.abs(f.distance - f.expected) < 0.05, "admin scare test framed the face")
 end
 -- the mimic's lunge: its own face (a stand-in model with a head)
 do
@@ -651,11 +889,11 @@ do
 	check(not Registry.CameraController:IsRegistered("MimicLunge"), "mimic lunge gives the camera back")
 	fake:Destroy()
 end
-local okFlash = pcall(function()
+local okFlash, flashErr = pcall(function()
 	Registry.ScareController:Flash("mimic")
 end)
-check(okFlash, "short scare")
-task.wait(0.4)
+check(okFlash, "short scare: " .. tostring(flashErr))
+task.wait(0.6)
 frames(3)
 fire("Effect", { name = "ObserverClose" })
 fire("Effect", { name = "GuideMarker", at = Vector3.new(10, 3, 10), text = "MAIL ROOM" })

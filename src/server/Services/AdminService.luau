@@ -221,8 +221,8 @@ end
 
 -- Plays a death cinematic on your own screen without killing you, then
 -- gives control back; the client reports how the face was framed.
--- arg: a sequence (turn, stillness, drop, lightsout, peek, mirror, mimic);
--- the matching situation is used for it
+-- arg: a sequence (turn, stillness, drop, lightsout, peek, mirror, mimic):
+-- its matching situation picks the last line (the hit itself is always instant)
 local SCARE_TESTS = {
 	turn = "behind",
 	stillness = "front",
@@ -242,7 +242,9 @@ COMMANDS.scareReport = function(_, report)
 	if type(report) ~= "table" then
 		return "scare test finished (no frame measured)"
 	end
-	local ok = report.inFront == true and type(report.distance) == "number" and math.abs(report.distance - ObserverRig.ScareDistance) < 0.3 and (tonumber(report.facing) or 0) > 0.9 and (tonumber(report.centred) or 0) > 0.98
+	-- the distance depends on the admin's field of view: the client says which it aimed for
+	local expected = tonumber(report.expected) or ObserverRig.ScareDistance
+	local ok = report.inFront == true and type(report.distance) == "number" and math.abs(report.distance - expected) < 0.1 and (tonumber(report.facing) or 0) > 0.9 and (tonumber(report.centred) or 0) > 0.98
 	return string.format(
 		"scare test %s %s: face %.2f studs, facing camera %.2f, centred %.3f, in front %s",
 		tostring(report.sequence or report.variant),

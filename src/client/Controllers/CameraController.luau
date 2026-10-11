@@ -114,7 +114,8 @@ local function updateMouseLock()
 		lock = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 	end
 	UserInputService.MouseBehavior = if lock then Enum.MouseBehavior.LockCenter else Enum.MouseBehavior.Default
-	UserInputService.MouseIconEnabled = not lock
+	-- no cursor over a jumpscare
+	UserInputService.MouseIconEnabled = not lock and not State.scareDark
 end
 
 local function hideCharacter(character: Model)
@@ -130,7 +131,7 @@ local function hideCharacter(character: Model)
 end
 
 local function applyLookInput(dt: number)
-	if frozen or State.uiOpen then
+	if frozen or State.uiOpen or State.scareDark then
 		touchDelta = Vector2.zero
 		return
 	end
@@ -198,7 +199,8 @@ local function fpsCFrame(dt: number): CFrame?
 end
 
 local function shakeOffset(dt: number): CFrame
-	if trauma <= 0 then
+	-- a jumpscare holds the camera perfectly still
+	if trauma <= 0 or State.scareDark then
 		return CFrame.new()
 	end
 	trauma = math.max(0, trauma - dt * 1.3)

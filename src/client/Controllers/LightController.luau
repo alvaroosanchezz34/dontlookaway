@@ -212,7 +212,8 @@ local function evaluate(info: Info, camPos: Vector3, now: number)
 		end
 	end
 	local dist = (m:GetPivot().Position - camPos).Magnitude
-	local inRange = lit and dist < LOD_DISTANCE
+	-- a jumpscare blacks out every light around you (ScareController)
+	local inRange = lit and dist < LOD_DISTANCE and not State.scareDark
 	for _, entry in info.lights do
 		local l = entry.light
 		if entry.main then
@@ -244,7 +245,7 @@ local function updateBeacons(camPos: Vector3, now: number, dt: number)
 			beacons[model] = nil
 		else
 			local dist = (b.rotor.Position - camPos).Magnitude
-			local on = active and dist < LOD_DISTANCE
+			local on = active and dist < LOD_DISTANCE and not State.scareDark
 			for _, beam in b.beams do
 				beam.Enabled = on
 				beam.Brightness = if strong then 2.2 else 1.3
@@ -271,7 +272,7 @@ local function updateSigns(camPos: Vector3)
 		if not model.Parent then
 			signs[model] = nil
 		else
-			glow.Enabled = (model:GetPivot().Position - camPos).Magnitude < LOD_DISTANCE
+			glow.Enabled = (model:GetPivot().Position - camPos).Magnitude < LOD_DISTANCE and not State.scareDark
 			glow.Brightness = if dark then 0.95 else 0.55
 		end
 	end
@@ -308,7 +309,7 @@ local function updateAdaptation(dt: number, camPos: Vector3)
 	local gamma = State.settings.brightness or 0.5
 	strength *= 0.6 + gamma * 0.8
 	adaptHolder.CFrame = CFrame.new(camPos + Vector3.new(0, 1.2, 0))
-	adaptLight.Enabled = adaptation > 0.02
+	adaptLight.Enabled = adaptation > 0.02 and not State.scareDark
 	adaptLight.Brightness = adaptation * strength
 	adaptLight.Range = 16 + adaptation * 6
 	adaptGrade.Brightness = adaptation * 0.035 * (0.6 + gamma * 0.8)

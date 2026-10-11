@@ -472,7 +472,7 @@ end
 
 local function update(dt: number)
 	local playing = State.status == "ALIVE"
-	gui.Enabled = playing or State.status == "LOBBY"
+	gui.Enabled = (playing or State.status == "LOBBY") and not State.scareDark
 	faded.Visible = playing
 	crosshair.Visible = playing and not State.uiOpen
 	if not playing then

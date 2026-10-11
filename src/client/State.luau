@@ -47,6 +47,7 @@ local State = {
 	notes = {}, -- documents read this round
 	inputType = "Keyboard", -- Keyboard | Gamepad | Touch
 	uiOpen = false, -- a menu panel has focus (mouse unlocked)
+	scareDark = false, -- a jumpscare owns the screen: lights, HUD, sound and look input are off (ScareController)
 	phase = "CALM",
 	storyPhase = "ARRIVAL",
 	tools = { tools = {}, selected = 0 }, -- this round's equipment belt

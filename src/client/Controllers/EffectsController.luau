@@ -67,6 +67,10 @@ local function makeVignette(parent: Instance): Frame
 end
 
 function EffectsController:Fade(alpha: number, time: number)
+	if time <= 0 then
+		-- a hard cut lands on this very frame
+		blackout.BackgroundTransparency = 1 - alpha
+	end
 	Kit.tween(blackout, time, { BackgroundTransparency = 1 - alpha })
 end
 
@@ -364,7 +368,7 @@ handlers.ScareTest = function(p)
 			EffectsController:ResetPost()
 			EffectsController:Fade(0, 0.4)
 			local f = Registry.ScareController.LastFrame
-			Net.event("Admin"):FireServer("scareReport", if f then { variant = f.variant, sequence = f.sequence, distance = f.distance, facing = f.facing, centred = f.centred, inFront = f.inFront } else nil)
+			Net.event("Admin"):FireServer("scareReport", if f then { variant = f.variant, sequence = f.sequence, distance = f.distance, expected = f.expected, facing = f.facing, centred = f.centred, inFront = f.inFront } else nil)
 		end)
 	end)
 end

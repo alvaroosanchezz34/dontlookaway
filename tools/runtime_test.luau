@@ -720,47 +720,85 @@ do
 	end
 	check(#bright == 0, "the body is uniformly black: " .. table.concat(bright, ", "))
 	check(#shiny == 0, "the body is matte: " .. table.concat(shiny, ", "))
-	-- the jumpscare framing, from many camera positions and directions
-	local dist = ObserverRig.ScareDistance
-	local worst = { dist = 0, facing = 1, level = 0, eyes = 0 }
+	-- the jumpscare framing: from many places, headings and pitches (looking
+	-- at the floor and at the ceiling too), the face lands exactly in front of
+	-- the lens, upright on screen, looking straight into it
+	local GameConfig = requireModule(RS.Shared.Config.GameConfig)
+	local fov = GameConfig.Camera.DefaultFOV
+	local dist = ObserverRig.scareDistance(fov)
+	check(math.abs(dist - ObserverRig.ScareDistance) < 1e-6, "ScareDistance is the default field of view's distance")
+	check(dist > 0.5 and dist < 2, string.format("its face is a stud or so from the lens (%.2f studs)", dist))
+	local worst = { dist = 0, facing = 1, upright = 1, eyes = 0 }
 	for i = 0, 11 do
 		local yaw = i * math.pi / 6
 		local eye = Vector3.new(math.cos(yaw) * 7, 4.5 + (i % 3) * 0.6, math.sin(yaw) * 7)
-		local dir = Vector3.new(-math.sin(yaw), 0, math.cos(yaw))
-		for _, a in { 0, 0.5, 1 } do
-			local pose = ObserverRig.ScarePose(a, 0)
-			local target = eye + dir * dist
-			local rootCf = ObserverRig.placeFace(m, pose, target, eye)
-			local solved = ObserverRig.solve(rig, rootCf, pose)
-			local anchor = rootCf * ObserverRig.headFromRoot(m, pose) * ObserverRig.FaceAnchor
-			-- the solver and the full-rig FK agree
-			local fromRig = solved[rig:FindFirstChild("Head")] * ObserverRig.FaceAnchor
-			worst.dist = math.max(worst.dist, (anchor.Position - target).Magnitude, (fromRig.Position - target).Magnitude)
-			local toCam = (eye - anchor.Position).Unit
-			worst.facing = math.min(worst.facing, anchor.LookVector:Dot(toCam))
-			if a == 1 then
-				worst.level = math.max(worst.level, math.abs(anchor.LookVector.Y))
-				-- both eyes well inside the picture (angle from the view axis;
-				-- not CFrame.lookAt, which Lune builds facing the other way)
-				local axis = (target - eye).Unit
-				for _, side in { "L", "R" } do
-					local to = (solved[rig:FindFirstChild("Eyeball" .. side)].Position - eye).Unit
-					worst.eyes = math.max(worst.eyes, math.deg(math.acos(math.clamp(to:Dot(axis), -1, 1))))
+		for _, pitch in { -80, -35, 0, 40, 80 } do
+			local camCf = CFrame.new(eye) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(math.rad(pitch), 0, 0)
+			for _, a in { 0, 0.5, 1 } do
+				local pose = ObserverRig.ScarePose(a, 0)
+				local target = eye + camCf.LookVector * dist
+				local rootCf = ObserverRig.placeFace(m, pose, target, camCf)
+				local solved = ObserverRig.solve(rig, rootCf, pose)
+				local anchor = rootCf * ObserverRig.headFromRoot(m, pose) * ObserverRig.FaceAnchor
+				-- the solver and the full-rig FK agree
+				local fromRig = solved[rig:FindFirstChild("Head")] * ObserverRig.FaceAnchor
+				worst.dist = math.max(worst.dist, (anchor.Position - target).Magnitude, (fromRig.Position - target).Magnitude)
+				worst.facing = math.min(worst.facing, anchor.LookVector:Dot(-camCf.LookVector))
+				worst.upright = math.min(worst.upright, anchor.UpVector:Dot(camCf.UpVector))
+				if a == 1 then
+					for _, side in { "L", "R" } do
+						local to = (solved[rig:FindFirstChild("Eyeball" .. side)].Position - eye).Unit
+						worst.eyes = math.max(worst.eyes, math.deg(math.acos(math.clamp(to:Dot(camCf.LookVector), -1, 1))))
+					end
 				end
 			end
 		end
 	end
 	check(worst.dist < 1e-3, string.format("the face lands exactly where the jumpscare puts it (worst %.5f)", worst.dist))
-	check(worst.facing > 0.95, string.format("the face always turns to the camera (worst %.3f)", worst.facing))
-	check(worst.level < 0.2, string.format("at the impact the face is level, not looking up or down (%.3f)", worst.level))
-	print(string.format("  jumpscare: face error %.5f, facing %.3f, level %.3f, eyes within %.1f deg of centre", worst.dist, worst.facing, worst.level, worst.eyes))
-	check(worst.eyes < ObserverRig.ScareFov * 0.25, string.format("both eyes near the centre of the picture (worst %.1f deg)", worst.eyes))
+	check(worst.facing > 0.999, string.format("the face looks straight into the lens, at any pitch (worst %.4f)", worst.facing))
+	check(worst.upright > 0.999, string.format("the face is upright on screen, at any pitch (worst %.4f)", worst.upright))
+	print(string.format("  jumpscare: %.2f studs at fov %d, face error %.5f, facing %.4f, upright %.4f, eyes within %.1f deg of centre", dist, fov, worst.dist, worst.facing, worst.upright, worst.eyes))
+	check(worst.eyes < fov * 0.25, string.format("both eyes near the centre of the picture (worst %.1f deg)", worst.eyes))
+	-- the head fills about two thirds of the screen's height, measured on the
+	-- real head mesh (its vertices, as the camera projects them) at several
+	-- fields of view
+	do
+		local fs = require("@lune/fs")
+		local verts = {}
+		for line in string.gmatch(fs.readFile("assets/observer/Head.obj"), "[^\n]+") do
+			local x, y, z = string.match(line, "^v%s+(%S+)%s+(%S+)%s+(%S+)")
+			if x then
+				table.insert(verts, Vector3.new(tonumber(x), tonumber(y), tonumber(z)))
+			end
+		end
+		check(#verts > 100, "head mesh read (" .. #verts .. " vertices)")
+		for _, f in { 60, fov, 90 } do
+			local camCf = CFrame.new(0, 4.5, 0)
+			local pose = ObserverRig.ScarePose(1, 0)
+			local d = ObserverRig.scareDistance(f)
+			local rootCf = ObserverRig.placeFace(m, pose, camCf.Position + camCf.LookVector * d, camCf)
+			local headCf = ObserverRig.solve(rig, rootCf, pose)[rig:FindFirstChild("Head")]
+			local lo, hi, nearest = math.huge, -math.huge, math.huge
+			local half = math.tan(math.rad(f) / 2)
+			for _, v in verts do
+				local rel = camCf:PointToObjectSpace(headCf * v)
+				local depth = -rel.Z
+				nearest = math.min(nearest, depth)
+				local y = rel.Y / (depth * half)
+				lo, hi = math.min(lo, y), math.max(hi, y)
+			end
+			local fill = (hi - lo) / 2
+			check(fill > 0.6 and fill < 0.74, string.format("at fov %d the head fills %.2f of the screen's height", f, fill))
+			check(nearest > 0.2, string.format("at fov %d the head stays clear of the lens (%.2f studs)", f, nearest))
+		end
+	end
 	-- nothing comes between the camera and its head
 	do
-		local eye = Vector3.new(0, 4.5, 0)
+		local camCf = CFrame.new(0, 4.5, 0)
+		local eye = camCf.Position
 		local pose = ObserverRig.ScarePose(1, 0)
 		local target = eye + Vector3.new(0, 0, -dist)
-		local solved = ObserverRig.solve(rig, ObserverRig.placeFace(m, pose, target, eye), pose)
+		local solved = ObserverRig.solve(rig, ObserverRig.placeFace(m, pose, target, camCf), pose)
 		local blocking = {}
 		for part, cf in solved do
 			local onHead = headParts[part.Name] or string.find(part.Name, "Eyeball") or part.Name == "Pupil"
@@ -768,7 +806,7 @@ do
 				local rel = cf.Position - eye
 				local along = rel:Dot(Vector3.new(0, 0, -1))
 				local off = (rel - Vector3.new(0, 0, -1) * along).Magnitude
-				if along > 0.1 and along < dist - 0.3 and off < 0.9 then
+				if along > 0.1 and along < dist - 0.1 and off < 0.9 then
 					table.insert(blocking, part.Name)
 				end
 			end

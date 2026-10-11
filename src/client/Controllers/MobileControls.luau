@@ -106,7 +106,7 @@ function MobileControls:Start()
 		local touch = State.inputType == "Touch"
 		local alive = State.status == "ALIVE"
 		local lobby = State.status == "LOBBY"
-		gui.Enabled = touch and (alive or lobby) and not State.uiOpen
+		gui.Enabled = touch and (alive or lobby) and not State.uiOpen and not State.scareDark
 		if not gui.Enabled then
 			return
 		end

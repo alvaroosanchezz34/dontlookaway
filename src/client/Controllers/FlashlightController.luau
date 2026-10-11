@@ -229,7 +229,7 @@ local function update(dt: number)
 	end
 	intensity += ((if on then 1 else 0) - intensity) * Util.damp(if on then 30 else 18, dt)
 	local out = brightness * intensity
-	local lit = intensity > 0.02
+	local lit = intensity > 0.02 and not State.scareDark
 	core.Enabled = lit
 	spill.Enabled = lit
 	fill.Enabled = lit
@@ -281,7 +281,7 @@ local function update(dt: number)
 			end
 			rec.light.Brightness = oOut
 		end
-		rec.light.Enabled = onOther
+		rec.light.Enabled = onOther and not State.scareDark
 	end
 end
 

@@ -61,87 +61,110 @@ siguen al jugador.
 
 ## 4. El jumpscare
 
-### Por qué era previsible
+> Sustituye al jumpscare por secuencias (falsa calma, giros, impacto a
+> 3 studs). Aquel parecía de comedia: la cámara se movía sola, que es el
+> aviso de que algo viene; el fondo seguía iluminado; la cara se veía
+> pequeña; y el ritmo (0,55 s ladeando la cabeza y luego un empujón) daba
+> risa.
 
-- Siempre tenía la misma gramática y el mismo ritmo:
-  1. el sonido se cortaba en el primer fotograma, y eso era el aviso;
-  2. la cámara se giraba de golpe;
-  3. se abalanzaba en 0,2 s y golpeaba.
-- Además, antes de cada captura sonaba siempre la inhalación de aviso.
+### Las reglas
 
-### Cómo funciona ahora
+- **Instantáneo.** El frame en que llega la muerte ya es el golpe: sin falsa
+  calma, sin giros y sin aviso. `ScareController:Death` lo monta todo en la
+  misma llamada, antes del siguiente render. La inhalación de aviso que manda
+  el servidor cuando está cerca se queda: es una regla de juego justa.
+- **La cámara no se mueve.** Conserva la posición, la orientación (también
+  mirando al suelo o al techo) y el FOV de ese frame. No hay temblor ni zoom,
+  y el ratón no hace nada (`State.scareDark` congela la entrada y oculta el
+  cursor en `CameraController`). El que se mueve es él:
+  `ObserverRig.placeFace` pone su cara delante de donde apunta la cámara, con
+  el pitch incluido, derecha en pantalla y mirando al objetivo.
+- **Todo lo demás, a negro en ese mismo frame,** y todo en local:
+  - todas las luces del Workspace y la linterna apagadas;
+  - en Lighting, a cero `Ambient`, `OutdoorAmbient`, `Brightness`,
+    `EnvironmentDiffuseScale` y `EnvironmentSpecularScale`, y la
+    `Atmosphere` sin densidad;
+  - sin cielo, sin grades que levanten el negro, sin blur;
+  - sin HUD (todo `PlayerGui` menos `Overlay`) y sin los demás jugadores;
+  - una caja de seis placas Neon negras alrededor de la cámara. Neon negro
+    se ve negro le dé la luz que le dé, y tapa lo emisivo del edificio
+    (rótulos de salida, pantallas, balizas), que si no seguiría brillando.
 
-El servidor elige una **secuencia** según la situación y la envía con un
-**ritmo** (`beat`, de 0 a 1). Nunca repite la misma secuencia dos veces
-seguidas al mismo jugador.
+  Cada propiedad se fija con `hold` y se devuelve al terminar. Si otro sistema
+  la cambia mientras tanto (por ejemplo, un tween del servidor), se devuelve
+  ese último valor. Lo mismo pasa si el susto se corta (una muerte durante un
+  `Flash`) o falla al montarse.
+- **La cara llena la pantalla.** La cabeza ocupa dos tercios del alto con el
+  FOV del jugador. `ObserverRig.scareDistance(fov)` lo calcula con la cabeza
+  medida (`ObserverMeshMeta.Head`). Con el FOV por defecto (74) la cara queda
+  a 1,03 studs.
+- **Una luz tenue en su cabeza y nada más.** Es un `PointLight` frío y débil
+  (alcance 2,2 y brillo 1,1), pegado abajo y a un lado de la cabeza
+  (`ScareController.Light`): saca el relieve y los ojos y deja media cara en
+  negro. Respira despacio, como una bombilla que no acaba de morir; nunca
+  estrobo, y fija con `reducedEffects`.
+- **El movimiento es suyo.** Poses clave que saltan sin interpolar
+  (`ScareController.DeathKeys`): un tirón seco de cabeza, otro desde el cuello
+  hacia el lado contrario, la cabeza tumbada sobre el hombro a 98° y
+  congelada un instante, tics, y al final se echa hacia el objetivo. Los ojos
+  se recalculan cada frame sobre la cabeza resuelta, así que no te sueltan. El
+  rig local va todo anclado y con las articulaciones apagadas: cada frame se
+  colocan las piezas con `ObserverRig.solve`, y cada salto se ve justo en el
+  frame en que ocurre.
+- **Sonido.** Silencio total salvo el golpe: `ObserverImpact`,
+  `ObserverScreech` y `JumpSting` juntos y fuertes, por un grupo propio
+  (`ScareHit`, solo con el volumen general). Los demás grupos quedan a cero
+  hasta el corte. `reducedEffects` no baja el golpe.
+- **Duración.** Entre 1,25 y 1,45 s de cara, según el `beat` del servidor.
+  Después, corte seco a negro, pitido y la frase de la variante.
+- **Fuera** el glitch, el destello rojo, el blur y el temblor.
+- **`Flash`** sigue las mismas reglas durante medio segundo. `MimicLunge` no
+  cambia: es la cara del mimic, no la del Observer.
 
-Cada secuencia tiene fases:
-
-- **A, falsa calma.**
-- **B, ruptura.**
-- **C, impacto:**
-  1. la cara aparece iluminada a 3 studs, nivelada, con los dos ojos en el
-     centro;
-  2. se sostiene 0,55 s mientras la cabeza se ladea despacio;
-  3. luego empuja una vez hasta 1,9 studs, con el grito.
-- **D, cierre:** fundido a negro, pitido y una frase.
-
-| Secuencia | Situación | Qué pasa |
-|---|---|---|
-| turn | detrás o de lado | Te giras hacia el ruido: no hay nada. Un respiro (0,45 a 1,05 s). Al volver la cabeza, ya está delante, antes de que termines de girarte. |
-| stillness | delante | Está al fondo, quieto; solo se le ladea la cabeza (0,9 a 1,7 s). De repente, sin moverse, está en tu cara. |
-| drop | delante o detrás | Nada delante (0,45 a 0,95 s)… y su cara baja al encuadre desde arriba. |
-| lightsout | oscuridad | Se apaga la luz. Dos ojos pequeños al fondo un instante. Vuelve la luz y no hay nada. Sube a tu cara desde abajo. |
-| peek | de lado o en una puerta | Media cabeza asoma por el borde del encuadre y se retira. Llega por el lado contrario. |
-| mirror | espejo | Primero lo ves en el espejo y luego te giras. |
-| mimic | compañero | Un compañero de espaldas gira la cabeza del todo: no es él. |
-
-**Sonido:** el mundo sigue sonando durante la falsa calma y solo se corta en
-el golpe. En «lightsout» se corta al apagarse la luz, porque ahí el silencio
-es la propia ruptura.
-
-**Efectos:** el temblor, el glitch y el destello rojo son leves y nunca tapan
-la cara.
-
-**Garantías técnicas:**
-
-- La cara se coloca siempre con `ObserverRig.placeFace`.
-- El rig local no tiene Humanoid ni Animator, así que la locomoción no puede
-  pisar la pose.
-- El servidor decide el ataque y la muerte, que ocurre una sola vez.
-- El modo de prueba devuelve la cámara y el control.
+El servidor sigue mandando `variant`, `sequence` y `beat`: `variant` elige la
+frase, `beat` la duración y `sequence` solo aparece en el informe de admin.
+`ObserverService` no cambia.
 
 ## 5. Pruebas ejecutadas de verdad
 
-**`tools/runtime_test.luau`: 117.837 comprobaciones, 0 fallos.**
+**`tools/runtime_test.luau`: 117.846 comprobaciones, 0 fallos.**
 
 - Mallas y mapas horneados de los 10 segmentos, todos por debajo del límite
   de triángulos.
 - Montadas sobre el rig: 16 mallas mates y ninguna pieza con aristas visible
   encima.
 - Proporciones, cuerpo negro y mate, y ojos pequeños y apagados.
-- Encuadre del jumpscare desde 12 posiciones y 3 fases:
-  - error de colocación 0,00000;
-  - orientación hacia la cámara 0,999;
-  - cara nivelada;
-  - ojos a 3,9° del centro como mucho.
+- Encuadre del jumpscare: 12 posiciones, 5 pitch (de −80° a 80°) y 3 poses.
+  - Error de colocación 0,00000.
+  - De frente al objetivo y derecha en pantalla: 1,0000.
+  - Ojos a 10,8° del centro como mucho.
+- La cabeza ocupa entre el 60 % y el 74 % del alto de pantalla con FOV 60, 74
+  y 90. Se mide proyectando los vértices reales de `Head.obj`.
+- Nada se interpone entre la cámara y la cabeza.
 
-**`tools/client_test.luau`: 175.947 comprobaciones, 0 fallos.**
+**`tools/client_test.luau`: 100.792 comprobaciones, 0 fallos.**
 
-- Las 7 situaciones con su secuencia por defecto, más las 7 secuencias en los
-  dos extremos de ritmo (27 casos).
-- En todos, en el fotograma del impacto la cara queda delante de la cámara, a
-  3 studs, centrada y de frente.
-- El momento del impacto varía: al menos 8 instantes distintos.
-- Cada caso termina, limpia y devuelve la cámara.
+- 7 variantes, y además mirando al suelo (−75°) y al techo (60°), en los dos
+  extremos del `beat`.
+- Antes de que corra ningún frame, la cara ya está delante de la cámara, a
+  la distancia de su FOV, centrada y de frente.
+- Durante toda la cinemática:
+  - el CFrame y el FOV de la cámara son idénticos a los de antes del golpe;
+  - no hay ninguna luz del edificio, ni de la linterna, ni estática
+    encendida;
+  - la del susto es la única luz que toca la cabeza, y tiene poco alcance;
+  - Lighting está a cero, sin cielo, sin HUD y con los grupos de sonido a
+    cero.
+- Al terminar vuelve todo como estaba: luces, Lighting (incluido un tween
+  que cae a mitad del susto), cielo, grade, HUD y volúmenes. No quedan ni
+  rig ni caja.
+- Además se prueban el `Flash`, una muerte que corta un `Flash` y la prueba
+  de admin.
 
 **Renders Cycles del rig real con las mallas y sus mapas**
 (`tools/observer_shot.luau` y `render_room.py`). **No son el render de
-Roblox.** La imagen `observer_v2_sheet.jpg` reúne 9 tomas:
-
-- 3/4 con luz de estudio y primer plano de la cabeza;
-- perfil, pasillo iluminado, pasillo oscuro y a 40 studs;
-- zancada, fotograma del impacto y los ojos solos en la oscuridad.
+Roblox.** La toma `scare` reproduce el frame del golpe con la luz en la
+cabeza.
 
 ## 6. Lo que falta
 
@@ -158,7 +181,7 @@ versión hecha con piezas.
 
 - el aspecto con la iluminación del juego;
 - la animación de las mallas en movimiento;
-- el jumpscare en primera persona real.
+- el jumpscare en primera persona real (lista de comprobación en el resumen de la rama `fixes/vega`).
 
 **Técnica:** son segmentos rígidos sobre un rig de Motor6D, no una malla con
 huesos. Solapar los extremos esconde las juntas, pero en flexiones extremas

@@ -4,8 +4,10 @@
 	tools/blender/render_room.py, to check what a player actually sees.
 
 	Shots
-	  scare      the jumpscare's impact frame: ObserverRig.ScarePose(1, open),
-	             placed by ObserverRig.placeFace exactly as ScareController does
+	  scare      the jumpscare's hit frame: ObserverRig.ScarePose(1, open),
+	             placed by ObserverRig.placeFace exactly as ScareController does,
+	             at the default field of view, lit only by the light on its
+	             head (arg 5: "low" = ScareController.Light, or "side")
 	  scareOld   the impact frame as the cinematic posed it before this pass
 	             (attack pose, feet 0.75 studs from the eye), for comparison
 	  stand      standing 12 studs away in a dim room, eyes on the camera
@@ -13,7 +15,7 @@
 
 	Usage:
 		rojo build default.project.json -o build/test.rbxlx
-		lune run tools/observer_shot.luau build/test.rbxlx <shot> [out.json] [open]
+		lune run tools/observer_shot.luau build/test.rbxlx <shot> [out.json] [open] [light]
 ]]
 
 local env = require("./lib/env")
@@ -37,9 +39,14 @@ local open = tonumber(process.args[4]) or 1
 -- "smooth": the body as the flowing meshes (assets/observer), like the
 -- dressed rig in the game; "parts": the part-built fallback
 local body = process.args[7] or "smooth"
--- ScareController's light levels at full strength
-local SPOT = tonumber(process.args[5]) or 2.2
-local UNDER = tonumber(process.args[6]) or 0.5
+-- the scare light on its head (head space; "low" mirrors ScareController.Light)
+local SCARE_LIGHTS = {
+	low = CFrame.new(-0.55, -0.8, -0.7),
+	side = CFrame.new(-1.0, 0.05, -0.35),
+}
+local scareLight = SCARE_LIGHTS[process.args[5] or "low"] or SCARE_LIGHTS.low
+-- ScareController's old light levels (scareOld)
+local SPOT = 2.2
 
 local function c3(c)
 	return { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) }
@@ -94,7 +101,7 @@ local rootCf = rig.PrimaryPart.CFrame
 if shot == "scare" then
 	transforms = ObserverRig.ScarePose(1, open)
 	local face = eye + look * ObserverRig.ScareDistance
-	rootCf = ObserverRig.placeFace(motors, transforms, face, eye)
+	rootCf = ObserverRig.placeFace(motors, transforms, face, CFrame.new(eye))
 	-- eyes on the lens
 	local world = ObserverRig.solve(rig, rootCf, transforms)
 	for _, side in { "L", "R" } do
@@ -103,10 +110,10 @@ if shot == "scare" then
 		local rel = rest:PointToObjectSpace(eye)
 		transforms["EyeTurn" .. side] = CFrame.Angles(math.atan2(rel.Y, math.sqrt(rel.X * rel.X + rel.Z * rel.Z)), math.atan2(-rel.X, -rel.Z), 0)
 	end
-	camera = { eye = v3(eye), target = v3(face), fov = ObserverRig.ScareFov }
-	-- ScareController's light: a hard spot from the camera, a low warm one under the jaw
-	addLight("SpotLight", eye - look * 0.4, look, SPOT, 18, 70, roblox.Color3.fromRGB(226, 234, 255), true)
-	addLight("PointLight", face - Vector3.new(0, 1.8, 0) - look * 0.6, Vector3.new(0, 1, 0), UNDER, 7, 180, roblox.Color3.fromRGB(255, 206, 180), false)
+	camera = { eye = v3(eye), target = v3(eye + look * 10), fov = 74 }
+	-- ScareController's light: one dim cold point light on its head, short reach
+	local headCf = world[rig:FindFirstChild("Head")]
+	addLight("PointLight", (headCf * scareLight).Position, Vector3.new(0, 1, 0), 1.1, 2.2, 180, roblox.Color3.fromRGB(196, 212, 255), true)
 elseif shot == "scareOld" then
 	-- attackPose(t = 1, rage = 1) as it was, placed as it was
 	local a, g = 1, 1

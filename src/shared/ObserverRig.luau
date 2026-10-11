@@ -29,6 +29,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local AssetIds = require(script.Parent.Config.AssetIds)
+local GameConfig = require(script.Parent.Config.GameConfig)
 local MeshMeta = require(script.Parent.Config.ObserverMeshMeta)
 
 local ObserverRig = {}
@@ -341,6 +342,8 @@ function ObserverRig.dress(model: Model): boolean
 			weld.Part0 = p
 			weld.Part1 = mesh
 			weld.Parent = mesh
+			-- the rest offset, for posing without physics (ObserverRig.solve)
+			mesh:SetAttribute("RestOffset", p.CFrame:ToObjectSpace(mesh.CFrame))
 			mesh.Parent = model
 			p.Transparency = 1
 			dressed = true
@@ -510,10 +513,27 @@ end
 -- Between the eyes, on the face: what a jumpscare frames (head space).
 ObserverRig.FaceAnchor = CFrame.new(0, 0.08, -0.3)
 
--- The jumpscare frames the whole head: its face this far from the lens, with
--- this vertical field of view (the 4.6-stud blade fits across the screen).
-ObserverRig.ScareDistance = 3.0
-ObserverRig.ScareFov = 62
+--[[
+	The jumpscare's framing: the head fills two thirds of the screen's height
+	at the player's own field of view (the camera never zooms). Measured on
+	the real head: its height is the sculpted mesh's bounding box
+	(ObserverMeshMeta, written by tools/blender/build_observer.py), and the
+	silhouette's top and bottom sit at the box's centre depth, behind the face.
+	Camera.FieldOfView is vertical: at depth D the screen is 2 D tan(fov/2) high.
+]]
+ObserverRig.HeadHeight = MeshMeta.Head.size.Y
+ObserverRig.ScareFill = 2 / 3
+-- from the face (FaceAnchor) back to the depth of the head's silhouette
+local SILHOUETTE_BEHIND_FACE = MeshMeta.Head.offset.Z - ObserverRig.FaceAnchor.Position.Z
+
+-- Studs from the lens to its face (FaceAnchor) for a vertical field of view.
+function ObserverRig.scareDistance(fov: number): number
+	local depth = ObserverRig.HeadHeight / (2 * ObserverRig.ScareFill * math.tan(math.rad(fov) / 2))
+	return depth - SILHOUETTE_BEHIND_FACE
+end
+
+-- at the default field of view (tests, the admin report)
+ObserverRig.ScareDistance = ObserverRig.scareDistance(GameConfig.Camera.DefaultFOV)
 
 local HEAD_CHAIN = { "RootJoint", "Waist", "NeckJoint", "HeadJoint" }
 
@@ -542,19 +562,17 @@ end
 
 --[[
 	Where to put the root so that the face (FaceAnchor) sits exactly at
-	`facePoint` and looks horizontally at `camPos`, for the given pose. The
-	root only turns about Y (the body stays upright); the pose decides how
-	level the face is (ScarePose keeps it level). Used by every jumpscare so
-	the face can never end up behind the camera, off screen or turned away.
+	`facePoint`, looking straight back into the lens and upright on screen,
+	for the given pose and the camera's full orientation (pitch included:
+	look at the floor and it is under you, its face turned up to yours). The
+	whole body turns with the face. Used by every jumpscare so the face can
+	never end up behind the camera, off screen or turned away.
 ]]
-function ObserverRig.placeFace(motors: { [string]: Motor6D }, transforms: { [string]: CFrame }, facePoint: Vector3, camPos: Vector3): CFrame
+function ObserverRig.placeFace(motors: { [string]: Motor6D }, transforms: { [string]: CFrame }, facePoint: Vector3, camCf: CFrame): CFrame
 	local h = ObserverRig.headFromRoot(motors, transforms) * ObserverRig.FaceAnchor
-	local f = h.LookVector
-	local faceYaw = math.atan2(-f.X, -f.Z)
-	local d = camPos - facePoint
-	local wantYaw = if Vector3.new(d.X, 0, d.Z).Magnitude > 1e-3 then math.atan2(-d.X, -d.Z) else faceYaw
-	local turn = CFrame.Angles(0, wantYaw - faceYaw, 0)
-	return CFrame.new(facePoint - turn:VectorToWorldSpace(h.Position)) * turn
+	-- facing the camera: its right is the camera's left, its up the camera's up
+	local face = CFrame.fromMatrix(facePoint, -camCf.RightVector, camCf.UpVector)
+	return face * h:Inverse()
 end
 
 -- World CFrames of every part for a root CFrame and joint transforms, from
@@ -654,7 +672,9 @@ function ObserverRig.ScarePose(a: number, open: number?): { [string]: CFrame }
 end
 
 -- Eye turn (EyeTurnL/R transforms) so both eyes look at `point`, clamped.
-function ObserverRig.eyesAt(model: Model, motors: { [string]: Motor6D }, point: Vector3, maxDeg: number?): { [string]: CFrame }
+-- `headCf`: the head's world CFrame when the parts are not there yet (a pose
+-- solved this frame); defaults to the head part's current CFrame.
+function ObserverRig.eyesAt(model: Model, motors: { [string]: Motor6D }, point: Vector3, maxDeg: number?, headCf: CFrame?): { [string]: CFrame }
 	local out = {}
 	local limit = math.rad(maxDeg or 35)
 	for _, side in { "L", "R" } do
@@ -662,7 +682,7 @@ function ObserverRig.eyesAt(model: Model, motors: { [string]: Motor6D }, point: 
 		local half = m and m.Part0
 		if m and half then
 			-- the eye's rest frame in the world
-			local rest = (half :: BasePart).CFrame * m.C0
+			local rest = (headCf or (half :: BasePart).CFrame) * m.C0
 			local rel = rest:PointToObjectSpace(point)
 			local yaw = math.clamp(math.atan2(-rel.X, -rel.Z), -limit, limit)
 			local pitch = math.clamp(math.atan2(rel.Y, math.sqrt(rel.X * rel.X + rel.Z * rel.Z)), -limit, limit)
