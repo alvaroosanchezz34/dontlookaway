@@ -3,6 +3,7 @@
   "Properties": {
     "ColorMap": "rbxassetid://125139291523186",
     "NormalMap": "rbxassetid://102974858466262",
-    "RoughnessMap": "rbxassetid://88014634979733"
+    "RoughnessMap": "rbxassetid://88014634979733",
+    "AlphaMode": "Opaque"
   }
 }

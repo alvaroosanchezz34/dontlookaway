@@ -27,11 +27,31 @@ procedimental en Blender:
 3. **Malla de juego:** la de alta resolución se reduce a un presupuesto de
    juego, de 1.400 a 6.000 triángulos por segmento y unos 30.000 en total.
 4. **Horneado:** de la alta a la de juego, en tres mapas:
-   - normales (OpenGL);
-   - color, con las cavidades oscurecidas y los relieves un punto más claros;
-   - rugosidad mate (0,68–0,94).
+   - **normales** (OpenGL), con poros, arrugas, venas en relieve y las
+     grietas;
+   - **color**: piel muerta de carbón (piel B), con bastante más rango de
+     valor que antes, venas oscuras bajo la piel, cavidades hundidas, crestas
+     algo más claras, grietas secas en hombros y espalda, y piel fina (dedos,
+     cuello y alrededor de los ojos) con un tono frío algo rojizo que imita
+     la dispersión;
+   - **rugosidad por zonas**: seca y mate casi todo (0,74–0,90), húmeda en la
+     hendidura, las cuencas, el cuello y las palmas (0,22), y del todo seca
+     en las grietas.
 
-   Son 1.024 px para la cabeza y el torso y 512 px para el resto.
+   Cabeza, cuello, torso y manos van a 4.096 px, el máximo que admite Roblox.
+   La cabeza es el más pequeño de los cuatro, así que es lo que más densidad
+   de textura lleva. El resto va a 512 px.
+
+   Las islas UV son pocas y grandes, con margen entre ellas. El horneado
+   extiende los bordes de cada isla y rellena los huecos con un valor neutro
+   (nunca rugosidad 0, que en los mips se convierte en un espejo).
+
+   Solo se rehace la malla de los segmentos que se piden con `--remesh` (por
+   defecto, `Head`). Los demás se hornean sobre su `.obj` actual, así que
+   las mallas ya subidas siguen valiendo.
+
+   `--skin=A` hornea la otra propuesta, «ceniza»; las dos se compararon con
+   renders antes de elegir.
 
 Cada malla vive en el espacio local de su pieza del rig, así que
 `ObserverRig.dress` la suelda encima sin tocar las articulaciones. Los
@@ -44,13 +64,15 @@ siguiente y no aparecen bolas en codos y rodillas.
 |---|---|---|
 | Anatomía base | Cuerpo alto, estrecho y algo encorvado. Masa en caja torácica, pecho, cintura, muslos y antebrazos. | La silueta y la sensación de cuerpo sólido. |
 | Volúmenes secundarios | Masa dorsal encorvada; un manto de tejido que sube por la nuca, de modo que la cabeza se asienta en los hombros; trapecios caídos; masas de hombro; omóplatos bajo la piel; tres pliegues de tejido oscuro en cada costado; un pliegue blando bajo el hombro; tendones y nuca gruesa en el cuello; membranas del cuello a los hombros. | Rompen el aspecto de esqueleto sin parecer armadura ni ropa. |
-| Superficie | Bultos y arrugas en la geometría; piel casi negra moteada, más oscura en las cavidades; rugosidad alta. | Que no parezca plástico liso, sin dejar de ser oscura y legible. |
-| Detalle focal | La cabeza: una media luna ancha y caída, asimétrica (izquierda más larga, derecha más baja); un pliegue sobre cada ala; membranas bajo las alas; arco superciliar pesado y más alto a la derecha; una hendidura por el centro de una cara larga y sin rasgos; dos cuencas hondas (la izquierda más alta) con los dos ojos pequeños. | Identidad propia, reconocible de lejos y de cerca. Ya no es una copia de la referencia. |
+| Superficie | Bultos y arrugas en la geometría. En los mapas, piel muerta de carbón con venas, poros, arrugas, grietas secas y piel fina rojiza fría; rugosidad seca con zonas húmedas. | Que no parezca plástico: la luz la descubre a trozos, oscura pero legible. |
+| Detalle focal | La cabeza: alargada y estrecha (0,80 × 1,68 studs), sin alas; un bulto pesado sobre cada cuenca (el derecho más alto); una hendidura por el centro de una cara larga y sin rasgos; dos cuencas hondas (la izquierda más alta) con los dos ojos pequeños; una punta corta que baja hacia el cuello. | Identidad propia, reconocible de lejos y de cerca. |
 
 **Ojos:** son piezas del rig con articulación (`EyeTurnL` y `EyeTurnR`) y
 siguen al jugador.
 
-- Gris apagado autoiluminado, de color (104, 102, 96), con una pupila grande.
+- Gris oscuro apenas autoiluminado, de color (46, 43, 38), con una pupila
+  negra que ocupa casi todo el ojo. Los anteriores, gris claro con pupila
+  pequeña, parecían ojos de juguete en el susto.
 - El izquierdo mide 0,105 studs, es algo menor y está más alto; el derecho
   mide 0,115.
 - Leen en la oscuridad sin parecer focos.
@@ -170,12 +192,20 @@ cabeza.
 
 **Subir a Studio:**
 
-- las 10 mallas de `assets/observer/*.obj`, que ahora llevan nombre propio;
-- sus 30 mapas de `assets/observer/<Segmento>/`.
+- `assets/observer/Head.obj`: la cabeza nueva, sin alas;
+- los 30 mapas de `assets/observer/<Segmento>/`, horneados con la piel
+  nueva.
 
-Con sus IDs relleno `AssetIds.Observer.models` (o `pool`) y
-`AssetIds.ObserverSkins`, y ejecuto `sync_assets.py`. Hasta entonces se ve la
-versión hecha con piezas.
+Las otras 9 mallas no cambian. Con los IDs nuevos relleno
+`AssetIds.Observer.models.Head` y `AssetIds.ObserverSkins`, y ejecuto
+`sync_assets.py`.
+
+Hasta entonces:
+
+- el cuerpo usa las mallas y la piel ya subidas;
+- la cabeza vieja con alas ya no encaja con este build. `loadMeshes`
+  compara su tamaño nativo con `ObserverMeshMeta`, la descarta con un aviso
+  y la cabeza se ve hecha con piezas (también sin alas).
 
 **No comprobado en Roblox:**
 
@@ -188,5 +218,5 @@ huesos. Solapar los extremos esconde las juntas, pero en flexiones extremas
 puede verse algo. Una malla con skinning exigiría FBX y otro sistema de
 animación.
 
-**Cuidado con las puertas:** la cabeza mide unos 4,4 studs de ancho y puede
-atravesar visualmente los marcos.
+**Puertas:** la cabeza ya no tiene alas (0,8 studs de ancho), así que no
+atraviesa los marcos.

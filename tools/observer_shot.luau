@@ -7,15 +7,21 @@
 	  scare      the jumpscare's hit frame: ObserverRig.ScarePose(1, open),
 	             placed by ObserverRig.placeFace exactly as ScareController does,
 	             at the default field of view, lit only by the light on its
-	             head (arg 5: "low" = ScareController.Light, or "side")
+	             head (arg 5: "lowside" = ScareController.Light, "low", "side")
 	  scareOld   the impact frame as the cinematic posed it before this pass
 	             (attack pose, feet 0.75 studs from the eye), for comparison
+	  torch      standing 10 studs away in the black, lit only by your
+	             flashlight (GameConfig.Flashlight, held as FlashlightController
+	             holds it), at the default field of view
+	  torchClose the same, a long lens on its head and torso (to judge the skin)
 	  stand      standing 12 studs away in a dim room, eyes on the camera
 	  far        at the end of a 40-stud dark corridor, one dim light
 
 	Usage:
 		rojo build default.project.json -o build/test.rbxlx
 		lune run tools/observer_shot.luau build/test.rbxlx <shot> [out.json] [open] [light]
+	OBSERVER_MAPS=build/skin_A picks the folder of the baked maps (default
+	assets/observer; a segment missing there falls back to it).
 ]]
 
 local env = require("./lib/env")
@@ -30,6 +36,9 @@ local CFrame = roblox.CFrame
 
 local RS = game:GetService("ReplicatedStorage")
 local ObserverRig = requireModule(RS.Shared.ObserverRig)
+local GameConfig = requireModule(RS.Shared.Config.GameConfig)
+local mapsRoot = process.env.OBSERVER_MAPS or "assets/observer"
+
 local Server = game:GetService("ServerScriptService"):FindFirstChild("Server")
 local LightingService = requireModule(Server.Services.LightingService)
 
@@ -39,12 +48,14 @@ local open = tonumber(process.args[4]) or 1
 -- "smooth": the body as the flowing meshes (assets/observer), like the
 -- dressed rig in the game; "parts": the part-built fallback
 local body = process.args[7] or "smooth"
--- the scare light on its head (head space; "low" mirrors ScareController.Light)
+-- the scare light on its head (head space; "lowside" mirrors
+-- ScareController.Light, the others are the positions it was chosen over)
 local SCARE_LIGHTS = {
+	lowside = CFrame.new(-0.9, -0.4, -0.45),
 	low = CFrame.new(-0.55, -0.8, -0.7),
 	side = CFrame.new(-1.0, 0.05, -0.35),
 }
-local scareLight = SCARE_LIGHTS[process.args[5] or "low"] or SCARE_LIGHTS.low
+local scareLight = SCARE_LIGHTS[process.args[5] or "lowside"] or SCARE_LIGHTS.lowside
 -- ScareController's old light levels (scareOld)
 local SPOT = 2.2
 
@@ -71,6 +82,18 @@ local function addPart(name, cf, size, color, material, shape)
 		transparency = 0,
 	})
 end
+--[[
+	render_room.py gives a light its brightness at half its Range and lets it
+	fall off with the square of the distance; much closer than that it is far
+	too strong (a flashlight at 10 studs comes out ~5x Roblox's). For a light
+	aimed at one subject `d` studs away: Roblox's falloff there, and a Range
+	of 2d, so the render gives what the game gives on the subject.
+]]
+local function atSubject(brightness: number, range: number, d: number): (number, number)
+	local k = (1 - math.min(d / range, 1) ^ 2) ^ 2
+	return brightness * k / 0.5625, 2 * d
+end
+
 local function addLight(class, pos, dir, brightness, range, angle, color, shadows)
 	table.insert(lights, {
 		class = class,
@@ -113,7 +136,9 @@ if shot == "scare" then
 	camera = { eye = v3(eye), target = v3(eye + look * 10), fov = 74 }
 	-- ScareController's light: one dim cold point light on its head, short reach
 	local headCf = world[rig:FindFirstChild("Head")]
-	addLight("PointLight", (headCf * scareLight).Position, Vector3.new(0, 1, 0), 1.1, 2.2, 180, roblox.Color3.fromRGB(196, 212, 255), true)
+	local lightPos = (headCf * scareLight).Position
+	local b, r = atSubject(1.1, 2.2, (lightPos - (headCf * ObserverRig.FaceAnchor).Position).Magnitude)
+	addLight("PointLight", lightPos, Vector3.new(0, 1, 0), b, r, 180, roblox.Color3.fromRGB(196, 212, 255), true)
 elseif shot == "scareOld" then
 	-- attackPose(t = 1, rage = 1) as it was, placed as it was
 	local a, g = 1, 1
@@ -135,6 +160,29 @@ elseif shot == "scareOld" then
 	local head = world[rig:FindFirstChild("Head")]
 	camera = { eye = v3(eye - (head.Position - eye).Unit * 0.85), target = v3(head.Position), fov = 30 }
 	addLight("SpotLight", eye - look * 0.4, (head.Position - eye).Unit, 9, 18, 70, roblox.Color3.fromRGB(226, 234, 255), true)
+elseif shot == "torch" or shot == "torchClose" then
+	-- facing the camera (+Z) ten studs away, eyes on you, in the black
+	rootCf = CFrame.new(0, ObserverRig.HipHeight + 1, -10) * CFrame.Angles(0, math.pi, 0)
+	transforms = ObserverRig.ScarePose(0, 0)
+	local world = ObserverRig.solve(rig, rootCf, transforms)
+	for _, side in { "L", "R" } do
+		local m = motors["EyeTurn" .. side]
+		local rest = world[m.Part0] * m.C0
+		local rel = rest:PointToObjectSpace(eye)
+		transforms["EyeTurn" .. side] = CFrame.Angles(math.atan2(rel.Y, math.sqrt(rel.X * rel.X + rel.Z * rel.Z)), math.atan2(-rel.X, -rel.Z), 0)
+	end
+	local target = if shot == "torch" then Vector3.new(0, 6.6, -10) else Vector3.new(0, 7.9, -10)
+	camera = { eye = v3(eye), target = v3(target), fov = if shot == "torch" then 74 else 24 }
+	addPart("Floor", CFrame.new(0, -0.5, -12), Vector3.new(14, 1, 30), roblox.Color3.fromRGB(90, 86, 80), "Concrete")
+	-- the flashlight: below and right of the eye, aimed at its chest
+	local FL = GameConfig.Flashlight
+	local hand = eye + Vector3.new(0.55, -0.5, -0.45)
+	local aim = (Vector3.new(0, 6.6, -10) - hand).Unit
+	local d = (Vector3.new(0, 6.6, -10) - hand).Magnitude
+	local b1, r1 = atSubject(FL.Brightness * 0.75, FL.Range + 6, d)
+	local b2, r2 = atSubject(FL.Brightness * 0.7, FL.Range, d)
+	addLight("SpotLight", hand, aim, b1, r1, FL.Angle * 0.42, roblox.Color3.new(1, 1, 1), true)
+	addLight("SpotLight", hand, aim, b2, r2, FL.Angle, roblox.Color3.new(1, 1, 1), true)
 elseif shot == "inspect" or shot == "inspectHead" then
 	-- studio look at the form: three-quarter view, a key light and a rim
 	rootCf = CFrame.new(0, ObserverRig.HipHeight + 1, -12) * CFrame.Angles(0, math.pi, 0)
@@ -226,7 +274,7 @@ for part, cf in world do
 		local mcf = cf * CFrame.new(MeshMeta[meshName].offset)
 		table.insert(meshes, {
 			file = "assets/observer/" .. meshName .. ".obj",
-			maps = "assets/observer/" .. meshName .. "/" .. meshName,
+			maps = if fs.isFile(mapsRoot .. "/" .. meshName .. "/" .. meshName .. "_color.png") then mapsRoot .. "/" .. meshName .. "/" .. meshName else "assets/observer/" .. meshName .. "/" .. meshName,
 			bboxCentre = true,
 			color = c3(part.Color),
 			pos = v3(mcf.Position),
@@ -256,6 +304,8 @@ local presets = {}
 for name, preset in LightingService.Presets do
 	presets[name] = { ambient = c3(preset.Ambient), exposure = preset.ExposureCompensation }
 end
+-- the jumpscare: Lighting's ambient at zero (ScareController), exposure as in play
+presets.SCARE = { ambient = { 0, 0, 0 }, exposure = LightingService.Presets.NORMAL.ExposureCompensation }
 fs.writeFile(out, serde.encode("json", {
 	room = shot,
 	seed = 0,

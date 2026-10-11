@@ -370,7 +370,11 @@ function ObserverRig.configuredMeshes(): number
 end
 
 -- The segment's baked skin (src/shared/ObserverSkins, written by
--- tools/sync_assets.py: scripts may not set SurfaceAppearance maps).
+-- tools/sync_assets.py: scripts may not set SurfaceAppearance maps). The
+-- skin's AlphaMode is Opaque: the colour map covers the mesh completely and
+-- the MeshPart's Color below never shows through it (with the default
+-- Overlay a transparent texel would let it through). The dark Color is only
+-- what a mesh without its skin looks like.
 local function applySkin(mesh: BasePart, meshName: string)
 	mesh.Color = SKIN
 	mesh.Material = Enum.Material.SmoothPlastic

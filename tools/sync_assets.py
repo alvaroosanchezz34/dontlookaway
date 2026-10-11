@@ -130,6 +130,8 @@ def main():
             ids = {k: int(v) for k, v in re.findall(r"(\w+)\s*=\s*(\d+)", body)}
             if ids.get("color", 0) > 0:
                 props = {MAPS[k]: url(v) for k, v in ids.items() if k in MAPS and v > 0}
+                # the colour map alone, never the MeshPart's Color through it
+                props["AlphaMode"] = "Opaque"
                 with open(os.path.join(OBSERVER_SKINS, name + ".model.json"), "w", encoding="utf-8") as fh:
                     json.dump({"ClassName": "SurfaceAppearance", "Properties": props}, fh, indent=2)
                     fh.write("\n")
