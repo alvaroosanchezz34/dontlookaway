@@ -327,6 +327,17 @@ local function animateMimics()
 end
 
 function ObserverFX:Start()
+	-- its skin's maps (up to 4096 px) take seconds to download, and until they
+	-- arrive the meshes show untextured (white): fetch them now, long before
+	-- it first appears
+	task.spawn(function()
+		local skins = ReplicatedStorage.Shared:FindFirstChild("ObserverSkins")
+		if skins then
+			pcall(function()
+				game:GetService("ContentProvider"):PreloadAsync({ skins })
+			end)
+		end
+	end)
 	for _, m in CollectionService:GetTagged("Observer") do
 		track(m)
 	end
