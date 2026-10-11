@@ -3,8 +3,8 @@
   "Properties": {
     "BaseMaterial": "Concrete",
     "StudsPerTile": 12,
-    "ColorMap": "rbxassetid://93950900784312",
-    "NormalMap": "rbxassetid://130761991482119",
-    "RoughnessMap": "rbxassetid://136331701139032"
+    "ColorMap": "rbxassetid://93303472137270",
+    "NormalMap": "rbxassetid://83401480695599",
+    "RoughnessMap": "rbxassetid://87351972215458"
   }
 }

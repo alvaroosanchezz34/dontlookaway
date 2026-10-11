@@ -3,8 +3,8 @@
   "Properties": {
     "BaseMaterial": "Wood",
     "StudsPerTile": 6,
-    "ColorMap": "rbxassetid://89270152224045",
-    "NormalMap": "rbxassetid://101516508963217",
-    "RoughnessMap": "rbxassetid://102767967944530"
+    "ColorMap": "rbxassetid://139550425713201",
+    "NormalMap": "rbxassetid://132184498430240",
+    "RoughnessMap": "rbxassetid://128084663657996"
   }
 }

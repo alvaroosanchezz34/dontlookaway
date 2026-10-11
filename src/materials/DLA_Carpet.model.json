@@ -3,8 +3,8 @@
   "Properties": {
     "BaseMaterial": "Carpet",
     "StudsPerTile": 8,
-    "ColorMap": "rbxassetid://81202392236431",
-    "NormalMap": "rbxassetid://124465885433566",
-    "RoughnessMap": "rbxassetid://93225446930217"
+    "ColorMap": "rbxassetid://72503524277511",
+    "NormalMap": "rbxassetid://77353946674223",
+    "RoughnessMap": "rbxassetid://105445929643877"
   }
 }

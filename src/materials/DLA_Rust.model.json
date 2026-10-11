@@ -3,9 +3,9 @@
   "Properties": {
     "BaseMaterial": "CorrodedMetal",
     "StudsPerTile": 5,
-    "ColorMap": "rbxassetid://112627683252547",
-    "NormalMap": "rbxassetid://81079024132847",
-    "RoughnessMap": "rbxassetid://133055244995707",
-    "MetalnessMap": "rbxassetid://105386049725278"
+    "ColorMap": "rbxassetid://111826243207341",
+    "NormalMap": "rbxassetid://94865504531081",
+    "RoughnessMap": "rbxassetid://89098078220198",
+    "MetalnessMap": "rbxassetid://80532244680762"
   }
 }

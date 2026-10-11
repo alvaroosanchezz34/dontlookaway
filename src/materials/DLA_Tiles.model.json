@@ -3,8 +3,8 @@
   "Properties": {
     "BaseMaterial": "CeramicTiles",
     "StudsPerTile": 5,
-    "ColorMap": "rbxassetid://122065870248615",
-    "NormalMap": "rbxassetid://82385264798496",
-    "RoughnessMap": "rbxassetid://111455651778102"
+    "ColorMap": "rbxassetid://84202345250919",
+    "NormalMap": "rbxassetid://129010430470629",
+    "RoughnessMap": "rbxassetid://84315586121204"
   }
 }

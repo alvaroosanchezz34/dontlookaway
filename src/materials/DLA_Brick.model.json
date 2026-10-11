@@ -3,8 +3,8 @@
   "Properties": {
     "BaseMaterial": "Brick",
     "StudsPerTile": 8,
-    "ColorMap": "rbxassetid://108837060381955",
-    "NormalMap": "rbxassetid://105803676660296",
-    "RoughnessMap": "rbxassetid://95359754553547"
+    "ColorMap": "rbxassetid://139674085115157",
+    "NormalMap": "rbxassetid://85808636404363",
+    "RoughnessMap": "rbxassetid://122490229250007"
   }
 }
