@@ -84,16 +84,16 @@ AssetIds.Observer = {
 -- (assets/observer/<Segment>/<Segment>_{color,normal,roughness}.png).
 -- tools/sync_assets.py turns them into SurfaceAppearances.
 AssetIds.ObserverSkins = {
-	Head = { color = 103120381028529, normal = 73950741282805, roughness = 78714346813555 },
-	Neck = { color = 119914814803776, normal = 130308256135575, roughness = 72006362229420 },
-	UpperTorso = { color = 125139291523186, normal = 102974858466262, roughness = 88014634979733 },
-	LowerTorso = { color = 88437889066885, normal = 126984882596598, roughness = 97531087161347 },
-	UpperArm = { color = 133052862436324, normal = 114506398621368, roughness = 77290233929409 },
-	LowerArm = { color = 92476190956406, normal = 97692938050817, roughness = 131242742119701 },
-	Hand = { color = 98919212478653, normal = 128622672877893, roughness = 99242603211097 },
-	UpperLeg = { color = 97680582856418, normal = 87521498302958, roughness = 73428707122223 },
-	LowerLeg = { color = 78770866715754, normal = 134903620308574, roughness = 120867108423775 },
-	Foot = { color = 114558932567658, normal = 134433292507707, roughness = 78015124729188 },
+	Head = { color = 130765120601880, normal = 90127875929476, roughness = 140068207025502 },
+	Neck = { color = 111727926613355, normal = 71398732361502, roughness = 97935254588605 },
+	UpperTorso = { color = 124338691788533, normal = 131394769994109, roughness = 118481999889541 },
+	LowerTorso = { color = 110939690883215, normal = 139019810335833, roughness = 107640935386933 },
+	UpperArm = { color = 89720255367459, normal = 93791674779945, roughness = 74009806781758 },
+	LowerArm = { color = 116318811539775, normal = 102252677683126, roughness = 103611007791359 },
+	Hand = { color = 132614975348313, normal = 115480784231439, roughness = 129873782227563 },
+	UpperLeg = { color = 107727317497288, normal = 112481962363745, roughness = 117128177289097 },
+	LowerLeg = { color = 76488006368297, normal = 130920977115977, roughness = 131012955463808 },
+	Foot = { color = 73926666787882, normal = 119926211283370, roughness = 72963284201192 },
 }
 
 -- Original synthesised audio (assets/audio/dla_<sheet>.ogg): three files, each
