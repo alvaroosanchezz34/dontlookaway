@@ -75,10 +75,13 @@ local FLASH_HOLD = 0.5
 -- (loses the face) in tools/observer_shot.luau renders.
 ScareController.Light = {
 	offset = CFrame.new(-0.9, -0.4, -0.45),
-	range = 2.2,
-	brightness = 1.1,
+	range = 4,
+	brightness = 4.5,
 	color = Color3.fromRGB(196, 212, 255),
 }
+-- the camera's exposure while its face is up: the lit half of a charcoal
+-- face reads, and the black (nothing lit, the black Neon box) stays black
+local SCARE_EXPOSURE = 0.8
 
 -- half the size of the black box around the lens (its face is ~1 stud away)
 local BOX = 3
@@ -232,6 +235,7 @@ local function blackout(eye: Vector3, keep: { Instance }): ({ Held }, () -> ())
 		hold(held, Lighting, "Brightness", 0)
 		hold(held, Lighting, "EnvironmentDiffuseScale", 0)
 		hold(held, Lighting, "EnvironmentSpecularScale", 0)
+		hold(held, Lighting, "ExposureCompensation", SCARE_EXPOSURE)
 		local effects = Lighting:GetChildren()
 		local camera = Workspace.CurrentCamera
 		if camera then
@@ -297,10 +301,11 @@ local function blackout(eye: Vector3, keep: { Instance }): ({ Held }, () -> ())
 			end
 		end)
 		box = blackBox(eye)
-		-- the scare's own grade: cold and hard, black stays black (no brightness)
+		-- the scare's own grade: cold, black stays black (no brightness, and no
+		-- contrast: it would sink the dark skin into the black)
 		local g = Instance.new("ColorCorrectionEffect")
 		g.Name = "ScareGrade"
-		g.Contrast = 0.2
+		g.Contrast = 0
 		g.Saturation = -0.45
 		g.TintColor = Color3.fromRGB(214, 224, 255)
 		g.Parent = Lighting

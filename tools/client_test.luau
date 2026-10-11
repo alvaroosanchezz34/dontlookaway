@@ -643,6 +643,7 @@ do
 		for _, prop in LIGHTING do
 			snap["Lighting." .. prop] = tostring((Lighting :: any)[prop])
 		end
+		snap["Lighting.ExposureCompensation"] = tostring(Lighting.ExposureCompensation)
 		snap.sky = tostring(sky.Parent)
 		snap.grade = tostring(serverGrade.Enabled)
 		snap.lamp = tostring(lamp.Enabled)
@@ -691,7 +692,7 @@ do
 		end
 		check(#others == 0, label .. ": no other light on: " .. table.concat(others, ", "))
 		check(its ~= nil and head ~= nil and (its.Parent.CFrame.Position - head.CFrame.Position).Magnitude < its.Range, label .. ": the scare light reaches its head")
-		check(its ~= nil and its.Range <= 3, label .. ": the scare light has a short reach")
+		check(its ~= nil and its.Range <= 4.5, label .. ": the scare light has a short reach")
 	end
 	local function darkNow(label)
 		check(State.scareDark, label .. ": the scare owns the screen")
@@ -700,6 +701,7 @@ do
 			check(v == 0 or v == Color3.new(0, 0, 0), label .. ": Lighting." .. prop .. " is zero")
 		end
 		check(sky.Parent == nil, label .. ": no sky")
+		check(Lighting.ExposureCompensation > 0.5, label .. ": exposure raised for its lit face")
 		check(not serverGrade.Enabled, label .. ": no grade lifting the black")
 		for _, g in playerGui:GetChildren() do
 			if g:IsA("LayerCollector") and g.Name ~= "Overlay" then
