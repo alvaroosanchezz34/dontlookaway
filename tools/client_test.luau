@@ -876,6 +876,44 @@ do
 	local f = Registry.ScareController.LastFrame
 	check(f ~= nil and f.facing > 0.95 and f.inFront and math.abs(f.distance - f.expected) < 0.05, "admin scare test framed the face")
 end
+-- the scare's local rig follows the sculpted meshes as they arrive: the
+-- server adds them to ReplicatedStorage.ObserverMeshes one at a time, and
+-- a rig cached with the first ones must not keep a part-built (boxy) head
+do
+	local MeshMeta = requireModule(RS.Shared.Config.ObserverMeshMeta)
+	local folder = Instance.new("Folder")
+	folder.Name = "ObserverMeshes"
+	local function addMesh(name)
+		local mp = Instance.new("MeshPart")
+		mp.Name = name
+		mp.Size = MeshMeta[name].size
+		mp.Parent = folder
+	end
+	addMesh("UpperTorso")
+	folder.Parent = RS
+	local function scareHead()
+		Registry.ScareController:Flash("test")
+		local rig = nil
+		for _, d in workspace:GetChildren() do
+			if d.Name == "ObserverScare" then
+				rig = d
+			end
+		end
+		local hasHead = rig ~= nil and rig:FindFirstChild("HeadMesh") ~= nil
+		local hasTorso = rig ~= nil and rig:FindFirstChild("UpperTorsoMesh") ~= nil
+		task.wait(0.6)
+		frames(3)
+		return hasTorso, hasHead
+	end
+	local torso, head = scareHead()
+	check(torso and not head, "scare rig dressed with the meshes there so far")
+	for _, name in { "Head", "Neck", "LowerTorso" } do
+		addMesh(name)
+	end
+	torso, head = scareHead()
+	check(torso and head, "scare rig picks up meshes that arrive later (no boxy head)")
+	folder:Destroy()
+end
 -- the mimic's lunge: its own face (a stand-in model with a head)
 do
 	local fake = Instance.new("Model")

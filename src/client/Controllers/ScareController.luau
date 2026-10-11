@@ -355,7 +355,10 @@ end
 	CFrames solved from the pose (ObserverRig.solver) and moved in one go. It
 	is built ahead of time and reused (parked outside the workspace between
 	scares): building ~70 parts and 16 meshes on the hit frame was a hitch.
-	Rebuilt once the sculpted meshes arrive.
+	The server adds the sculpted meshes to ReplicatedStorage.ObserverMeshes
+	one at a time, so the rig is rebuilt (away from the hit) whenever more
+	have arrived than it wears: a rig built with the first ones kept the
+	part-built box for a head.
 ]]
 type ScareRig = {
 	model: Model,
@@ -364,22 +367,24 @@ type ScareRig = {
 	head: BasePart,
 	lightPart: BasePart,
 	light: PointLight,
+	meshes: number, -- sculpted meshes available when it was built
 }
 local cachedRig: ScareRig? = nil
 
-local function meshesAvailable(): boolean
+local function meshesAvailable(): number
 	local folder = ReplicatedStorage:FindFirstChild("ObserverMeshes")
-	return folder ~= nil and #folder:GetChildren() > 0
+	return if folder then #folder:GetChildren() else 0
 end
 
 local function scareRig(): ScareRig
 	local cached = cachedRig
-	if cached and cached.model.Parent == nil and (cached.model:GetAttribute("Sculpted") == true or not meshesAvailable()) then
+	if cached and cached.model.Parent == nil and cached.meshes == meshesAvailable() then
 		return cached
 	end
 	if cached and cached.model.Parent == nil then
 		cached.model:Destroy()
 	end
+	local meshes = meshesAvailable()
 	local rig = ObserverRig.build(CFrame.new(), { localCopy = true })
 	for _, d in rig:GetDescendants() do
 		if d:IsA("BasePart") then
@@ -405,6 +410,7 @@ local function scareRig(): ScareRig
 		head = rig:FindFirstChild("Head") :: BasePart,
 		lightPart = lightPart,
 		light = light,
+		meshes = meshes,
 	}
 	cachedRig = built
 	return built
@@ -449,10 +455,10 @@ end
 -- each scare, how long every phase took and the worst frame during it
 ------------------------------------------------------------------------------------
 
-type Profile = { on: boolean, marks: { { any } }, frames: number, dtSum: number, dtMax: number, enforceMax: number, frameMax: number, held: number }
+type Profile = { on: boolean, marks: { { any } }, frames: number, dtSum: number, dtMax: number, enforceMax: number, frameMax: number, held: number, head: string }
 
 local function newProfile(): Profile
-	return { on = Workspace:GetAttribute("ScareProfile") == true, marks = {}, frames = 0, dtSum = 0, dtMax = 0, enforceMax = 0, frameMax = 0, held = 0 }
+	return { on = Workspace:GetAttribute("ScareProfile") == true, marks = {}, frames = 0, dtSum = 0, dtMax = 0, enforceMax = 0, frameMax = 0, held = 0, head = "?" }
 end
 
 local function mark(prof: Profile, label: string)
@@ -469,7 +475,7 @@ local function report(prof: Profile, name: string)
 	for i = 2, #prof.marks do
 		table.insert(parts, string.format("%s %.1f ms", prof.marks[i][1], (prof.marks[i][2] - prof.marks[i - 1][2]) * 1000))
 	end
-	print(string.format("[ScareProfile] %s | hit frame: %s | %d properties held", name, table.concat(parts, ", "), prof.held))
+	print(string.format("[ScareProfile] %s | head: %s | hit frame: %s | %d properties held", name, prof.head, table.concat(parts, ", "), prof.held))
 	if prof.frames > 0 then
 		print(string.format(
 			"[ScareProfile] %s | %d frames, average %.1f ms, worst %.1f ms | per frame: enforce worst %.2f ms, pose worst %.2f ms",
@@ -514,6 +520,7 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 	local hadRig = cachedRig
 	local sr = scareRig()
 	mark(prof, if cachedRig == hadRig then "rig (cached)" else "rig (BUILT NOW)")
+	prof.head = if sr.model:FindFirstChild("HeadMesh") then "sculpted mesh" else "PART-BUILT BOX"
 	local rig, m, light = sr.model, sr.motors, sr.light
 	local headPart = sr.head
 	local base = ObserverRig.ScarePose(1, 0)
