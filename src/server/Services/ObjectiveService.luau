@@ -7,8 +7,10 @@
 	    reachable rooms; locked rooms never hide the key that opens them, so the
 	    round is always completable
 	  * documents carry clues (breaker pattern, keypad code halves, hints, lore)
-	The objective list is pushed to clients as plain text; there are no waypoint
-	markers, the building has to be learned.
+	The objective list is pushed to clients as plain text; the building has to
+	be learned. The only marker is GuidanceService's last resort: a faint
+	direction shown for a few seconds to a team that has been stuck for long
+	(NORMAL only).
 ]]
 
 local Players = game:GetService("Players")
