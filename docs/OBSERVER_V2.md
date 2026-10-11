@@ -97,8 +97,10 @@ siguen al jugador.
   calma, sin giros y sin aviso. `ScareController:Death` lo monta todo en la
   misma llamada, antes del siguiente render. La inhalación de aviso que manda
   el servidor cuando está cerca se queda: es una regla de juego justa. Pero
-  ya no se planta a tu lado esperando: te pilla entre 0,3 y 0,8 s después de
-  esa inhalación, en cuanto te alcanza (`ObserverService`).
+  ya no se planta a tu lado esperando: respira cuando está a un tiempo de
+  reacción de alcanzarte y te pilla en cuanto te alcanza, nunca antes de que
+  pase ese tiempo (1,2 / 0,9 / 0,6 s según la dificultad,
+  `GameConfig.Difficulty.ReactionTime`; `ObserverService`).
 - **La cámara se queda donde estaba.** Conserva la posición y el FOV de ese
   frame. No hay zoom y el ratón no hace nada (`State.scareDark` congela la
   entrada y oculta el cursor en `CameraController`). `ObserverRig.placeFace`

@@ -1,6 +1,12 @@
 # The Observer: rediseño según la imagen de referencia
 
-> Sustituido por `OBSERVER_V2.md` (aspecto y jumpscare).
+> **Documento histórico.** Lo sustituyó `OBSERVER_V2.md` (aspecto y
+> jumpscare), y después cambiaron más cosas. Las medidas de aquí ya no valen:
+> la cabeza no es una hoja de 4,6 studs (ahora es alargada, estrecha y sin
+> alas) y el susto no se encuadra a 3 studs. La fuente de verdad es el código:
+> `src/shared/ObserverRig.luau` (cuerpo, cabeza, encuadre),
+> `src/shared/Config/ObserverMeshMeta.luau` (medidas de las mallas) y
+> `src/client/Controllers/ScareController.luau` (jumpscare).
 
 Este rediseño sustituye al aspecto descrito en `ENTITIES_OVERHAUL.md`, que tenía
 una cara pálida, fauces y dientes. La IA, los estados, el jumpscare encuadrado
