@@ -1105,11 +1105,30 @@ do
 	group:AddTag("DetailGroup")
 	env.tagAdded("DetailGroup", group)
 	task.wait(0.1)
-	local before = DetailLOD:HiddenCount()
-	DetailLOD:Update(camPos)
-	check(DetailLOD:HiddenCount() == before + 1, "far detail group hidden")
-	DetailLOD:Update(camPos + Vector3.new(0, 0, 400))
-	check(DetailLOD:HiddenCount() == before, "near detail group shown again")
+	-- changes are spread over several checks (a few groups at a time): settle
+	local function settle(pos)
+		for _ = 1, 100 do
+			DetailLOD:Update(pos)
+		end
+	end
+	settle(camPos)
+	local hiddenWithIt = DetailLOD:HiddenCount()
+	group:SetAttribute("Center", camPos + Vector3.new(0, 0, 5))
+	settle(camPos)
+	check(DetailLOD:HiddenCount() == hiddenWithIt - 1, "near detail group shown again")
+	-- no popping on the line: hidden beyond lod + 10 %, shown within lod - 10 %
+	local VisualStandards = env.requireModule(game:GetService("ReplicatedStorage").Shared.VisualStandards)
+	local lod = VisualStandards.tier(Registry.AccessibilityController:Quality()).detailLod
+	local function at(distance)
+		group:SetAttribute("Center", camPos + Vector3.new(0, 0, distance + 10))
+		settle(camPos)
+		return DetailLOD:HiddenCount()
+	end
+	local shown = at(lod * 0.5)
+	check(at(lod * 1.05) == shown, "just past the LOD distance it stays shown")
+	check(at(lod * 1.2) == shown + 1, "far detail group hidden")
+	check(at(lod * 0.95) == shown + 1, "just inside the LOD distance it stays hidden")
+	check(at(lod * 0.8) == shown, "well inside it is shown")
 	group:Destroy()
 end
 

@@ -118,6 +118,25 @@ local function updateMouseLock()
 	UserInputService.MouseIconEnabled = not lock and not State.scareDark
 end
 
+-- The body follows the view's yaw through an AlignOrientation, so the turn is
+-- applied in the physics step. Writing root.CFrame every render frame fought
+-- the simulation and made the view hitch on screens faster than 60 Hz.
+local turner: AlignOrientation? = nil
+
+local function makeTurner(root: BasePart)
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "DLA_Turn"
+	attachment.Parent = root
+	local align = Instance.new("AlignOrientation")
+	align.Name = "DLA_Turn"
+	align.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	align.Attachment0 = attachment
+	align.RigidityEnabled = true
+	align.CFrame = CFrame.Angles(0, yaw, 0)
+	align.Parent = root
+	turner = align
+end
+
 local function hideCharacter(character: Model)
 	local function hide(d: Instance)
 		if d:IsA("BasePart") or d:IsA("Decal") then
@@ -175,9 +194,15 @@ local function fpsCFrame(dt: number): CFrame?
 		return nil
 	end
 	humanoid.AutoRotate = false
-	-- body follows the view yaw
-	if not humanoid.PlatformStand then
-		root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, yaw, 0)
+	-- body follows the view yaw (in the physics step, see makeTurner)
+	local align = turner
+	if not align or align.Parent ~= root then
+		makeTurner(root)
+		align = turner
+	end
+	if align then
+		align.Enabled = not humanoid.PlatformStand
+		align.CFrame = CFrame.Angles(0, yaw, 0)
 	end
 	local velocity = Util.flat(root.AssemblyLinearVelocity)
 	local speed = velocity.Magnitude

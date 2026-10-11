@@ -6,6 +6,11 @@
 	quality tier's detailLod (VisualStandards.Quality) are hidden locally with
 	LocalTransparencyModifier, so they cost nothing to draw. Nothing is
 	destroyed or reparented: the server's map is untouched.
+
+	No popping: a group hides beyond detailLod + 10 % and shows again inside
+	detailLod - 10 % (walking along the line no longer flips it every check),
+	and at most MAX_CHANGES groups change per check, nearest first, so a
+	teleport or a turn of the quality setting spreads over a few frames.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -21,6 +26,10 @@ local DetailLOD = {}
 type Group = { folder: Instance, parts: { Instance }, hidden: boolean }
 
 local groups: { [Instance]: Group } = {}
+
+local HYSTERESIS = 0.1
+local MAX_CHANGES = 4
+local INTERVAL = 0.2
 
 local function setHidden(g: Group, hidden: boolean)
 	g.hidden = hidden
@@ -70,6 +79,8 @@ end
 function DetailLOD:Update(camPos: Vector3)
 	local access = Registry.AccessibilityController
 	local tier = VisualStandards.tier(if access then access:Quality() else 2)
+	local hideBeyond, showWithin = tier.detailLod * (1 + HYSTERESIS), tier.detailLod * (1 - HYSTERESIS)
+	local pending: { { g: Group, d: number, hide: boolean } } = {}
 	for folder, g in groups do
 		if not folder.Parent then
 			groups[folder] = nil
@@ -78,12 +89,20 @@ function DetailLOD:Update(camPos: Vector3)
 			local radius = folder:GetAttribute("Radius")
 			if typeof(center) == "Vector3" then
 				local d = (center - camPos).Magnitude - (if type(radius) == "number" then radius else 0)
-				local hide = d > tier.detailLod
-				if hide ~= g.hidden then
-					setHidden(g, hide)
+				if not g.hidden and d > hideBeyond then
+					table.insert(pending, { g = g, d = d, hide = true })
+				elseif g.hidden and d < showWithin then
+					table.insert(pending, { g = g, d = d, hide = false })
 				end
 			end
 		end
+	end
+	-- nearest first: what is about to be in front of you comes in first
+	table.sort(pending, function(a, b)
+		return a.d < b.d
+	end)
+	for i = 1, math.min(#pending, MAX_CHANGES) do
+		setHidden(pending[i].g, pending[i].hide)
 	end
 end
 
@@ -99,7 +118,7 @@ function DetailLOD:Start()
 	end)
 	task.spawn(function()
 		while true do
-			task.wait(0.4)
+			task.wait(INTERVAL)
 			local camera = Workspace.CurrentCamera
 			if camera then
 				DetailLOD:Update(camera.CFrame.Position)

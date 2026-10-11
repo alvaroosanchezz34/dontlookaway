@@ -26,6 +26,10 @@
 
 	Lights far from the camera are disabled locally (light LOD) so the building
 	stays fast on phones and consoles; their glowing tubes still read from afar.
+	Near fixtures are evaluated every frame (smooth flicker); far ones in
+	FAR_BUCKETS slices, one slice a frame, so no frame pays for all of them.
+	Lights that follow the main power (PoweredLight) are collected once, not
+	searched for in the whole workspace each time the power changes.
 
 	A fixture can own several lights (VisualStandards.Fixtures): the shaped main
 	light (SurfaceLight / SpotLight thrown down from the diffuser or shade) and
@@ -59,14 +63,16 @@ local DARK = Color3.fromRGB(38, 38, 36)
 local BLACKOUT_SAG = { [1] = 0.7, [2] = 0.45, [3] = 0.7 }
 
 type LightEntry = { light: Light, ratio: number, solo: number, main: boolean }
-type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string }
+type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string, bucket: number }
 type Beacon = { model: Model, rotor: BasePart, beams: { SpotLight }, glow: PointLight?, dome: BasePart?, phase: number }
 
 local fixtures: { [Model]: Info } = {}
 local beacons: { [Model]: Beacon } = {}
 local signs: { [Model]: PointLight } = {}
 local roomFlicker: { [string]: number } = {}
+local poweredLights: { [Light]: boolean } = {}
 local random = Random.new()
+local FAR_BUCKETS = 8
 
 local function hashFrac(a: number, b: number): number
 	local h = (a * 7919 + b * 104729 + 1013) % 100003
@@ -98,16 +104,18 @@ local function register(model: Instance)
 		end
 	end
 	local room = model:GetAttribute("Room")
+	local seed = model:GetAttribute("Seed") or random:NextInteger(1, 100000)
 	fixtures[model] = {
 		model = model,
 		light = light,
 		lights = lights,
 		lamps = lamps,
 		flickerUntil = 0,
-		seed = model:GetAttribute("Seed") or random:NextInteger(1, 100000),
+		seed = seed,
 		lit = false,
 		level = 0,
 		floor = if type(room) == "string" then room:sub(1, 1) else "",
+		bucket = math.floor(seed) % FAR_BUCKETS,
 	}
 end
 
@@ -296,11 +304,27 @@ function LightController:FlickerNear(position: Vector3, radius: number, duration
 	return hits[1] and hits[1].at
 end
 
+local function trackPowered(d: Instance)
+	if d:IsA("Light") and d:GetAttribute("PoweredLight") then
+		poweredLights[d] = true
+	end
+end
+
+-- one full search per map (MapReady); later additions arrive one by one
+local function collectPowered()
+	table.clear(poweredLights)
+	for _, d in Workspace:GetDescendants() do
+		trackPowered(d)
+	end
+end
+
 local function applyPowered()
 	local power = Workspace:GetAttribute("Power") == true
-	for _, d in Workspace:GetDescendants() do
-		if d:IsA("Light") and d:GetAttribute("PoweredLight") then
+	for d in poweredLights do
+		if d.Parent then
 			d.Enabled = power
+		else
+			poweredLights[d] = nil
 		end
 	end
 	for _, d in CollectionService:GetTagged("Screen") do
@@ -333,9 +357,12 @@ function LightController:Start()
 	CollectionService:GetInstanceAddedSignal("ExitSign"):Connect(function(m)
 		task.defer(registerSign, m)
 	end)
+	collectPowered()
+	Workspace.DescendantAdded:Connect(trackPowered)
 	Workspace:GetAttributeChangedSignal("Power"):Connect(applyPowered)
 	Workspace:GetAttributeChangedSignal("MapReady"):Connect(function()
 		task.wait(0.5)
+		collectPowered()
 		applyPowered()
 	end)
 	Net.event("Director").OnClientEvent:Connect(function(payload)
@@ -348,11 +375,14 @@ function LightController:Start()
 			Registry.EffectsController:Handle("Sparks", { at = payload.at })
 		end
 	end)
-	-- near fixtures every frame (smooth flicker), far ones a few times a second
+	-- near fixtures every frame (smooth flicker), far ones one slice a frame
 	local farAcc = 0
+	local frame = 0
 	RunService.RenderStepped:Connect(function(dt)
 		local camPos = Workspace.CurrentCamera.CFrame.Position
 		local now = os.clock()
+		frame += 1
+		local bucket = frame % FAR_BUCKETS
 		farAcc += dt
 		local doFar = farAcc > 0.35
 		if doFar then
@@ -368,7 +398,7 @@ function LightController:Start()
 				fixtures[model] = nil
 			else
 				local near = (model:GetPivot().Position - camPos).Magnitude < 60
-				if near or doFar then
+				if near or info.bucket == bucket then
 					evaluate(info, camPos, now)
 				end
 			end
