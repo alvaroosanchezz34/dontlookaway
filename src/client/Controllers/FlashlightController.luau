@@ -35,6 +35,10 @@ local FlashlightController = {}
 
 local player = Players.LocalPlayer
 local FL = GameConfig.Flashlight
+-- the halo round the beam (no shadow) and a far teammate's light are this short
+local SPILL_RANGE = 18
+-- how many teammates' lights cast shadows (the nearest ones)
+local SHADOWED_OTHERS = 2
 
 local holder: Part
 local core: SpotLight
@@ -49,7 +53,7 @@ local springRot = CFrame.new()
 local localOn = false
 local pendingUntil = 0
 local switchedAt = 0
-local others: { [Player]: { part: Part, light: SpotLight } } = {}
+local others: { [Player]: { part: Part, light: SpotLight, shadowed: boolean? } } = {}
 local random = Random.new()
 local flickerUntil = 0
 local lastWarned = 100
@@ -236,9 +240,13 @@ local function update(dt: number)
 	core.Range = range + 6
 	core.Angle = angle * b.core
 	core.Brightness = out * 0.75 * math.sqrt(0.42 / b.core)
-	spill.Range = range
+	-- one hard beam with one shadow (the core); the spill is a short, dim
+	-- halo round it with no shadow of its own, so two offset shadow sets no
+	-- longer double every edge. A short halo also cannot light much through
+	-- a wall. The beam's edge stays marked and falls off fast
+	spill.Range = math.min(range, SPILL_RANGE)
 	spill.Angle = angle
-	spill.Brightness = out * 0.7 * (b.spill / 0.75)
+	spill.Brightness = out * 0.45 * (b.spill / 0.75)
 	fill.Brightness = out * 0.05
 	local fx = effectsEnabled()
 	local effect = player:GetAttribute("BeamEffect") or "clean"
@@ -249,7 +257,19 @@ local function update(dt: number)
 	local coneAlpha = 1 - math.clamp(intensity * (brightness / math.max(power, 0.01)), 0, 1) * 0.045
 	coneBeam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, coneAlpha), NumberSequenceKeypoint.new(0.3, 1 - (1 - coneAlpha) * 0.7), NumberSequenceKeypoint.new(1, 1) })
 
-	-- teammates' lights
+	-- teammates' lights: the nearest SHADOWED_OTHERS cast shadows; a further
+	-- one has none, so it is kept short (it would light through walls)
+	local order = {}
+	for other, rec in others do
+		local head = other.Character and other.Character:FindFirstChild("Head") :: BasePart?
+		table.insert(order, { rec = rec, d = if head then (head.Position - camera.CFrame.Position).Magnitude else math.huge })
+	end
+	table.sort(order, function(a, b)
+		return a.d < b.d
+	end)
+	for i, o in order do
+		o.rec.shadowed = i <= SHADOWED_OTHERS
+	end
 	for other, rec in others do
 		local character = other.Character
 		local head = character and character:FindFirstChild("Head") :: BasePart?
@@ -269,7 +289,8 @@ local function update(dt: number)
 			local oRange = other:GetAttribute("FlashlightRange")
 			local oAngle = other:GetAttribute("FlashlightAngle")
 			local oPower = other:GetAttribute("FlashlightPower")
-			rec.light.Range = if type(oRange) == "number" then oRange else FL.Range
+			rec.light.Range = math.min(if type(oRange) == "number" then oRange else FL.Range, if rec.shadowed then math.huge else SPILL_RANGE)
+			rec.light.Shadows = rec.shadowed == true
 			rec.light.Angle = if type(oAngle) == "number" then oAngle else FL.Angle
 			local oOut = if type(oPower) == "number" then oPower else FL.Brightness
 			local ob = other:GetAttribute("Battery") or 100
@@ -317,7 +338,7 @@ function FlashlightController:Init()
 	spill.Range = FL.Range
 	spill.Angle = FL.Angle
 	spill.Brightness = FL.Brightness
-	spill.Shadows = true
+	spill.Shadows = false
 	spill.Face = Enum.NormalId.Front
 	spill.Enabled = false
 	spill.Parent = holder
