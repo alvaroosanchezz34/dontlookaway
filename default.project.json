@@ -77,21 +77,21 @@
         "Technology": "Future",
         "Brightness": 0.6,
         "Ambient": [
-          0.1725,
-          0.1647,
-          0.1569
+          0.0275,
+          0.0275,
+          0.0314
         ],
         "OutdoorAmbient": [
-          0.1333,
-          0.149,
-          0.1804
+          0.0353,
+          0.0392,
+          0.0471
         ],
         "ClockTime": 0.4,
         "GlobalShadows": true,
-        "EnvironmentDiffuseScale": 0.45,
-        "EnvironmentSpecularScale": 1,
+        "EnvironmentDiffuseScale": 0.08,
+        "EnvironmentSpecularScale": 0.5,
         "ShadowSoftness": 0.15,
-        "ExposureCompensation": 0.1,
+        "ExposureCompensation": 0,
         "GeographicLatitude": 30
       }
     },

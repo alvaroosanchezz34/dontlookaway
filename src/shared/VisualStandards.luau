@@ -75,24 +75,35 @@ function VisualStandards.get(name: string): (EnumItem, Color3, string?)
 	return s.material, s.color, s.variant
 end
 
+-- Each fixture lights a short pool with a hard falloff and leaves the space
+-- between fixtures dark: the glowing tubes read from afar, the pools do not
+-- merge (the ceiling is ~13 studs up and fixtures are 16 apart, so a cone of
+-- 40 degrees makes a pool ~9 wide). The fill only lights the fitting's own
+-- patch of ceiling and upper wall.
 VisualStandards.Fixtures = {
-	-- 2-tube troffer: a wide cone from the diffuser onto the floor, and a fill
-	-- that reaches the walls (calibrated with tools/light_study)
+	-- 2-tube troffer: a tight cone from the diffuser onto the floor
 	fluoro = {
-		main = { class = "SurfaceLight", host = "Housing", face = Enum.NormalId.Bottom, angle = 120, range = 22, ratio = 1.2 },
-		fill = { range = 17, ratio = 0.5, solo = 1.1 },
+		main = { class = "SurfaceLight", host = "Housing", face = Enum.NormalId.Bottom, angle = 40, range = 17, ratio = 1.5 },
+		fill = { range = 9, ratio = 0.12, solo = 1 },
 	},
 	-- enamel pendant: a pool of warm light under the bell (the bell's local -X
-	-- face points down), the fill lights the ceiling and the upper walls
+	-- face points down), the fill lights the ceiling around the rose
 	pendant = {
-		main = { class = "SpotLight", host = "Shade", face = Enum.NormalId.Left, angle = 115, range = 24, ratio = 1.15 },
-		fill = { range = 18, ratio = 0.5, solo = 1.1 },
+		main = { class = "SpotLight", host = "Shade", face = Enum.NormalId.Left, angle = 60, range = 16, ratio = 1.4 },
+		fill = { range = 9, ratio = 0.12, solo = 1 },
 	},
 	-- caged / bare bulbs light everything around them: the point light is the source
-	cage = { fill = { range = 20, ratio = 1, solo = 1 } },
-	bulb = { fill = { range = 18, ratio = 1, solo = 1 } },
+	cage = { fill = { range = 12, ratio = 1, solo = 1 } },
+	bulb = { fill = { range = 11, ratio = 1, solo = 1 } },
 	-- wall sconce: a soft warm glow on the wall around it (no shadows: cheap)
-	sconce = { fill = { range = 15, ratio = 1, solo = 1 } },
+	sconce = { fill = { range = 8, ratio = 1, solo = 1 } },
+}
+
+-- Moonlight through the boarded windows. It has no shadows on most windows, so
+-- it passes through walls: kept faint so rooms without a fixture stay dark.
+VisualStandards.Moonlight = {
+	shaft = { brightness = 0.7, range = 30, angle = 30 },
+	wash = { brightness = 0.2, range = 18, angle = 50 },
 }
 
 VisualStandards.Quality = {

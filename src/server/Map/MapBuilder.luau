@@ -645,7 +645,8 @@ local function buildDoorsAndWindows(map, floor, folder, rng)
 						do
 							local outside = center - inward * (CELL / 2 + 7) + Vector3.new(0, 9, 0)
 							local holder = Build.part(folder, "Moon", Vector3.new(0.2, 0.2, 0.2), CFrame.lookAt(outside, facePos - Vector3.new(0, 4, 0) + inward * 6), Color3.new(), M.SmoothPlastic, { Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false })
-							local spot = Build.light(holder, "SpotLight", { Brightness = if shaft then 1.9 else 1.1, Range = if shaft then 36 else 28, Angle = if shaft then 30 else 60, Face = Enum.NormalId.Front, Color = Color3.fromRGB(150, 172, 210), Shadows = shaft and map.WindowCount % 2 == 0 })
+							local moon = VisualStandards.Moonlight[if shaft then "shaft" else "wash"]
+							local spot = Build.light(holder, "SpotLight", { Brightness = moon.brightness, Range = moon.range, Angle = moon.angle, Face = Enum.NormalId.Front, Color = Color3.fromRGB(150, 172, 210), Shadows = shaft and map.WindowCount % 2 == 0 })
 							spot:AddTag("Moonlight")
 							-- soft visible shaft
 							if not shaft then

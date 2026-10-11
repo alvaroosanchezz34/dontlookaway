@@ -296,8 +296,11 @@ do
 	end
 	check(LightingService.Aliases.POWERED == "NORMAL" and LightingService.Aliases.DARK == "EMERGENCY", "old preset names alias the new profiles")
 	local normal, blackout = LightingService.Presets.NORMAL, LightingService.Presets.BLACKOUT
-	check(normal.cc.Contrast <= 0.08, "NORMAL grade keeps the shadows (contrast " .. normal.cc.Contrast .. ")")
-	check(normal.Ambient.R > blackout.Ambient.R and normal.ExposureCompensation ~= blackout.ExposureCompensation, "blackout differs from normal")
+	-- NORMAL: no ambient fill (only the fixtures light), a cold hard grade
+	local amb = math.max(normal.Ambient.R, normal.Ambient.G, normal.Ambient.B) * 255
+	check(amb <= 10, "NORMAL has no ambient fill (max channel " .. math.floor(amb + 0.5) .. ")")
+	check(normal.cc.Contrast >= 0.15 and normal.cc.Saturation <= -0.4, "NORMAL grade is contrasted and desaturated (contrast " .. normal.cc.Contrast .. ", saturation " .. normal.cc.Saturation .. ")")
+	check(normal.Ambient ~= blackout.Ambient and normal.ExposureCompensation ~= blackout.ExposureCompensation, "blackout differs from normal")
 	-- surfaces have real albedo: colour (linear) x texture mean of the main surfaces
 	local Layout = requireModule(Server.Map.Layout)
 	local function lin(c: number): number

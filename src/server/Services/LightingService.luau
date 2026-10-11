@@ -66,16 +66,17 @@ LightingService.Presets = {
 		cc = { Brightness = 0.01, Contrast = 0.14, Saturation = -0.3, TintColor = Color3.fromRGB(228, 236, 248) },
 		atmosphere = { Density = 0.36, Haze = 1.7, Glare = 0, Color = Color3.fromRGB(58, 63, 74), Decay = Color3.fromRGB(28, 31, 38) },
 	},
-	-- NORMAL: the building with power and no event. The reference for play.
-	-- The fixtures do the lighting (VisualStandards.Fixtures) on surfaces with
-	-- real albedo (Layout.Styles); ambient only keeps the shadow side readable,
-	-- the grade only nudges the colour: low contrast so corners keep detail.
+	-- NORMAL: the building with power and no event. The reference for play: a
+	-- near-black corridor where only the fixtures light anything. Each one
+	-- throws a short pool (VisualStandards.Fixtures) and the stretch between
+	-- pools is dark; the glowing tubes read from afar. No ambient fill, a cold
+	-- near-monochrome grade with hard contrast, no haze to grey the distance.
 	NORMAL = {
-		Ambient = Color3.fromRGB(44, 42, 40),
-		OutdoorAmbient = Color3.fromRGB(34, 38, 46),
-		ExposureCompensation = 0.1,
-		cc = { Brightness = 0.0, Contrast = 0.05, Saturation = -0.12, TintColor = Color3.fromRGB(250, 246, 238) },
-		atmosphere = { Density = 0.24, Haze = 1.0, Glare = 0, Color = Color3.fromRGB(78, 76, 76), Decay = Color3.fromRGB(40, 40, 44) },
+		Ambient = Color3.fromRGB(7, 7, 8),
+		OutdoorAmbient = Color3.fromRGB(9, 10, 12),
+		ExposureCompensation = 0,
+		cc = { Brightness = 0.0, Contrast = 0.24, Saturation = -0.6, TintColor = Color3.fromRGB(228, 236, 250) },
+		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(26, 28, 32), Decay = Color3.fromRGB(10, 10, 12) },
 	},
 	-- scripted moments (cinematics, the Observer's reveal): the same building,
 	-- harder and colder, for a few seconds at a time
@@ -120,8 +121,9 @@ LightingService.Base = {
 	Brightness = 0.6,
 	ClockTime = 0.4,
 	GeographicLatitude = 30,
-	EnvironmentDiffuseScale = 0.45,
-	EnvironmentSpecularScale = 1,
+	-- the night sky barely lights the inside: no fill where no fixture reaches
+	EnvironmentDiffuseScale = 0.08,
+	EnvironmentSpecularScale = 0.5,
 	ShadowSoftness = 0.15,
 	FogEnd = 100000,
 }
