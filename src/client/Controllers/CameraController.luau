@@ -123,6 +123,13 @@ local function hideCharacter(character: Model)
 		if d:IsA("BasePart") or d:IsA("Decal") then
 			(d :: any).LocalTransparencyModifier = 1
 		end
+		-- LocalTransparencyModifier does not stop a part casting shadows: the
+		-- invisible head sat in the flashlight's cone (a third of the beam when
+		-- looking down) and threw a dark blob on the floor. Local only: the
+		-- property does not replicate, teammates still see your shadow.
+		if d:IsA("BasePart") then
+			d.CastShadow = false
+		end
 	end
 	for _, d in character:GetDescendants() do
 		hide(d)
