@@ -11,9 +11,7 @@
 	effects) are read directly by the systems they affect.
 ]]
 
-local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
-local Workspace = game:GetService("Workspace")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MaterialLibrary = require(ReplicatedStorage.Shared.MaterialLibrary)
@@ -23,7 +21,6 @@ local Kit = require(script.Parent.Parent.UI.Kit)
 local AccessibilityController = {}
 
 local userGrade: ColorCorrectionEffect
-local lastGraphics: string? = nil
 
 -- Original palette, so modes can be switched back.
 local BASE = {
@@ -62,21 +59,8 @@ function AccessibilityController:Quality(): number
 	return 2
 end
 
-local function applyShadows()
-	local shadows = AccessibilityController:Quality() >= 2
-	for _, m in CollectionService:GetTagged("Fixture") do
-		if m:IsDescendantOf(Workspace) then
-			for _, d in m:GetDescendants() do
-				if d:IsA("PointLight") or d:IsA("SpotLight") or d:IsA("SurfaceLight") then
-					if d:GetAttribute("BaseShadows") == nil then
-						d:SetAttribute("BaseShadows", d.Shadows)
-					end
-					d.Shadows = shadows and d:GetAttribute("BaseShadows") == true
-				end
-			end
-		end
-	end
-end
+-- (fixture shadows follow the quality tier in LightController: the nearest
+-- VisualStandards.Quality[tier].shadowLights lamps cast them)
 
 local function apply()
 	local s = State.settings
@@ -92,10 +76,6 @@ local function apply()
 	end
 	-- an LCD's "wrong" is the danger red lit, in every colour mode (Theme)
 	Kit.C.LcdError = Kit.C.Danger:Lerp(Color3.new(1, 1, 1), 0.4)
-	if s.graphics ~= lastGraphics then
-		lastGraphics = s.graphics
-		applyShadows()
-	end
 end
 
 function AccessibilityController:Init()
@@ -109,9 +89,6 @@ end
 function AccessibilityController:Start()
 	apply()
 	State.SettingsChanged:Connect(apply)
-	Workspace:GetAttributeChangedSignal("MapReady"):Connect(function()
-		task.delay(1, applyShadows)
-	end)
 end
 
 return AccessibilityController

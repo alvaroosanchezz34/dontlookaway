@@ -55,9 +55,10 @@ local LightController = {}
 local LOD_DISTANCE = 95 -- updated from the quality tier
 local useMain = true
 local DARK = Color3.fromRGB(38, 38, 36)
+local DEAD_LAMP = Color3.fromRGB(46, 42, 36)
 
-type LightEntry = { light: Light, ratio: number, solo: number, main: boolean }
-type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string, bucket: number }
+type LightEntry = { light: Light, ratio: number, solo: number, main: boolean, range: number }
+type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string, bucket: number, wallDist: number, shadowed: boolean, dist: number }
 type Beacon = { model: Model, rotor: BasePart, beams: { SpotLight }, glow: PointLight?, dome: BasePart?, phase: number }
 
 local fixtures: { [Model]: Info } = {}
@@ -87,6 +88,7 @@ local function register(model: Instance)
 				ratio = if type(ratio) == "number" then ratio else 1,
 				solo = if type(solo) == "number" then solo elseif type(ratio) == "number" then ratio else 1,
 				main = d:GetAttribute("Main") == true,
+				range = (d :: any).Range,
 			})
 		elseif d:IsA("BasePart") and (d.Name == "Tube" or d.Name == "Tube2" or d.Name == "Bulb") then
 			table.insert(lamps, d)
@@ -94,6 +96,7 @@ local function register(model: Instance)
 	end
 	local room = model:GetAttribute("Room")
 	local seed = model:GetAttribute("Seed") or random:NextInteger(1, 100000)
+	local wallDist = model:GetAttribute("WallDist")
 	fixtures[model] = {
 		model = model,
 		light = light,
@@ -105,6 +108,10 @@ local function register(model: Instance)
 		level = 0,
 		floor = if type(room) == "string" then room:sub(1, 1) else "",
 		bucket = math.floor(seed) % FAR_BUCKETS,
+		-- how far its light may reach without shadows (MapBuilder: WallDist)
+		wallDist = (if type(wallDist) == "number" then wallDist else 40) + 1,
+		shadowed = false,
+		dist = math.huge,
 	}
 end
 
@@ -148,25 +155,67 @@ local function evaluate(info: Info, camPos: Vector3, now: number)
 	local lit, brightness, color = LightingRules.evaluate(LightingRules.fixture(m, info.seed), LightingRules.world(Workspace), now, { flicker = flickerNow })
 	local baseBrightness = m:GetAttribute("BaseBrightness") or 1
 	local dist = (m:GetPivot().Position - camPos).Magnitude
+	info.dist = dist
+	-- light LOD: the light fades over the last fifth of the distance instead of
+	-- switching off at a line (a far stretch of corridor no longer goes black
+	-- at once); the tube keeps glowing either way
+	local fade = math.clamp((LOD_DISTANCE - dist) / (LOD_DISTANCE * 0.2), 0, 1)
 	-- a jumpscare blacks out every light around you (ScareController)
-	local inRange = lit and dist < LOD_DISTANCE and not State.scareDark
+	local inRange = lit and fade > 0 and not State.scareDark
+	-- the nearest lamps cast shadows (pickShadowed); the others never reach
+	-- past their room's walls, which a light without shadows would go through
+	local shadowed = info.shadowed
 	for _, entry in info.lights do
 		local l = entry.light
 		if entry.main then
 			l.Enabled = inRange and useMain
-			l.Brightness = brightness * entry.ratio
+			l.Brightness = brightness * entry.ratio * fade
 		else
 			l.Enabled = inRange
-			l.Brightness = brightness * (if useMain then entry.ratio else entry.solo)
+			l.Brightness = brightness * (if useMain then entry.ratio else entry.solo) * fade
 		end
 		l.Color = color
+		l.Shadows = shadowed
+		local range = if shadowed then entry.range else math.min(entry.range, info.wallDist)
+		if (l :: any).Range ~= range then
+			(l :: any).Range = range
+		end
 	end
 	info.level = if lit then brightness / math.max(baseBrightness, 0.01) else 0
+	-- a dead lamp looks dead (dirty grey glass); one that is only off, dark
+	local unlit = if m:GetAttribute("Mode") == "dead" then DEAD_LAMP else DARK
 	for _, lamp in info.lamps do
-		lamp.Color = if lit then color else DARK
+		lamp.Color = if lit then color else unlit
 		lamp.Material = if lit then Enum.Material.Neon else Enum.Material.Glass
 	end
 	info.lit = lit
+end
+
+-- Shadow LOD: the N lit lamps nearest the camera (N per quality tier) cast
+-- shadows; a lamp keeps them until it drops out of the nearest N + 2, so
+-- shadows do not jump on and off when two lamps are about as far.
+local function pickShadowed(count: number)
+	local list = {}
+	for _, info in fixtures do
+		if info.lit and info.dist < LOD_DISTANCE then
+			table.insert(list, info)
+		end
+	end
+	table.sort(list, function(a, b)
+		return a.dist < b.dist
+	end)
+	local rank: { [Info]: number } = {}
+	for i, info in list do
+		rank[info] = i
+	end
+	for _, info in fixtures do
+		local r = rank[info]
+		if info.shadowed then
+			info.shadowed = r ~= nil and r <= count + 2
+		else
+			info.shadowed = r ~= nil and r <= count
+		end
+	end
 end
 
 local function beaconsActive(): boolean
@@ -325,6 +374,7 @@ function LightController:Start()
 			local tier = VisualStandards.tier(if access then access:Quality() else 2)
 			LOD_DISTANCE = tier.lightLod
 			useMain = tier.secondary
+			pickShadowed(tier.shadowLights)
 		end
 		for model, info in fixtures do
 			if not model.Parent then

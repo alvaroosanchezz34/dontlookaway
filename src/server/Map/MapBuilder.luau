@@ -646,7 +646,18 @@ local function buildDoorsAndWindows(map, floor, folder, rng)
 							local outside = center - inward * (CELL / 2 + 7) + Vector3.new(0, 9, 0)
 							local holder = Build.part(folder, "Moon", Vector3.new(0.2, 0.2, 0.2), CFrame.lookAt(outside, facePos - Vector3.new(0, 4, 0) + inward * 6), Color3.new(), M.SmoothPlastic, { Transparency = 1, CanCollide = false, CanQuery = false, CastShadow = false })
 							local moon = VisualStandards.Moonlight[if shaft then "shaft" else "wash"]
-							local spot = Build.light(holder, "SpotLight", { Brightness = moon.brightness, Range = moon.range, Angle = moon.angle, Face = Enum.NormalId.Front, Color = Color3.fromRGB(150, 172, 210), Shadows = shaft and map.WindowCount % 2 == 0 })
+							local moonShadows = shaft and map.WindowCount % 2 == 0
+							local range = moon.range
+							if not moonShadows then
+								-- without shadows it would go through the far wall: it ends at
+								-- the room's depth (the holder is 11 studs outside the inner face)
+								local depth = 0
+								while depth < 40 and roomIdAt(floor, x + math.floor(d.dx * (depth + 2) / CELL + 0.5), z + math.floor(d.dz * (depth + 2) / CELL + 0.5)) == rid do
+									depth += CELL
+								end
+								range = math.min(range, CELL / 2 + 7 + CELL / 2 + depth + 1)
+							end
+							local spot = Build.light(holder, "SpotLight", { Brightness = moon.brightness, Range = range, Angle = moon.angle, Face = Enum.NormalId.Front, Color = Color3.fromRGB(150, 172, 210), Shadows = moonShadows })
 							spot:AddTag("Moonlight")
 							-- soft visible shaft
 							if not shaft then
@@ -756,6 +767,42 @@ local function buildStairs(map, floor, folder, hasAbove: boolean)
 end
 
 -- Fixtures: lights are controlled client-side through attributes (Mode, Tint, Circuit)
+local ensureWorkingLamps: (map: any) -> ()
+-- a dead lamp looks dead: grey, dirty glass, not just "off"
+local DEAD_LAMP = Color3.fromRGB(46, 42, 36)
+
+-- How far light from `position` travels inside its room before a wall or a
+-- doorway: the shortest of 8 directions, in half-stud steps. A light that
+-- casts no shadow goes through walls, so LightController never lets one
+-- reach further than this (plus a stud): no room is lit through its wall.
+local function wallDistance(room, position: Vector3): number
+	local floor
+	for _, f in Layout.Floors do
+		if f.id == room.floorId then
+			floor = f
+		end
+	end
+	if not floor then
+		return 12
+	end
+	local origin = position - Layout.Origin
+	local best = 40
+	for i = 0, 7 do
+		local a = i * math.pi / 4
+		local dir = Vector3.new(math.cos(a), 0, math.sin(a))
+		local d = 0.5
+		while d < best do
+			local p = origin + dir * d
+			if roomIdAt(floor, math.floor(p.X / CELL), math.floor(p.Z / CELL)) ~= room.id then
+				break
+			end
+			d += 0.5
+		end
+		best = math.min(best, d)
+	end
+	return best
+end
+
 local function addFixture(map, room, folder, position: Vector3, styleName: string, color: Color3, rng, opts)
 	opts = opts or {}
 	local fixture = Build.model(folder, "Fixture", CFrame.new(position))
@@ -829,7 +876,8 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 		Brightness = total * profile.fill.ratio,
 		Range = math.min(opts.range or 20, profile.fill.range),
 		Color = color,
-		Shadows = opts.shadows == true and main == nil,
+		-- shadows are the client's (LightController: the nearest lamps cast them)
+		Shadows = false,
 		Enabled = false,
 	})
 	light.Name = "Light"
@@ -843,7 +891,7 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 			Range = main.range,
 			Brightness = total * main.ratio,
 			Color = color,
-			Shadows = opts.shadows == true,
+			Shadows = false,
 			Enabled = false,
 		})
 		shaped.Name = "MainLight"
@@ -851,6 +899,7 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 		shaped:SetAttribute("Main", true)
 	end
 	fixture:SetAttribute("Room", room.id)
+	fixture:SetAttribute("WallDist", wallDistance(room, lampPart.CFrame.Position))
 	fixture:SetAttribute("BaseColor", color)
 	fixture:SetAttribute("BaseBrightness", total)
 	fixture:SetAttribute("Circuit", opts.circuit or "MAIN")
@@ -872,7 +921,7 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 	fixture:AddTag("Fixture")
 	table.insert(room.fixtures, fixture)
 	if mode == "dead" then
-		lampPart.Color = Color3.fromRGB(40, 40, 38)
+		lampPart.Color = DEAD_LAMP
 		lampPart.Material = M.Glass
 	end
 	return fixture
@@ -886,7 +935,7 @@ local function buildRoomLights(map, floor, folder, rng)
 			if room.kind == "stairs" then
 				local sw = Layout.Stairwell
 				local landing = Layout.Origin + Vector3.new((sw.x0 + 2) * CELL, ceilY, (sw.z1 + 1 - sw.landingRows / 2) * CELL)
-				addFixture(map, room, folder, landing, "cage", style.lightColor, rng, { circuit = "EMERGENCY", shadows = true, range = 18 })
+				addFixture(map, room, folder, landing, "cage", style.lightColor, rng, { circuit = "EMERGENCY", range = 18 })
 				if floor.level < 1 then
 					local mid = Layout.Origin + Vector3.new((sw.x0 + 2) * CELL, floor.y + LH / 2 + 7, (sw.z0 + 1) * CELL)
 					addFixture(map, room, folder, mid, "cage", style.lightColor, rng, { circuit = "MAIN", range = 18 })
@@ -903,7 +952,6 @@ local function buildRoomLights(map, floor, folder, rng)
 						local pos = Layout.cellToWorld(floor.y, c.x, c.z)
 						addFixture(map, room, folder, Vector3.new(pos.X, ceilY, pos.Z + CELL / 2), style.light, style.lightColor, rng, {
 							circuit = if index % 3 == 0 then "EMERGENCY" else "MAIN",
-							shadows = index % 3 == 1,
 							hanging = rng:Chance(0.1),
 						})
 						index += 1
@@ -916,7 +964,6 @@ local function buildRoomLights(map, floor, folder, rng)
 					if c.x % 4 == 2 and c.z % 4 == 2 then
 						local pos = Layout.cellToWorld(floor.y, c.x, c.z)
 						addFixture(map, room, folder, Vector3.new(pos.X, ceilY, pos.Z), style.light, style.lightColor, rng, {
-							shadows = placed == 0,
 							hanging = rng:Chance(0.08),
 							reliable = reliable,
 						})
@@ -925,8 +972,65 @@ local function buildRoomLights(map, floor, folder, rng)
 				end
 				if placed == 0 then
 					local center = room.center
-					addFixture(map, room, folder, Vector3.new(center.X, ceilY, center.Z), style.light, style.lightColor, rng, { shadows = true })
+					addFixture(map, room, folder, Vector3.new(center.X, ceilY, center.Z), style.light, style.lightColor, rng, {})
 				end
+			end
+		end
+	end
+end
+
+local function setMode(fixture: Model, mode: string)
+	fixture:SetAttribute("Mode", mode)
+	for _, d in fixture:GetDescendants() do
+		if d:IsA("BasePart") and (d.Name == "Tube" or d.Name == "Tube2" or d.Name == "Bulb") then
+			if mode == "dead" then
+				d.Color = DEAD_LAMP
+				d.Material = M.Glass
+			else
+				d.Color = fixture:GetAttribute("BaseColor") or d.Color
+				d.Material = M.Neon
+			end
+		end
+	end
+end
+
+--[[
+	Darkness needs a reason you can see. Dead and flickering lamps are rolled
+	per fixture, so chance could leave a whole room, or a long stretch of
+	corridor, with no working lamp: dark next to lit for no visible reason.
+	Every room keeps at least one lamp that works ("on"), and in a corridor
+	no three lamps in a row are all dead or flickering. Rooms meant to be dark
+	(Layout: darkByDesign, and the secret room) are left as they are.
+]]
+ensureWorkingLamps = function(map)
+	for _, room in map.Rooms do
+		local list = room.fixtures or {}
+		if #list > 0 and not room.secret and not room.darkByDesign then
+			if room.kind == "corridor" then
+				table.sort(list, function(a, b)
+					local pa, pb = a:GetPivot().Position, b:GetPivot().Position
+					return pa.X + pa.Z < pb.X + pb.Z
+				end)
+				for i = 1, #list - 2 do
+					local any = false
+					for k = i, i + 2 do
+						if list[k]:GetAttribute("Mode") == "on" then
+							any = true
+						end
+					end
+					if not any then
+						setMode(list[i + 1], "on")
+					end
+				end
+			end
+			local working = false
+			for _, f in list do
+				if f:GetAttribute("Mode") == "on" then
+					working = true
+				end
+			end
+			if not working then
+				setMode(list[1], "on")
 			end
 		end
 	end
@@ -1331,6 +1435,7 @@ function MapBuilder.build(seed: number, parent: Instance)
 	end
 	-- services and hardware (switches, outlets, grilles, hinges...) around the furniture
 	Architecture.dress(map, rng:Derive("architecture"))
+	ensureWorkingLamps(map)
 
 	root.Parent = parent
 	return map

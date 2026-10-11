@@ -27,6 +27,8 @@
 	  lightLod      fixture lights further than this are switched off locally
 	  secondary     the main (shaped) light is used
 	  detailLod     micro-detail (hardware, outlets, vents...) is hidden beyond
+	  shadowLights  how many of the nearest lit lamps cast shadows (the rest
+	                are cut to their room so they never light through a wall)
 ]]
 
 local VisualStandards = {}
@@ -120,9 +122,9 @@ VisualStandards.Moonlight = {
 }
 
 VisualStandards.Quality = {
-	[1] = { lightLod = 70, secondary = false, detailLod = 40 },
-	[2] = { lightLod = 95, secondary = true, detailLod = 70 },
-	[3] = { lightLod = 120, secondary = true, detailLod = 110 },
+	[1] = { lightLod = 70, secondary = false, detailLod = 40, shadowLights = 2 },
+	[2] = { lightLod = 95, secondary = true, detailLod = 70, shadowLights = 10 },
+	[3] = { lightLod = 120, secondary = true, detailLod = 110, shadowLights = 14 },
 }
 
 function VisualStandards.tier(level: number?)

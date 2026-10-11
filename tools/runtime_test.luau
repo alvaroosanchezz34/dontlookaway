@@ -1064,6 +1064,83 @@ do
 	check(string.find(client, "LightingRules.evaluate(", 1, true) ~= nil and string.find(client, "BLACKOUT_SAG", 1, true) == nil, "the client paints with the same rules")
 end
 
+section("light: no room lit through a wall, none dark by chance (20 seeds)")
+do
+	local noWorking, badStretch, missingDist, tooFar, moonLeaks = {}, 0, 0, 0, 0
+	for s = 1, 20 do
+		local holder = Instance.new("Folder")
+		holder.Parent = workspace
+		local map = MapBuilder.build(s * 7919, holder)
+		syncPositions(map.Root)
+		for id, room in map.Rooms do
+			local list = room.fixtures or {}
+			if #list > 0 and not room.secret and not room.darkByDesign then
+				local working = false
+				for _, f in list do
+					if f:GetAttribute("Mode") == "on" then
+						working = true
+					end
+					-- the reach a lamp gets without shadows ends at its walls
+					local d = f:GetAttribute("WallDist")
+					if type(d) ~= "number" then
+						missingDist += 1
+					else
+						local p = f:GetPivot().Position
+						local out = false
+						for i = 0, 7 do
+							local a = i * math.pi / 4
+							local q = Vector3.new(p.X + math.cos(a) * (d + 1.5), room.min.Y + 2, p.Z + math.sin(a) * (d + 1.5))
+							-- (roomAt answers a doorway with a room next to it: past the
+							-- room's box counts as out too)
+							local outsideBox = q.X < room.min.X or q.X > room.max.X or q.Z < room.min.Z or q.Z > room.max.Z
+							if outsideBox or map:roomAt(q) ~= room then
+								out = true
+							end
+						end
+						if not out then
+							tooFar += 1
+						end
+					end
+				end
+				if not working then
+					table.insert(noWorking, s .. ":" .. id)
+				end
+				if room.kind == "corridor" then
+					table.sort(list, function(a, b)
+						local pa, pb = a:GetPivot().Position, b:GetPivot().Position
+						return pa.X + pa.Z < pb.X + pb.Z
+					end)
+					for i = 1, #list - 2 do
+						local any = false
+						for k = i, i + 2 do
+							any = any or list[k]:GetAttribute("Mode") == "on"
+						end
+						if not any then
+							badStretch += 1
+						end
+					end
+				end
+			end
+		end
+		-- moonlight without shadows ends inside the room it shines into
+		for _, d in map.Root:GetDescendants() do
+			if d:IsA("SpotLight") and d:HasTag("Moonlight") and not d.Shadows and d.Range > 30 then
+				moonLeaks += 1
+			end
+		end
+		holder:Destroy()
+	end
+	check(#noWorking == 0, "every room has a working lamp: " .. table.concat(noWorking, ", "))
+	check(badStretch == 0, "no three corridor lamps in a row are all out (" .. badStretch .. ")")
+	check(missingDist == 0, "every lamp knows how far its walls are (" .. missingDist .. " missing)")
+	check(tooFar == 0, "every lamp's wall distance really ends at a wall (" .. tooFar .. " too far)")
+	check(moonLeaks == 0, "no shadowless moonlight keeps its full range (" .. moonLeaks .. ")")
+	local client = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.LightController.Source
+	check(string.find(client, "math.min(entry.range, info.wallDist)", 1, true) ~= nil, "a lamp without shadows is cut to its walls")
+	check(string.find(client, "l.Shadows = shadowed", 1, true) ~= nil and string.find(client, "pickShadowed(tier.shadowLights)", 1, true) ~= nil, "the nearest lamps cast the shadows")
+	check(string.find(client, "LOD_DISTANCE * 0.2", 1, true) ~= nil, "far lamps fade instead of switching off")
+end
+
 section("the observer: reference silhouette and jumpscare framing")
 do
 	local RS = game:GetService("ReplicatedStorage")
