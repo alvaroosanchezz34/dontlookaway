@@ -710,7 +710,7 @@ do
 	check(headHeight > headWidth * 1.5, string.format("the head is long (%.2f tall, %.2f wide)", headHeight, headWidth))
 	check(top > 9 and top < 10, string.format("very tall (%.1f studs)", top))
 	check(handLow < 2.3 and handLow > 0.6, string.format("the arms hang to the middle of the shins (hands down to %.1f)", handLow))
-	-- matte black body, two small pale eyes
+	-- matte black body, two small dim eyes
 	local lum = function(c)
 		return 0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B
 	end
@@ -718,8 +718,9 @@ do
 	for _, d in rig:GetDescendants() do
 		if d:IsA("BasePart") and d.Transparency < 1 then
 			if string.find(d.Name, "Eyeball") then
-				-- dim self-lit grey (Neon): pale against the black, never a lamp
-				check(lum(d.Color) > 0.3 and lum(d.Color) < 0.6 and d.Size.X < 0.2, "small pale eye: " .. d.Name)
+				-- a dull self-lit grey (Neon): it reads in the dark, never a lamp,
+				-- never a toy's pale eye
+				check(lum(d.Color) > 0.1 and lum(d.Color) < 0.25 and d.Size.X < 0.2, "small dim eye: " .. d.Name)
 			elseif d.Name ~= "Pupil" and lum(d.Color) > 0.06 then
 				table.insert(bright, d.Name)
 			end

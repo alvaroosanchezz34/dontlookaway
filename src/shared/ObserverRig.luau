@@ -4,7 +4,7 @@
 	  * a long, narrow head (about 0.8 studs wide and 1.85 tall, no wings): a
 	    tall faceless face with a cleft down the middle, a heavy brow, a high
 	    crown, and a narrow point that runs down into the neck
-	  * two small pale eyes with dark pupils, close to the middle, that turn to
+	  * two small dim eyes with large black pupils, close to the middle, that turn to
 	    whoever it is watching
 	  * a long thin neck, sloping angular shoulders, a narrow torso with no
 	    anatomy
@@ -12,8 +12,8 @@
 	  * long straight legs
 	  * a uniform matte black that swallows light: no clothes, no ribs, no
 	    teeth, no shine. It is frightening by its shape and its stillness.
-	The eyes are the only light thing on it; they are a dim self-lit grey (not
-	a glow) so they read in the dark.
+	The eyes are two faint self-lit rims round large black pupils, so they read
+	in the dark without looking like a toy's.
 
 	Parts and Motor6D joints keep the names every system uses (RootJoint,
 	Waist, NeckJoint, HeadJoint, shoulders, elbows, wrists, hips, knees,
@@ -66,8 +66,9 @@ ObserverRig.MeshDetails = MESH_DETAILS
 
 -- matte, near-black: it absorbs light (SmoothPlastic, no reflectance)
 local SKIN = Color3.fromRGB(9, 9, 10)
--- the eyes: a pale grey that is self-lit but dim (no bloom, no halo)
-local EYE = Color3.fromRGB(104, 102, 96)
+-- the eyes: a dull dark grey, barely self-lit (they still read in the dark,
+-- as two faint rims round black pupils; pale ones looked like toy eyes)
+local EYE = Color3.fromRGB(46, 43, 38)
 local PUPIL = Color3.fromRGB(2, 2, 2)
 
 -- The smooth body (tools/blender/build_observer.py): one flowing mesh per
@@ -200,7 +201,7 @@ function ObserverRig.build(base: CFrame?, opts: { [string]: any }?): Model
 	local chin = part(model, "Chin", Vector3.new(0.34, 0.34, 0.4), head.CFrame * CFrame.new(0, -0.74, -0.02) * CFrame.Angles(0, 0, math.rad(45)))
 	weld(head, chin)
 
-	-- two small pale eyes with dark pupils, in the upper half of the face,
+	-- two small dim eyes with large black pupils, in the upper half of the face,
 	-- close to the middle; they turn (EyeTurnL / EyeTurnR)
 	for _, s in { -1, 1 } do
 		local side = if s < 0 then "L" else "R"
@@ -212,7 +213,8 @@ function ObserverRig.build(base: CFrame?, opts: { [string]: any }?): Model
 		ball.Shape = Enum.PartType.Ball
 		ball.CastShadow = false
 		motor("EyeTurn" .. side, head, ball, eyeAt)
-		local pupil = ellipsoid(model, "Pupil", Vector3.new(d * 0.58, d * 0.64, 0.025), ball.CFrame * CFrame.new(0, d * 0.05, -d * 0.44), PUPIL)
+		-- the pupil fills most of the eye: only a thin rim of the eyeball shows
+		local pupil = ellipsoid(model, "Pupil", Vector3.new(d * 0.86, d * 0.9, 0.025), ball.CFrame * CFrame.new(0, d * 0.03, -d * 0.45), PUPIL)
 		pupil.CastShadow = false
 		weld(ball, pupil)
 	end
