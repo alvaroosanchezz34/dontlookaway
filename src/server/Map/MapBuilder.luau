@@ -786,7 +786,7 @@ local function addFixture(map, room, folder, position: Vector3, styleName: strin
 		Build.cylinder(fixture, "ShadeNeck", 0.3, 1.2, CFrame.new(O + Vector3.new(0, -3.25, 0)) * up, enamel, M.Metal, { CanCollide = false, CastShadow = false, CanQuery = false })
 		-- the bell rim hosts the main light: its Left face (local -X) points down
 		Build.cylinder(fixture, "Shade", 0.34, 2.1, CFrame.new(O + Vector3.new(0, -3.55, 0)) * up, enamel, M.Metal, { CanCollide = false, CastShadow = false, CanQuery = false })
-		Build.cylinder(fixture, "Reflector", 0.03, 1.96, CFrame.new(O + Vector3.new(0, -3.74, 0)) * up, Color3.fromRGB(232, 228, 214), M.SmoothPlastic, { CanCollide = false, CastShadow = false, CanQuery = false })
+		Build.cylinder(fixture, "Reflector", 0.03, 1.96, CFrame.new(O + Vector3.new(0, -3.74, 0)) * up, Color3.fromRGB(232, 228, 214), M.Metal, { CanCollide = false, CastShadow = false, CanQuery = false })
 		lampPart = Build.ball(fixture, "Bulb", 0.5, CFrame.new(O + Vector3.new(0, -3.92, 0)), color, M.Neon, { CanCollide = false, CastShadow = false, CanQuery = false })
 		-- the lathed PendantLamp mesh replaces everything but the glowing bulb
 		PropMeshes.mark(fixture, "PendantLamp", CFrame.new(O), { Canopy = true, Cord = true, CordGrip = true, ShadeTop = true, ShadeNeck = true, Shade = true, Reflector = true })
@@ -1132,7 +1132,7 @@ local function buildExterior(map, folder, rng)
 	local yx0, yz0, yx1, yz1 = y.x0 * CELL, y.z0 * CELL, (y.x1 + 1) * CELL, (y.z1 + 1) * CELL
 	Build.part(folder, "Yard", Vector3.new(yx1 - yx0, 0.4, yz1 - yz0), CFrame.new(O + Vector3.new((yx0 + yx1) / 2, -0.2 + 0.01, (yz0 + yz1) / 2)), Color3.fromRGB(50, 50, 50), M.Asphalt)
 	for i = 0, 3 do
-		Build.detail(folder, "LineMark", Vector3.new(10, 0.05, 0.4), CFrame.new(O + Vector3.new(yx0 + 14, 0.02, yz0 + 12 + i * 10)), Color3.fromRGB(150, 140, 100), M.SmoothPlastic)
+		Build.detail(folder, "LineMark", Vector3.new(10, 0.05, 0.4), CFrame.new(O + Vector3.new(yx0 + 14, 0.02, yz0 + 12 + i * 10)), Color3.fromRGB(150, 140, 100), M.Concrete)
 	end
 	-- the exit shutter
 	local exitDoor = Build.model(folder, "ExitShutter")

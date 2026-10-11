@@ -101,7 +101,7 @@ local function placeDocument(map, rng, docId, title, body, filter, kind, loreId:
 		return nil
 	end
 	docs[docId] = { title = title, body = body, kind = kind, loreId = loreId }
-	local paper = Build.part(docFolder, "Document", Vector3.new(0.9, 0.04, 1.2), CFrame.new(spot.cf.Position + Vector3.new(0, 0.03, 0)) * CFrame.Angles(0, math.rad(rng:Number(0, 360)), 0), Color3.fromRGB(214, 206, 184), Enum.Material.SmoothPlastic, { CanCollide = false, CastShadow = false })
+	local paper = Build.part(docFolder, "Document", Vector3.new(0.9, 0.04, 1.2), CFrame.new(spot.cf.Position + Vector3.new(0, 0.03, 0)) * CFrame.Angles(0, math.rad(rng:Number(0, 360)), 0), Color3.fromRGB(214, 206, 184), Enum.Material.Fabric, { CanCollide = false, CastShadow = false })
 	local hit = Build.part(paper, "Hit", Vector3.new(1.6, 0.8, 1.6), paper.CFrame * CFrame.new(0, 0.3, 0), Color3.new(), Enum.Material.SmoothPlastic, { Transparency = 1, CanCollide = false, CastShadow = false })
 	hit:AddTag("Interactable")
 	hit:SetAttribute("InteractKind", "Document")

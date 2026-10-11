@@ -196,9 +196,9 @@ end
 function Props.crt(parent, cf: CFrame, rng)
 	local m = model(parent, "Monitor", cf)
 	local col = Build.vary(C.cream, rng, 0.04)
-	P(m, "Body", Vector3.new(1.6, 1.4, 1.5), at(cf, 0, 0.9, 0.15), col, M.SmoothPlastic)
+	P(m, "Body", Vector3.new(1.6, 1.4, 1.5), at(cf, 0, 0.9, 0.15), col, M.Plastic)
 	local screen = D(m, "Screen", Vector3.new(1.3, 1.05, 0.05), at(cf, 0, 0.95, -0.62), Color3.fromRGB(18, 22, 20), M.Glass, { Reflectance = 0.15 })
-	D(m, "Stand", Vector3.new(0.9, 0.2, 0.9), at(cf, 0, 0.1, 0.1), col, M.SmoothPlastic)
+	D(m, "Stand", Vector3.new(0.9, 0.2, 0.9), at(cf, 0, 0.1, 0.1), col, M.Plastic)
 	screen:AddTag("Screen")
 	return m
 end
@@ -206,9 +206,9 @@ end
 function Props.phone(parent, cf: CFrame, rng)
 	local m = model(parent, "Phone", cf)
 	local col = rng:Pick({ Color3.fromRGB(30, 30, 32), Color3.fromRGB(150, 140, 120), Color3.fromRGB(80, 40, 36) })
-	P(m, "Base", Vector3.new(0.9, 0.35, 1.1), at(cf, 0, 0.18, 0), col, M.SmoothPlastic, { CanCollide = false })
-	D(m, "Handset", Vector3.new(1.1, 0.22, 0.28), at(cf, 0, 0.45, -0.1), col, M.SmoothPlastic)
-	D(m, "Dial", Vector3.new(0.5, 0.05, 0.5), at(cf, 0, 0.38, 0.25), C.paper, M.SmoothPlastic)
+	P(m, "Base", Vector3.new(0.9, 0.35, 1.1), at(cf, 0, 0.18, 0), col, M.Plastic, { CanCollide = false })
+	D(m, "Handset", Vector3.new(1.1, 0.22, 0.28), at(cf, 0, 0.45, -0.1), col, M.Plastic)
+	D(m, "Dial", Vector3.new(0.5, 0.05, 0.5), at(cf, 0, 0.38, 0.25), C.paper, M.Fabric)
 	tagModel(m, "Phone")
 	return m
 end
@@ -311,7 +311,7 @@ end
 function Props.roundTable(parent, cf: CFrame, rng)
 	local m = model(parent, "RoundTable", cf)
 	local col = Build.vary(C.cream, rng)
-	Build.cylinder(m, "Top", 0.2, 3.6, at(cf, 0, 3, 0, 0, 0, 90), col, M.SmoothPlastic)
+	Build.cylinder(m, "Top", 0.2, 3.6, at(cf, 0, 3, 0, 0, 0, 90), col, M.Wood)
 	Build.cylinder(m, "Pole", 2.8, 0.3, at(cf, 0, 1.5, 0, 0, 0, 90), C.metalDark, M.Metal, { CanCollide = false })
 	Build.cylinder(m, "Foot", 0.15, 1.6, at(cf, 0, 0.08, 0, 0, 0, 90), C.metalDark, M.Metal)
 	local spot = Instance.new("Attachment")
@@ -332,7 +332,7 @@ function Props.box(parent, cf: CFrame, rng, size: Vector3?)
 	local m = model(parent, "Box", cf)
 	local col = Build.vary(C.cardboard, rng, 0.08)
 	P(m, "Body", s, at(cf, 0, s.Y / 2, 0, 0, rng:Number(-12, 12), 0), col, M.Cardboard)
-	D(m, "Tape", Vector3.new(0.3, 0.02, s.Z + 0.02), at(cf, 0, s.Y + 0.01, 0, 0, rng:Number(-12, 12), 0), Color3.fromRGB(150, 130, 100), M.SmoothPlastic)
+	D(m, "Tape", Vector3.new(0.3, 0.02, s.Z + 0.02), at(cf, 0, s.Y + 0.01, 0, 0, rng:Number(-12, 12), 0), Color3.fromRGB(150, 130, 100), M.Plastic)
 	tagModel(m, "Movable")
 	return m
 end
@@ -477,7 +477,7 @@ function Props.filingCabinet(parent, cf: CFrame, rng)
 			end
 		end
 		D(m, "LabelHolder", Vector3.new(0.5, 0.26, 0.03), at(cf, 0, y + 0.42, z - 0.055), C.metal, M.Metal)
-		D(m, "Label", Vector3.new(0.42, 0.18, 0.02), at(cf, 0, y + 0.42, z - 0.08), C.paper, M.SmoothPlastic)
+		D(m, "Label", Vector3.new(0.42, 0.18, 0.02), at(cf, 0, y + 0.42, z - 0.08), C.paper, M.Fabric)
 		D(m, "Handle", Vector3.new(0.6, 0.1, 0.1), at(cf, 0, y + 0.18, z - 0.08), C.metal, M.Metal)
 	end
 	m:SetAttribute("SurfaceHeight", 4.4)
@@ -552,7 +552,7 @@ function Props.painting(parent, wallCf: CFrame, rng, width: number?, height: num
 	local tilt = if rng:Chance(0.25) then rng:Number(-4, 4) else 0
 	local base = wallCf * CFrame.Angles(0, 0, math.rad(tilt))
 	P(m, "Frame", Vector3.new(w + 0.5, h + 0.5, 0.2), at(base, 0, 0, -0.12), frameCol, M.Wood, { CanCollide = false })
-	local canvas = P(m, "Canvas", Vector3.new(w, h, 0.05), at(base, 0, 0, -0.24), Color3.fromRGB(40, 40, 40), M.SmoothPlastic, { CanCollide = false })
+	local canvas = P(m, "Canvas", Vector3.new(w, h, 0.05), at(base, 0, 0, -0.24), Color3.fromRGB(40, 40, 40), M.Fabric, { CanCollide = false })
 	local gui = Build.surfaceGui(canvas, Enum.NormalId.Front, 36)
 	gui.Name = "Art"
 	Art.painting(gui, rng, kind)
@@ -573,7 +573,7 @@ end
 function Props.photo(parent, wallCf: CFrame, rng)
 	local m = model(parent, "Photograph", wallCf)
 	P(m, "Frame", Vector3.new(2.4, 1.8, 0.15), at(wallCf, 0, 0, -0.08), Color3.fromRGB(30, 26, 22), M.Wood, { CanCollide = false })
-	local canvas = P(m, "Canvas", Vector3.new(2.1, 1.5, 0.04), at(wallCf, 0, 0, -0.17), Color3.fromRGB(140, 120, 90), M.SmoothPlastic, { CanCollide = false })
+	local canvas = P(m, "Canvas", Vector3.new(2.1, 1.5, 0.04), at(wallCf, 0, 0, -0.17), Color3.fromRGB(140, 120, 90), M.Fabric, { CanCollide = false })
 	local gui = Build.surfaceGui(canvas, Enum.NormalId.Front, 48)
 	gui.Name = "Art"
 	Art.photo(gui, rng)
@@ -660,7 +660,7 @@ function Props.sign(parent, wallCf: CFrame, text: string, width: number?, height
 	elseif style == "brass" then
 		bg, fg = Color3.fromRGB(120, 100, 60), Color3.fromRGB(30, 24, 16)
 	end
-	local plate = P(m, "Plate", Vector3.new(w, h, 0.1), at(wallCf, 0, 0, -0.06), bg, M.SmoothPlastic, { CanCollide = false })
+	local plate = P(m, "Plate", Vector3.new(w, h, 0.1), at(wallCf, 0, 0, -0.06), bg, M.Metal, { CanCollide = false })
 	local gui = Build.surfaceGui(plate, Enum.NormalId.Front, 50)
 	gui.Name = "SignGui"
 	if style == "exit" then
@@ -693,7 +693,7 @@ end
 function Props.exitSign(parent, cf: CFrame)
 	local m = model(parent, "ExitSign", cf)
 	D(m, "Rod", Vector3.new(0.1, 1, 0.1), at(cf, 0, 0.5, 0), C.metalDark, M.Metal)
-	local box = D(m, "Box", Vector3.new(2.2, 0.8, 0.3), at(cf, 0, -0.3, 0), Color3.fromRGB(26, 30, 28), M.SmoothPlastic)
+	local box = D(m, "Box", Vector3.new(2.2, 0.8, 0.3), at(cf, 0, -0.3, 0), Color3.fromRGB(26, 30, 28), M.Plastic)
 	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local gui = Build.surfaceGui(box, face, 50)
 		gui.LightInfluence = 0
@@ -742,7 +742,7 @@ end
 function Props.fireExtinguisher(parent, cf: CFrame)
 	local m = model(parent, "Extinguisher", cf)
 	-- cf stands 0.42 off the wall finish (backed placement); the bracket reaches back to it
-	Build.cylinder(m, "Body", 1.8, 0.6, at(cf, 0, 2.4, -0.15, 0, 0, 90), Color3.fromRGB(120, 36, 32), M.SmoothPlastic, { CanCollide = false })
+	Build.cylinder(m, "Body", 1.8, 0.6, at(cf, 0, 2.4, -0.15, 0, 0, 90), Color3.fromRGB(120, 36, 32), M.Metal, { CanCollide = false })
 	D(m, "Top", Vector3.new(0.3, 0.4, 0.3), at(cf, 0, 3.45, -0.15), C.black, M.Metal)
 	D(m, "Bracket", Vector3.new(0.7, 0.2, 0.55), at(cf, 0, 2, 0.12), C.metalDark, M.Metal)
 	D(m, "Plate", Vector3.new(0.9, 1.8, 0.06), at(cf, 0, 2.6, 0.38), C.metalDark, M.Metal)
@@ -753,7 +753,7 @@ function Props.noticeBoard(parent, wallCf: CFrame, rng, lines)
 	local m = model(parent, "NoticeBoard", wallCf)
 	P(m, "Board", Vector3.new(5, 3.2, 0.2), at(wallCf, 0, 0, -0.1), Color3.fromRGB(110, 86, 60), M.Fabric, { CanCollide = false })
 	for i = 1, rng:Int(4, 7) do
-		D(m, "Note", Vector3.new(rng:Number(0.8, 1.3), rng:Number(1, 1.4), 0.03), at(wallCf, rng:Number(-1.8, 1.8), rng:Number(-0.9, 0.9), -0.22 - i * 0.034, 0, 0, rng:Number(-10, 10)), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic)
+		D(m, "Note", Vector3.new(rng:Number(0.8, 1.3), rng:Number(1, 1.4), 0.03), at(wallCf, rng:Number(-1.8, 1.8), rng:Number(-0.9, 0.9), -0.22 - i * 0.034, 0, 0, rng:Number(-10, 10)), C.paper:Lerp(C.beige, rng:Number()), M.Fabric)
 		if i == 1 and lines then
 			local note = m:FindFirstChild("Note") :: BasePart
 			local gui = Build.surfaceGui(note, Enum.NormalId.Front, 60)
@@ -767,7 +767,7 @@ function Props.trashBin(parent, cf: CFrame, rng)
 	local m = model(parent, "Trash", cf)
 	Build.cylinder(m, "Bin", 1.6, 1.3, at(cf, 0, 0.8, 0, 0, 0, 90), Build.vary(C.metalDark, rng), M.Metal)
 	if rng:Chance(0.5) then
-		D(m, "Paper", Vector3.new(0.5, 0.5, 0.5), at(cf, 0.2, 1.7, 0, 20, 30, 0), C.paper, M.SmoothPlastic)
+		D(m, "Paper", Vector3.new(0.5, 0.5, 0.5), at(cf, 0.2, 1.7, 0, 20, 30, 0), C.paper, M.Fabric)
 	end
 	tagModel(m, "Movable")
 	return m
@@ -776,14 +776,14 @@ end
 function Props.wetFloorSign(parent, cf: CFrame)
 	local m = model(parent, "WetFloor", cf)
 	local col = Color3.fromRGB(170, 150, 60)
-	D(m, "A", Vector3.new(1.4, 2.6, 0.1), at(cf, 0, 1.25, -0.35, 15, 0, 0), col, M.SmoothPlastic)
-	D(m, "B", Vector3.new(1.4, 2.6, 0.1), at(cf, 0, 1.25, 0.35, -15, 0, 0), col, M.SmoothPlastic)
+	D(m, "A", Vector3.new(1.4, 2.6, 0.1), at(cf, 0, 1.25, -0.35, 15, 0, 0), col, M.Plastic)
+	D(m, "B", Vector3.new(1.4, 2.6, 0.1), at(cf, 0, 1.25, 0.35, -15, 0, 0), col, M.Plastic)
 	return m
 end
 
 function Props.stain(parent, cf: CFrame, rng, size: number?)
 	local s = size or rng:Number(2, 5)
-	local p = D(parent, "Stain", Vector3.new(s, 0.02, s * rng:Number(0.5, 1)), cf * CFrame.new(0, 0.01, 0) * CFrame.Angles(0, math.rad(rng:Number(0, 180)), 0), Color3.fromRGB(30, 28, 22), M.SmoothPlastic, { Transparency = rng:Number(0.55, 0.8), CanQuery = false })
+	local p = D(parent, "Stain", Vector3.new(s, 0.02, s * rng:Number(0.5, 1)), cf * CFrame.new(0, 0.01, 0) * CFrame.Angles(0, math.rad(rng:Number(0, 180)), 0), Color3.fromRGB(30, 28, 22), M.Concrete, { Transparency = rng:Number(0.55, 0.8), CanQuery = false })
 	return p
 end
 
@@ -796,7 +796,7 @@ end
 function Props.scatterPapers(parent, cf: CFrame, rng, count: number?)
 	for i = 1, count or rng:Int(2, 5) do
 		-- each sheet a little higher than the last so overlapping sheets never flicker
-		D(parent, "LoosePaper", Vector3.new(0.85, 0.02, 1.1), cf * CFrame.new(rng:Number(-1.6, 1.6), 0.02 + i * 0.015, rng:Number(-1.6, 1.6)) * CFrame.Angles(0, math.rad(rng:Number(0, 360)), 0), C.paper:Lerp(C.beige, rng:Number()), M.SmoothPlastic, { CanQuery = false })
+		D(parent, "LoosePaper", Vector3.new(0.85, 0.02, 1.1), cf * CFrame.new(rng:Number(-1.6, 1.6), 0.02 + i * 0.015, rng:Number(-1.6, 1.6)) * CFrame.Angles(0, math.rad(rng:Number(0, 360)), 0), C.paper:Lerp(C.beige, rng:Number()), M.Fabric, { CanQuery = false })
 	end
 end
 
@@ -872,7 +872,7 @@ function Props.receptionDesk(parent, cf: CFrame, rng)
 	Props.paperStack(m, at(cf, 4, 3.12, 0.2), rng)
 	-- the visitors' ledger lies open on the counter, a pen across it
 	D(m, "LedgerCover", Vector3.new(1.9, 0.06, 1.25), at(cf, -1.4, 4.53, -1.2, 0, 8, 0), Color3.fromRGB(82, 30, 26), M.Fabric)
-	D(m, "LedgerPages", Vector3.new(1.8, 0.05, 1.15), at(cf, -1.4, 4.585, -1.2, 0, 8, 0), C.paper, M.SmoothPlastic)
+	D(m, "LedgerPages", Vector3.new(1.8, 0.05, 1.15), at(cf, -1.4, 4.585, -1.2, 0, 8, 0), C.paper, M.Fabric)
 	D(m, "Pen", Vector3.new(0.06, 0.06, 0.7), at(cf, -0.9, 4.64, -1.25, 0, 35, 0), C.black, M.Plastic)
 	local bell = Build.ball(m, "Bell", 0.5, at(cf, 1, 4.6, -1.3), brass, M.Metal, { CanCollide = false })
 	bell.CastShadow = false
@@ -931,8 +931,8 @@ end
 function Props.umbrellaStand(parent, cf: CFrame, rng)
 	local m = model(parent, "UmbrellaStand", cf)
 	local glaze = Build.vary(Color3.fromRGB(70, 92, 84), rng, 0.05)
-	P(m, "Pot", Vector3.new(1.0, 1.9, 1.0), at(cf, 0, 0.95, 0), glaze, M.SmoothPlastic, { Reflectance = 0.06 })
-	D(m, "Rim", Vector3.new(1.08, 0.12, 1.08), at(cf, 0, 1.92, 0), glaze:Lerp(C.black, 0.2), M.SmoothPlastic)
+	P(m, "Pot", Vector3.new(1.0, 1.9, 1.0), at(cf, 0, 0.95, 0), glaze, M.Marble, { Reflectance = 0.06 })
+	D(m, "Rim", Vector3.new(1.08, 0.12, 1.08), at(cf, 0, 1.92, 0), glaze:Lerp(C.black, 0.2), M.Marble)
 	for i, tilt in { -9, 7 } do
 		local col = if i == 1 then Color3.fromRGB(40, 40, 46) else Color3.fromRGB(96, 34, 30)
 		D(m, "Umbrella", Vector3.new(0.28 - i * 0.03, 2.9 - i * 0.2, 0.28 - i * 0.03), at(cf, (i - 1.5) * 0.34, 2.3 - i * 0.1, (i - 1.5) * 0.12, 0, 0, tilt), col, M.Fabric)
@@ -976,13 +976,13 @@ function Props.toiletStall(parent, cf: CFrame, rng, doorOpen: boolean?)
 	local m = model(parent, "Stall", cf)
 	local panel = Build.vary(rng:Pick({ Color3.fromRGB(110, 120, 116), Color3.fromRGB(130, 120, 100) }), rng, 0.04)
 	-- the right side sits 2 cm in so a neighbouring stall's left side never shares its plane
-	P(m, "SideL", Vector3.new(0.15, 6.4, 5.6), at(cf, -2, 3.7, 0), panel, M.SmoothPlastic)
+	P(m, "SideL", Vector3.new(0.15, 6.4, 5.6), at(cf, -2, 3.7, 0), panel, M.Metal)
 	-- and is 4 cm smaller, so where neighbours overlap none of their faces line up
-	P(m, "SideR", Vector3.new(0.15, 6.36, 5.56), at(cf, 1.98, 3.7, 0), panel, M.SmoothPlastic)
+	P(m, "SideR", Vector3.new(0.15, 6.36, 5.56), at(cf, 1.98, 3.7, 0), panel, M.Metal)
 	-- a stainless foot carries the left partition at the front (narrower than
 	-- the panel, so it never reaches the wall or the neighbouring stall)
 	D(m, "StallFoot", Vector3.new(0.12, 0.5, 0.36), at(cf, -2, 0.25, -2.4), C.metal, M.Metal)
-	local door = P(m, "StallDoor", Vector3.new(3.4, 5.8, 0.12), at(cf, 0, 3.6, -2.8), panel:Lerp(C.black, 0.1), M.SmoothPlastic)
+	local door = P(m, "StallDoor", Vector3.new(3.4, 5.8, 0.12), at(cf, 0, 3.6, -2.8), panel:Lerp(C.black, 0.1), M.Metal)
 	if doorOpen then
 		door.CFrame = at(cf, -1.75, 3.6, -2.8) * CFrame.Angles(0, math.rad(-80), 0) * CFrame.new(1.7, 0, 0)
 	else
@@ -992,7 +992,7 @@ function Props.toiletStall(parent, cf: CFrame, rng, doorOpen: boolean?)
 	local white = C.white
 	P(m, "Bowl", Vector3.new(1.4, 1.4, 2), at(cf, 0, 0.7, 1.4), white, M.Marble)
 	D(m, "Tank", Vector3.new(1.8, 1.6, 0.7), at(cf, 0, 2, 2.5), white, M.Marble)
-	D(m, "Seat", Vector3.new(1.5, 0.12, 1.9), at(cf, 0, 1.45, 1.35), Color3.fromRGB(170, 166, 150), M.SmoothPlastic)
+	D(m, "Seat", Vector3.new(1.5, 0.12, 1.9), at(cf, 0, 1.45, 1.35), Color3.fromRGB(170, 166, 150), M.Plastic)
 	return m
 end
 
@@ -1006,8 +1006,8 @@ end
 function Props.fridge(parent, cf: CFrame, rng)
 	local m = model(parent, "Fridge", cf)
 	local col = Build.vary(Color3.fromRGB(176, 172, 160), rng)
-	P(m, "Body", Vector3.new(2.6, 6.2, 2.4), at(cf, 0, 3.1, 0), col, M.SmoothPlastic)
-	D(m, "Split", Vector3.new(2.5, 0.06, 0.04), at(cf, 0, 4.4, -1.21), C.black, M.SmoothPlastic)
+	P(m, "Body", Vector3.new(2.6, 6.2, 2.4), at(cf, 0, 3.1, 0), col, M.Metal)
+	D(m, "Split", Vector3.new(2.5, 0.06, 0.04), at(cf, 0, 4.4, -1.21), C.black, M.Rubber)
 	D(m, "Handle", Vector3.new(0.1, 1.2, 0.15), at(cf, 1.05, 5.1, -1.3), C.metal, M.Metal)
 	D(m, "Handle", Vector3.new(0.1, 1.6, 0.15), at(cf, 1.05, 3.2, -1.3), C.metal, M.Metal)
 	return m
@@ -1021,11 +1021,11 @@ function Props.vendingMachine(parent, cf: CFrame, rng)
 	for r = 0, 4 do
 		for c = 0, 3 do
 			if rng:Chance(0.6) then
-				D(m, "Snack", Vector3.new(0.35, 0.6, 0.2), at(cf, -1.2 + c * 0.55, 2.4 + r * 0.9, -1.15), Build.vary(rng:Pick({ Color3.fromRGB(150, 60, 40), Color3.fromRGB(60, 90, 120), Color3.fromRGB(160, 140, 60) }), rng, 0.1), M.SmoothPlastic)
+				D(m, "Snack", Vector3.new(0.35, 0.6, 0.2), at(cf, -1.2 + c * 0.55, 2.4 + r * 0.9, -1.15), Build.vary(rng:Pick({ Color3.fromRGB(150, 60, 40), Color3.fromRGB(60, 90, 120), Color3.fromRGB(160, 140, 60) }), rng, 0.1), M.Plastic)
 			end
 		end
 	end
-	local panel = D(m, "Panel", Vector3.new(0.7, 1.6, 0.05), at(cf, 1.15, 4.4, -1.32), Color3.fromRGB(30, 30, 32), M.SmoothPlastic)
+	local panel = D(m, "Panel", Vector3.new(0.7, 1.6, 0.05), at(cf, 1.15, 4.4, -1.32), Color3.fromRGB(30, 30, 32), M.Plastic)
 	local light = Build.light(glass, "SurfaceLight", { Brightness = 0.4, Range = 6, Face = Enum.NormalId.Front, Color = Color3.fromRGB(200, 220, 255), Shadows = false })
 	light:SetAttribute("PoweredLight", true)
 	light.Enabled = false
@@ -1035,14 +1035,14 @@ end
 
 function Props.coffeeMachine(parent, cf: CFrame, rng)
 	local m = model(parent, "CoffeeMachine", cf)
-	D(m, "Body", Vector3.new(1.2, 1.6, 1.2), at(cf, 0, 0.8, 0), Build.vary(C.black, rng), M.SmoothPlastic)
+	D(m, "Body", Vector3.new(1.2, 1.6, 1.2), at(cf, 0, 0.8, 0), Build.vary(C.black, rng), M.Plastic)
 	D(m, "Pot", Vector3.new(0.7, 0.7, 0.7), at(cf, 0, 0.4, -0.5), Color3.fromRGB(40, 30, 24), M.Glass, { Transparency = 0.3 })
 	return m
 end
 
 function Props.waterCooler(parent, cf: CFrame, rng)
 	local m = model(parent, "WaterCooler", cf)
-	P(m, "Body", Vector3.new(1.4, 3.6, 1.4), at(cf, 0, 1.8, 0), Color3.fromRGB(180, 178, 170), M.SmoothPlastic)
+	P(m, "Body", Vector3.new(1.4, 3.6, 1.4), at(cf, 0, 1.8, 0), Color3.fromRGB(180, 178, 170), M.Plastic)
 	Build.cylinder(m, "Bottle", 1.6, 1.2, at(cf, 0, 4.4, 0, 0, 0, 90), Color3.fromRGB(150, 180, 190), M.Glass, { Transparency = 0.45, CanCollide = false })
 	return m
 end
@@ -1152,7 +1152,7 @@ function Props.boiler(parent, cf: CFrame, rng)
 	Build.cylinder(m, "CapB", 0.4, 5.9, at(cf, 0, 3.6, 3.5, 0, 90, 0), col:Lerp(C.black, 0.3), M.Metal)
 	P(m, "Stand", Vector3.new(4, 1, 6), at(cf, 0, 0.5, 0), C.metalDark, M.Metal)
 	Build.cylinder(m, "Flue", 6, 1.2, at(cf, 0, 9, 1.5, 0, 0, 90), C.metalDark, M.CorrodedMetal, { CanCollide = false })
-	local gauge = Build.cylinder(m, "Gauge", 0.2, 1, at(cf, 0, 4.5, -3.75, 0, 90, 0), Color3.fromRGB(200, 196, 180), M.SmoothPlastic, { CanCollide = false })
+	local gauge = Build.cylinder(m, "Gauge", 0.2, 1, at(cf, 0, 4.5, -3.75, 0, 90, 0), Color3.fromRGB(200, 196, 180), M.Plastic, { CanCollide = false })
 	local glow = D(m, "Firebox", Vector3.new(1.6, 0.8, 0.1), at(cf, 0, 1.8, -3.6), Color3.fromRGB(255, 120, 50), M.Neon, { Transparency = 0.2 })
 	local light = Build.light(glow, "PointLight", { Brightness = 0.8, Range = 12, Color = Color3.fromRGB(255, 120, 60), Shadows = false })
 	light:AddTag("FireGlow")
@@ -1271,7 +1271,7 @@ function Props.window(parent, cf: CFrame, rng, boarded: boolean?)
 	-- handprints on the inside of the glass for the altered variant (hidden)
 	local prints = model(m, "Handprints", cf)
 	for i = 1, 4 do
-		local hp = D(prints, "Print", Vector3.new(0.5, 0.7, 0.02), at(cf, rng:Number(-1.4, 1.4), rng:Number(-1.5, 1.8), 1.5, 0, 0, rng:Number(-20, 20)), Color3.fromRGB(200, 200, 200), M.SmoothPlastic, { Transparency = 0.6 })
+		local hp = D(prints, "Print", Vector3.new(0.5, 0.7, 0.02), at(cf, rng:Number(-1.4, 1.4), rng:Number(-1.5, 1.8), 1.5, 0, 0, rng:Number(-20, 20)), Color3.fromRGB(200, 200, 200), M.Concrete, { Transparency = 0.6 })
 		hp.Name = "Print" .. i
 	end
 	Build.hideForReveal(prints)
@@ -1304,7 +1304,7 @@ function Props.resident(parent, cf: CFrame, rng, pose: string?)
 	D(m, "Shirt", Vector3.new(0.6, 1.2, 0.05), at(cf, 0, hipY + 1.9, -0.53), shirt, M.Fabric)
 	P(m, "ArmL", Vector3.new(0.8, 2.6, 0.8), at(cf, -1.42, hipY + 1.3, 0), suit, M.Fabric, { CanCollide = false })
 	P(m, "ArmR", Vector3.new(0.8, 2.6, 0.8), at(cf, 1.42, hipY + 1.3, 0), suit, M.Fabric, { CanCollide = false })
-	local head = P(m, "Head", Vector3.new(1.15, 1.35, 1.15), at(cf, 0, hipY + 3.3, 0), skin, M.SmoothPlastic, { CanCollide = false })
+	local head = P(m, "Head", Vector3.new(1.15, 1.35, 1.15), at(cf, 0, hipY + 3.3, 0), skin, M.Plastic, { CanCollide = false })
 	head:SetAttribute("BaseCFrame", head.CFrame)
 	m:SetAttribute("OriginPivot", cf)
 	tagModel(m, "Resident")
@@ -1315,10 +1315,10 @@ end
 function Props.paleFigure(parent, cf: CFrame)
 	local m = model(parent, "PaleFigure", cf)
 	local pale = Color3.fromRGB(196, 196, 192)
-	P(m, "Body", Vector3.new(1.4, 6.4, 0.8), at(cf, 0, 3.2, 0), pale, M.SmoothPlastic, { CanCollide = false })
-	P(m, "Head", Vector3.new(1, 1.3, 1), at(cf, 0, 7.1, 0, 0, 0, 12), pale, M.SmoothPlastic, { CanCollide = false })
-	D(m, "ArmL", Vector3.new(0.4, 4.6, 0.4), at(cf, -0.95, 3.8, 0), pale, M.SmoothPlastic)
-	D(m, "ArmR", Vector3.new(0.4, 4.6, 0.4), at(cf, 0.95, 3.8, 0), pale, M.SmoothPlastic)
+	P(m, "Body", Vector3.new(1.4, 6.4, 0.8), at(cf, 0, 3.2, 0), pale, M.Plastic, { CanCollide = false })
+	P(m, "Head", Vector3.new(1, 1.3, 1), at(cf, 0, 7.1, 0, 0, 0, 12), pale, M.Plastic, { CanCollide = false })
+	D(m, "ArmL", Vector3.new(0.4, 4.6, 0.4), at(cf, -0.95, 3.8, 0), pale, M.Plastic)
+	D(m, "ArmR", Vector3.new(0.4, 4.6, 0.4), at(cf, 0.95, 3.8, 0), pale, M.Plastic)
 	return m
 end
 
@@ -1327,13 +1327,13 @@ function Props.mannequin(parent, cf: CFrame)
 	local col = Color3.fromRGB(198, 190, 176)
 	D(m, "Stand", Vector3.new(1.4, 0.15, 1.4), at(cf, 0, 0.08, 0), C.metalDark, M.Metal)
 	D(m, "Pole", Vector3.new(0.15, 2.4, 0.15), at(cf, 0, 1.2, 0), C.metal, M.Metal)
-	P(m, "Hips", Vector3.new(1.6, 1, 0.9), at(cf, 0, 2.9, 0), col, M.SmoothPlastic)
-	P(m, "Torso", Vector3.new(1.8, 2.4, 1), at(cf, 0, 4.6, 0), col, M.SmoothPlastic)
-	D(m, "Neck", Vector3.new(0.4, 0.5, 0.4), at(cf, 0, 6, 0), col, M.SmoothPlastic)
-	Build.ball(m, "Head", 1.2, at(cf, 0, 6.8, 0), col, M.SmoothPlastic, { CanCollide = false })
-	D(m, "ArmL", Vector3.new(0.45, 2.6, 0.45), at(cf, -1.15, 4.5, 0, 0, 0, -8), col, M.SmoothPlastic)
-	D(m, "ArmR", Vector3.new(0.45, 2.6, 0.45), at(cf, 1.15, 4.5, 0, 0, 0, 8), col, M.SmoothPlastic)
-	local badge = D(m, "Badge", Vector3.new(0.5, 0.3, 0.05), at(cf, 0.5, 5.2, -0.52), Color3.fromRGB(210, 206, 190), M.SmoothPlastic)
+	P(m, "Hips", Vector3.new(1.6, 1, 0.9), at(cf, 0, 2.9, 0), col, M.Plastic)
+	P(m, "Torso", Vector3.new(1.8, 2.4, 1), at(cf, 0, 4.6, 0), col, M.Plastic)
+	D(m, "Neck", Vector3.new(0.4, 0.5, 0.4), at(cf, 0, 6, 0), col, M.Plastic)
+	Build.ball(m, "Head", 1.2, at(cf, 0, 6.8, 0), col, M.Plastic, { CanCollide = false })
+	D(m, "ArmL", Vector3.new(0.45, 2.6, 0.45), at(cf, -1.15, 4.5, 0, 0, 0, -8), col, M.Plastic)
+	D(m, "ArmR", Vector3.new(0.45, 2.6, 0.45), at(cf, 1.15, 4.5, 0, 0, 0, 8), col, M.Plastic)
+	local badge = D(m, "Badge", Vector3.new(0.5, 0.3, 0.05), at(cf, 0.5, 5.2, -0.52), Color3.fromRGB(210, 206, 190), M.Plastic)
 	badge.Name = "Badge"
 	return m
 end
@@ -1345,10 +1345,10 @@ end
 function Props.fuseBox(parent, wallCf: CFrame)
 	local m = model(parent, "FuseBox", wallCf)
 	P(m, "Box", Vector3.new(3.4, 4, 0.8), at(wallCf, 0, 0, -0.4), Color3.fromRGB(70, 76, 72), M.Metal)
-	D(m, "Label", Vector3.new(2.2, 0.4, 0.05), at(wallCf, 0, 1.6, -0.83), Color3.fromRGB(170, 150, 60), M.SmoothPlastic)
+	D(m, "Label", Vector3.new(2.2, 0.4, 0.05), at(wallCf, 0, 1.6, -0.83), Color3.fromRGB(170, 150, 60), M.Fabric)
 	for i = 1, 3 do
 		local x = (i - 2) * 0.95
-		local socket = D(m, "Socket" .. i, Vector3.new(0.7, 1.6, 0.1), at(wallCf, x, -0.2, -0.85), Color3.fromRGB(26, 26, 26), M.SmoothPlastic)
+		local socket = D(m, "Socket" .. i, Vector3.new(0.7, 1.6, 0.1), at(wallCf, x, -0.2, -0.85), Color3.fromRGB(26, 26, 26), M.Plastic)
 		local fuse = D(m, "Fuse" .. i, Vector3.new(0.45, 1.3, 0.35), at(wallCf, x, -0.2, -0.98), Color3.fromRGB(196, 170, 120), M.Marble)
 		Build.hideForReveal(fuse)
 		local lamp = D(m, "Lamp" .. i, Vector3.new(0.25, 0.25, 0.08), at(wallCf, x, 1.0, -0.85), Color3.fromRGB(60, 20, 20), M.Neon)
@@ -1369,14 +1369,14 @@ function Props.breakerPanel(parent, wallCf: CFrame)
 	P(m, "Panel", Vector3.new(5, 3.6, 0.6), at(wallCf, 0, 0, -0.3), Color3.fromRGB(84, 88, 90), M.DiamondPlate)
 	for i = 1, 5 do
 		local x = (i - 3) * 0.9
-		D(m, "Slot" .. i, Vector3.new(0.5, 1.6, 0.08), at(wallCf, x, -0.2, -0.62), Color3.fromRGB(20, 20, 20), M.SmoothPlastic)
-		local lever = P(m, "Lever" .. i, Vector3.new(0.3, 0.8, 0.3), at(wallCf, x, -0.6, -0.75, 20, 0, 0), Color3.fromRGB(150, 40, 34), M.SmoothPlastic, { CanCollide = false })
+		D(m, "Slot" .. i, Vector3.new(0.5, 1.6, 0.08), at(wallCf, x, -0.2, -0.62), Color3.fromRGB(20, 20, 20), M.Plastic)
+		local lever = P(m, "Lever" .. i, Vector3.new(0.3, 0.8, 0.3), at(wallCf, x, -0.6, -0.75, 20, 0, 0), Color3.fromRGB(150, 40, 34), M.Plastic, { CanCollide = false })
 		lever:SetAttribute("Index", i)
 		lever:AddTag("Interactable")
 		lever:SetAttribute("InteractKind", "Breaker")
 		lever:SetAttribute("Index", i)
 		lever:SetAttribute("Prompt", "Flip breaker " .. i)
-		local label = D(m, "Num" .. i, Vector3.new(0.4, 0.3, 0.04), at(wallCf, x, 0.9, -0.62), Color3.fromRGB(200, 196, 180), M.SmoothPlastic)
+		local label = D(m, "Num" .. i, Vector3.new(0.4, 0.3, 0.04), at(wallCf, x, 0.9, -0.62), Color3.fromRGB(200, 196, 180), M.Fabric)
 		local gui = Build.surfaceGui(label, Enum.NormalId.Front, 80)
 		Build.text(gui, { Size = UDim2.fromScale(1, 1), Text = tostring(i), TextColor3 = Color3.fromRGB(20, 20, 20), Font = Enum.Font.Code })
 	end
@@ -1394,7 +1394,7 @@ function Props.keypad(parent, wallCf: CFrame)
 	Build.text(gui, { Name = "Readout", Size = UDim2.fromScale(1, 1), Text = "----", Font = Enum.Font.Code, TextColor3 = Color3.fromRGB(150, 230, 170) })
 	for r = 0, 3 do
 		for c = 0, 2 do
-			D(m, "Key", Vector3.new(0.2, 0.18, 0.05), at(wallCf, (c - 1) * 0.26, 0.15 - r * 0.24, -0.32), Color3.fromRGB(150, 150, 146), M.SmoothPlastic)
+			D(m, "Key", Vector3.new(0.2, 0.18, 0.05), at(wallCf, (c - 1) * 0.26, 0.15 - r * 0.24, -0.32), Color3.fromRGB(150, 150, 146), M.Metal)
 		end
 	end
 	body:AddTag("Interactable")
@@ -1427,7 +1427,7 @@ function Props.symbolCabinet(parent, cf: CFrame)
 		hit:SetAttribute("Prompt", "Turn dial " .. i)
 		-- dot markers above each dial indicate its order
 		for d = 1, i do
-			D(m, "Dot", Vector3.new(0.12, 0.12, 0.04), at(cf, x + (d - (i + 1) / 2) * 0.2, 3.55, -1.13), Color3.fromRGB(200, 196, 180), M.SmoothPlastic)
+			D(m, "Dot", Vector3.new(0.12, 0.12, 0.04), at(cf, x + (d - (i + 1) / 2) * 0.2, 3.55, -1.13), Color3.fromRGB(200, 196, 180), M.Plastic)
 		end
 	end
 	m:AddTag("SymbolCabinet")
@@ -1445,7 +1445,7 @@ function Props.offeringTable(parent, cf: CFrame)
 	local items = { "MUSIC_BOX", "DOLL", "CANDLE" }
 	for i, itemId in items do
 		local x = (i - 2) * 1.5
-		local outline = D(m, "Outline" .. i, Vector3.new(1, 0.02, 1), at(cf, x, 3.0, 0), Color3.fromRGB(60, 50, 44), M.SmoothPlastic, { Transparency = 0.3 })
+		local outline = D(m, "Outline" .. i, Vector3.new(1, 0.02, 1), at(cf, x, 3.0, 0), Color3.fromRGB(60, 50, 44), M.Concrete, { Transparency = 0.3 })
 		outline:SetAttribute("ItemId", itemId)
 		local hit = P(m, "Slot" .. i, Vector3.new(1.3, 1.6, 1.3), at(cf, x, 3.7, 0), Color3.new(), M.SmoothPlastic, { Transparency = 1, CanCollide = false })
 		hit:AddTag("Interactable")
@@ -1460,10 +1460,10 @@ end
 
 function Props.tapeRecorder(parent, cf: CFrame)
 	local m = model(parent, "TapeRecorder", cf)
-	local body = P(m, "Body", Vector3.new(2, 0.7, 1.3), at(cf, 0, 0.35, 0), Color3.fromRGB(40, 38, 36), M.SmoothPlastic, { CanCollide = false })
+	local body = P(m, "Body", Vector3.new(2, 0.7, 1.3), at(cf, 0, 0.35, 0), Color3.fromRGB(40, 38, 36), M.Plastic, { CanCollide = false })
 	D(m, "Deck", Vector3.new(1, 0.05, 0.6), at(cf, -0.3, 0.72, 0), Color3.fromRGB(20, 20, 20), M.Glass)
 	for i = 0, 3 do
-		D(m, "Btn", Vector3.new(0.2, 0.12, 0.2), at(cf, 0.45 + (i % 2) * 0.28, 0.75, -0.2 + (i // 2) * 0.3), Color3.fromRGB(150, 146, 140), M.SmoothPlastic)
+		D(m, "Btn", Vector3.new(0.2, 0.12, 0.2), at(cf, 0.45 + (i % 2) * 0.28, 0.75, -0.2 + (i // 2) * 0.3), Color3.fromRGB(150, 146, 140), M.Plastic)
 	end
 	body:AddTag("Interactable")
 	body:SetAttribute("InteractKind", "TapeRecorder")
@@ -1491,7 +1491,7 @@ function Props.exitPanel(parent, wallCf: CFrame)
 		local lamp = D(m, "Lock" .. i, Vector3.new(0.5, 0.5, 0.08), at(wallCf, -0.9 + ((i - 1) % 2) * 1.8, 0.9 - ((i - 1) // 2) * 1.2, -0.33), Color3.fromRGB(70, 20, 20), M.Neon)
 		lamp:SetAttribute("Index", i)
 	end
-	local screen = D(m, "Screen", Vector3.new(2.4, 0.6, 0.05), at(wallCf, 0, -1.3, -0.33), Color3.fromRGB(20, 24, 22), M.SmoothPlastic)
+	local screen = D(m, "Screen", Vector3.new(2.4, 0.6, 0.05), at(wallCf, 0, -1.3, -0.33), Color3.fromRGB(20, 24, 22), M.Glass)
 	local gui = Build.surfaceGui(screen, Enum.NormalId.Front, 70)
 	gui.LightInfluence = 0.2
 	Build.text(gui, { Name = "Readout", Size = UDim2.fromScale(0.95, 0.8), Position = UDim2.fromScale(0.025, 0.1), Text = "LOCKED", Font = Enum.Font.Code, TextColor3 = Color3.fromRGB(200, 120, 110) })

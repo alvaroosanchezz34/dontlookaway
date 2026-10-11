@@ -1018,7 +1018,7 @@ function KINDS.security(ctx)
 		local cf = ctx:wallCF(spot.slot, spot.y, spot.offset)
 		local m = Build.model(ctx.folder, "SecurityOverride", cf)
 		Build.part(m, "Plate", Vector3.new(2.4, 3, 0.3), cf * CFrame.new(0, 0, -0.17), Color3.fromRGB(60, 62, 64), M.Metal, { CanCollide = false })
-		local lever = Build.part(m, "Lever", Vector3.new(0.35, 1.4, 0.35), cf * CFrame.new(0, 0.1, -0.6) * CFrame.Angles(math.rad(25), 0, 0), Color3.fromRGB(150, 40, 34), M.SmoothPlastic, { CanCollide = false })
+		local lever = Build.part(m, "Lever", Vector3.new(0.35, 1.4, 0.35), cf * CFrame.new(0, 0.1, -0.6) * CFrame.Angles(math.rad(25), 0, 0), Color3.fromRGB(150, 40, 34), M.Plastic, { CanCollide = false })
 		lever:AddTag("Interactable")
 		lever:SetAttribute("InteractKind", "Override")
 		lever:SetAttribute("Prompt", "Pull override")
@@ -1063,7 +1063,7 @@ function KINDS.dock(ctx)
 	ctx:scatter("puddle", 1)
 	-- painted safety stripe in front of the exit
 	if ctx.map.ExitCenter then
-		Build.detail(ctx.folder, "Stripe", Vector3.new(4, 0.05, 8), CFrame.new(ctx.map.ExitCenter + Vector3.new(-5, -ctx.map.ExitCenter.Y + ctx.y + 0.03, 0)), Color3.fromRGB(150, 130, 60), M.SmoothPlastic, { Transparency = 0.4 })
+		Build.detail(ctx.folder, "Stripe", Vector3.new(4, 0.05, 8), CFrame.new(ctx.map.ExitCenter + Vector3.new(-5, -ctx.map.ExitCenter.Y + ctx.y + 0.03, 0)), Color3.fromRGB(150, 130, 60), M.Concrete, { Transparency = 0.4 })
 	end
 	ctx:dust(4)
 end
@@ -1438,7 +1438,7 @@ function KINDS.secret(ctx)
 	for i = 1, 14 do
 		local p = Layout.Origin + Vector3.new(rng:Number(room.minX * CELL + 3, (room.maxX + 1) * CELL - 3), ctx.y + rng:Number(3.5, 10), 0)
 		p = Vector3.new(p.X, p.Y, Layout.Origin.Z + wallZ)
-		Build.detail(board, "Pinned", Vector3.new(1.4, 1, 0.03), CFrame.lookAt(p, p - Vector3.new(0, 0, 1)) * CFrame.Angles(0, 0, math.rad(rng:Number(-15, 15))), Color3.fromRGB(30, 28, 26), M.SmoothPlastic)
+		Build.detail(board, "Pinned", Vector3.new(1.4, 1, 0.03), CFrame.lookAt(p, p - Vector3.new(0, 0, 1)) * CFrame.Angles(0, 0, math.rad(rng:Number(-15, 15))), Color3.fromRGB(30, 28, 26), M.Fabric)
 		local pin = p - Vector3.new(0, 0, 0.08)
 		table.insert(pins, pin)
 		if i > 1 and rng:Chance(0.7) then

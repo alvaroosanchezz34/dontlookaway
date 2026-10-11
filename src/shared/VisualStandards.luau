@@ -9,6 +9,10 @@
 	  A part that names a variant the place does not have renders its base
 	  material, so every surface works before and after the textures are
 	  uploaded (Config/AssetIds).
+	  No visible surface is SmoothPlastic: MaterialService does not replace it
+	  (default.project.json) and under the night sky's specular it reads as
+	  glossy plastic. It is kept only for invisible parts (hit boxes, holders)
+	  and where a SurfaceAppearance covers the whole part.
 
 	Fixture light profiles
 	  Real fittings throw light in a shape: a fluorescent troffer and a pendant
@@ -44,12 +48,12 @@ VisualStandards.Surfaces = {
 	hardware = { material = M.Metal, color = Color3.fromRGB(150, 148, 142), variant = "DLA_Hardware", reflectance = 0.08 },
 	brass = { material = M.Metal, color = Color3.fromRGB(150, 122, 72), variant = "DLA_Hardware", reflectance = 0.1 },
 	ceramic = { material = M.CeramicTiles, color = Color3.fromRGB(150, 160, 156) },
-	porcelain = { material = M.SmoothPlastic, color = Color3.fromRGB(206, 206, 198), reflectance = 0.05 },
+	porcelain = { material = M.Marble, color = Color3.fromRGB(206, 206, 198), reflectance = 0.05 },
 	glass = { material = M.Glass, color = Color3.fromRGB(150, 164, 166), reflectance = 0.12 },
-	grime = { material = M.SmoothPlastic, color = Color3.fromRGB(28, 26, 22) },
-	paper = { material = M.SmoothPlastic, color = Color3.fromRGB(196, 190, 172) },
+	grime = { material = M.Concrete, color = Color3.fromRGB(28, 26, 22) },
+	paper = { material = M.Fabric, color = Color3.fromRGB(196, 190, 172) },
 	fabric = { material = M.Fabric, color = Color3.fromRGB(64, 62, 60) },
-	plastic = { material = M.SmoothPlastic, color = Color3.fromRGB(214, 210, 196) },
+	plastic = { material = M.Plastic, color = Color3.fromRGB(214, 210, 196) },
 	rubber = { material = M.Rubber, color = Color3.fromRGB(22, 22, 24) },
 }
 

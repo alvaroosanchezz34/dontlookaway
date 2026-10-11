@@ -34,7 +34,7 @@ local function kiosk(folder: Instance, name: string, label: string, sub: string,
 	local m = Build.model(folder, name, cf)
 	Build.part(m, "Stand", Vector3.new(3, 4, 1.6), cf * CFrame.new(0, 2, 0), Color3.fromRGB(40, 38, 36), M.Metal)
 	Build.detail(m, "Base", Vector3.new(3.4, 0.2, 2), cf * CFrame.new(0, 0.1, 0), Color3.fromRGB(26, 26, 26), M.Metal)
-	local top = Build.part(m, "Screen", Vector3.new(2.6, 1.8, 0.2), cf * CFrame.new(0, 5, -0.2) * CFrame.Angles(math.rad(-15), 0, 0), Color3.fromRGB(20, 24, 26), M.SmoothPlastic)
+	local top = Build.part(m, "Screen", Vector3.new(2.6, 1.8, 0.2), cf * CFrame.new(0, 5, -0.2) * CFrame.Angles(math.rad(-15), 0, 0), Color3.fromRGB(20, 24, 26), M.Glass)
 	Build.detail(m, "Neck", Vector3.new(0.4, 0.9, 0.3), cf * CFrame.new(0, 4.3, 0.1), Color3.fromRGB(30, 30, 30), M.Metal)
 	local gui = Build.surfaceGui(top, Enum.NormalId.Front, 60)
 	gui.LightInfluence = 0.15
@@ -54,7 +54,7 @@ end
 local function board(folder: Instance, name: string, title: string, rows: number, wallCf: CFrame, width: number, height: number): (Part, { TextLabel })
 	local m = Build.model(folder, name, wallCf)
 	Build.detail(m, "Frame", Vector3.new(width + 0.4, height + 0.4, 0.2), wallCf * CFrame.new(0, 0, -0.1), Color3.fromRGB(34, 28, 24), M.Wood)
-	local face = Build.part(m, "Face", Vector3.new(width, height, 0.1), wallCf * CFrame.new(0, 0, -0.22), Color3.fromRGB(22, 24, 24), M.SmoothPlastic, { CanCollide = false })
+	local face = Build.part(m, "Face", Vector3.new(width, height, 0.1), wallCf * CFrame.new(0, 0, -0.22), Color3.fromRGB(22, 24, 24), M.Fabric, { CanCollide = false })
 	local gui = Build.surfaceGui(face, Enum.NormalId.Front, 40)
 	gui.Name = "BoardGui"
 	gui.LightInfluence = 0.25
@@ -142,7 +142,7 @@ function Lobby.build(parent: Instance)
 	wall("WallE", Vector3.new(1, H, D), Vector3.new(W / 2 + 0.5, H / 2, 0))
 	-- painted lower walls and a rubber floor runner through the middle
 	for _, side in { { Vector3.new(0, 1.75, -D / 2 + 0.1), Vector3.new(W, 3.5, 0.2) }, { Vector3.new(0, 1.75, D / 2 - 0.1), Vector3.new(W, 3.5, 0.2) }, { Vector3.new(-W / 2 + 0.1, 1.75, 0), Vector3.new(0.2, 3.5, D) }, { Vector3.new(W / 2 - 0.1, 1.75, 0), Vector3.new(0.2, 3.5, D) } } do
-		Build.part(folder, "Wainscot", side[2], CFrame.new(O + side[1]), Color3.fromRGB(58, 66, 64), M.SmoothPlastic)
+		Build.part(folder, "Wainscot", side[2], CFrame.new(O + side[1]), Color3.fromRGB(58, 66, 64), M.Wood)
 	end
 	Build.detail(folder, "Runner", Vector3.new(8, 0.04, D - 6), CFrame.new(O + Vector3.new(0, 0.02, 1)), Color3.fromRGB(40, 42, 40), M.Rubber)
 
@@ -157,7 +157,7 @@ function Lobby.build(parent: Instance)
 	Props.sign(folder, doorCF * CFrame.new(0, 8.9, -0.25), "DEPLOYMENT  ·  " .. GameConfig.BuildingName, 9, 0.9, "brass")
 	-- hazard-striped ready line in front of the door
 	for i = -3, 3 do
-		Build.detail(folder, "ReadyLine", Vector3.new(1.6, 0.05, 0.8), CFrame.new(O + Vector3.new(i * 2, 0.03, -D / 2 + 5)), if i % 2 == 0 then Color3.fromRGB(200, 170, 60) else Color3.fromRGB(26, 26, 26), M.SmoothPlastic)
+		Build.detail(folder, "ReadyLine", Vector3.new(1.6, 0.05, 0.8), CFrame.new(O + Vector3.new(i * 2, 0.03, -D / 2 + 5)), if i % 2 == 0 then Color3.fromRGB(200, 170, 60) else Color3.fromRGB(26, 26, 26), M.Plastic)
 	end
 	Props.sign(folder, CFrame.lookAt(O + Vector3.new(-9, 6.5, -D / 2 + 0.05), O + Vector3.new(-9, 6.5, 0)), "READY UP AT THE DOOR", 5, 0.7)
 	Props.sign(folder, CFrame.lookAt(O + Vector3.new(9, 6.5, -D / 2 + 0.05), O + Vector3.new(9, 6.5, 0)), "NOBODY GOES IN ALONE", 5, 0.7)
@@ -228,7 +228,7 @@ function Lobby.build(parent: Instance)
 	local tableCF = CFrame.new(O + Vector3.new(0, 0, 2))
 	local briefing = Props.table(folder, tableCF, rng, 10, 5)
 	briefing.Name = "BriefingTable"
-	local plan = Build.part(folder, "FloorPlan", Vector3.new(8.4, 0.05, 3.8), tableCF * CFrame.new(0, 3.16, 0), Color3.fromRGB(40, 66, 96), M.SmoothPlastic, { CanCollide = false })
+	local plan = Build.part(folder, "FloorPlan", Vector3.new(8.4, 0.05, 3.8), tableCF * CFrame.new(0, 3.16, 0), Color3.fromRGB(40, 66, 96), M.Fabric, { CanCollide = false })
 	local planGui = Build.surfaceGui(plan, Enum.NormalId.Top, 30)
 	planGui.LightInfluence = 0.6
 	-- a stylised plan: corridors and rooms in thin lines

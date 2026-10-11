@@ -135,7 +135,7 @@ local function buildTemplates()
 		Build.part(m, "FrameT", Vector3.new(4.55, 0.45, 0.5), origin * CFrame.new(0, 10.1, -0.25), frameCol, Enum.Material.Wood)
 		local panelCF = origin * CFrame.new(0, 4.9, -0.2)
 		if ajar then
-			Build.part(m, "Dark", Vector3.new(3.6, 9.6, 0.1), origin * CFrame.new(0, 4.9, -0.05), Color3.fromRGB(4, 4, 4), Enum.Material.SmoothPlastic)
+			Build.part(m, "Dark", Vector3.new(3.6, 9.6, 0.1), origin * CFrame.new(0, 4.9, -0.05), Color3.fromRGB(4, 4, 4), Enum.Material.Fabric)
 			panelCF = origin * CFrame.new(-1.8, 4.9, -0.3) * CFrame.Angles(0, math.rad(-28), 0) * CFrame.new(1.8, 0, 0)
 			local glow = Build.part(m, "Glow", Vector3.new(0.2, 0.2, 0.2), origin * CFrame.new(0.6, 6, 1.5), Color3.new(), Enum.Material.SmoothPlastic, { Transparency = 1, CanCollide = false })
 			Build.light(glow, "PointLight", { Brightness = 0.7, Range = 9, Color = Color3.fromRGB(255, 190, 140), Shadows = false })

@@ -17,7 +17,7 @@ local function part(model: Model, name: string, size: Vector3, cf: CFrame, color
 	p.Size = size
 	p.CFrame = cf
 	p.Color = color
-	p.Material = material or M.SmoothPlastic
+	p.Material = material or M.Plastic
 	p.Anchored = true
 	p.CanCollide = false
 	p.CanQuery = false
@@ -96,7 +96,7 @@ BUILDERS.MOTION_SENSOR = function(model)
 end
 
 BUILDERS.INSTANT_CAMERA = function(model)
-	part(model, "Body", Vector3.new(1.1, 0.8, 0.6), CFrame.new(), Color3.fromRGB(226, 222, 210), M.SmoothPlastic)
+	part(model, "Body", Vector3.new(1.1, 0.8, 0.6), CFrame.new(), Color3.fromRGB(226, 222, 210), M.Plastic)
 	cylinder(model, "Lens", 0.25, 0.42, CFrame.new(0, -0.05, -0.38), Color3.fromRGB(30, 30, 32), M.Glass)
 	part(model, "Flash", Vector3.new(0.35, 0.18, 0.04), CFrame.new(0.3, 0.25, -0.31), Color3.fromRGB(240, 240, 240), M.Glass)
 	part(model, "Slot", Vector3.new(0.8, 0.05, 0.3), CFrame.new(0, -0.42, 0), Color3.fromRGB(30, 30, 32))

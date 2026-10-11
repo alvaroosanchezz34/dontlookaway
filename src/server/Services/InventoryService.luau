@@ -209,14 +209,14 @@ local ITEM_SHAPES = {
 		body.Size = Vector3.new(1, 0.2, 0.65)
 		body.CFrame = cf * CFrame.new(0, 0.1, 0)
 		body.Color = color
-		body.Material = Enum.Material.SmoothPlastic
+		body.Material = Enum.Material.Plastic
 		body.Parent = model
 		local label = Instance.new("Part")
 		label.Name = "Label"
 		label.Size = Vector3.new(0.8, 0.02, 0.3)
 		label.CFrame = cf * CFrame.new(0, 0.21, 0)
 		label.Color = Color3.fromRGB(200, 196, 180)
-		label.Material = Enum.Material.SmoothPlastic
+		label.Material = Enum.Material.Fabric
 		label.Parent = model
 		return body
 	end,
@@ -272,7 +272,7 @@ local ITEM_SHAPES = {
 		body.Size = Vector3.new(0.8, 0.35, 0.35)
 		body.CFrame = cf * CFrame.new(0, 0.4, 0) * CFrame.Angles(0, 0, math.rad(90))
 		body.Color = color
-		body.Material = Enum.Material.SmoothPlastic
+		body.Material = Enum.Material.Plastic
 		body.Parent = model
 		local flame = Instance.new("Part")
 		flame.Name = "Flame"
@@ -312,7 +312,7 @@ local ITEM_SHAPES = {
 		body.Size = Vector3.new(0.8, 0.03, 1)
 		body.CFrame = cf * CFrame.new(0, 0.03, 0)
 		body.Color = color
-		body.Material = Enum.Material.SmoothPlastic
+		body.Material = Enum.Material.Plastic
 		body.Reflectance = 0.2
 		body.Parent = model
 		local border = Instance.new("Part")
@@ -320,7 +320,7 @@ local ITEM_SHAPES = {
 		border.Size = Vector3.new(0.9, 0.02, 1.1)
 		border.CFrame = cf * CFrame.new(0, 0.015, 0)
 		border.Color = Color3.fromRGB(220, 218, 210)
-		border.Material = Enum.Material.SmoothPlastic
+		border.Material = Enum.Material.Fabric
 		border.Parent = model
 		return body
 	end,
