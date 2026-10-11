@@ -9,11 +9,13 @@
 	  * Instant. The frame the death arrives is already the hit: no false calm,
 	    no turn, no warning. The server's warning inhale before a catch stays:
 	    that is the game's fair rule, not part of the scare.
-	  * The camera never moves. Same position, same orientation (looking at
-	    the floor or the ceiling too), same field of view, no shake, no zoom,
-	    the mouse does nothing. It is the one that moves: its face is put
-	    right in front of wherever you were looking (ObserverRig.placeFace,
-	    pitch included).
+	  * The camera stays where it was: same position, same field of view, no
+	    zoom, the mouse does nothing, and its face is put right in front of
+	    wherever you were looking (ObserverRig.placeFace, pitch included).
+	    The only motion is a shake of the view: hard on the hit, settling
+	    fast into a fine tremor until the cut (rotation only, so the face
+	    stays in the middle; much less with camera shake off, reduced effects
+	    or reduce motion).
 	  * Everything else is black on that same frame: every light that could
 	    reach its face and your flashlight off, Lighting's ambient and
 	    environment light at zero, no HUD, no other players, and a local box
@@ -26,11 +28,10 @@
 	    and the exposure up while its face is there: the lit half of the
 	    charcoal face reads, the other half stays in the black. It breathes
 	    slowly like a dying bulb, never strobes (steady with reduced effects).
-	  * It moves, not you, and it is never still: a fine living tremor of the
-	    head and neck on every frame, a slow creep toward the lens, and dry
-	    jerks that snap to a new pose in a few frames (an instant jump with
-	    a frozen face between jumps read as a slideshow, as lag), the eyes on
-	    you the whole time, a tilt no neck allows, then in at you.
+	  * It is never still: a fine living tremor of the head and neck on every
+	    frame, a slow creep toward the lens, the eyes on you the whole time,
+	    and at the end it pushes in at you. No jerks of the head to the sides
+	    (they read as headbutts).
 	  * No hitch: the local rig is built ahead of time and reused, and each
 	    frame's pose is solved in one precomputed pass and moved in one call
 	    (Workspace:BulkMoveTo).
@@ -38,7 +39,7 @@
 	    and JumpSting together, loud, through their own group). Nothing else
 	    sounds until the cut. Reduced effects never lowers the hit.
 	  * 1.25-1.45 s of its face, then a hard cut to black, a ringing, a line.
-	  * No glitch, red flash, blur or shake.
+	  * No glitch, red flash or blur.
 	The short scare (Flash) follows the same rules for half a second.
 ]]
 
@@ -107,21 +108,33 @@ local CREEP_SPEED, CREEP_MAX = 0.22, 0.3
 type Key = { at: number, head: CFrame?, neck: CFrame? }
 local DEATH_KEYS: { Key } = {
 	{ at = 0 }, -- the hit: dead level, both eyes on you
-	{ at = 0.15, head = deg(-6, 0, 26) }, -- a dry jerk to one side
-	{ at = 0.27, neck = deg(0, 10, -16), head = deg(4, -8, -34) }, -- and the other, from the neck
-	{ at = 0.4, neck = deg(0, 0, -18), head = deg(0, 0, 98) }, -- folded flat on its side, frozen
-	{ at = 0.76, head = deg(-4, 0, 6) }, -- back, all at once
-	{ at = 1.02, neck = deg(-14, 0, 0), head = deg(10, 0, -4) }, -- and in, at you
+	{ at = 1.02, neck = deg(-14, 0, 0), head = deg(10, 0, 0) }, -- and in, at you
 }
 local FLASH_KEYS: { Key } = {
 	{ at = 0 },
-	{ at = 0.2, head = deg(-6, 0, 30) },
-	{ at = 0.34, neck = deg(0, 0, -14), head = deg(0, 0, -24) },
+	{ at = 0.3, neck = deg(-10, 0, 0), head = deg(7, 0, 0) },
 }
 ScareController.DeathKeys = DEATH_KEYS
 
 local function reduced(): boolean
 	return State.settings.reducedEffects == true
+end
+
+-- The view's shake: hard on the hit, settling fast into a fine tremor
+-- (degrees; rotation only, so its face stays in the middle).
+local SHAKE_HIT, SHAKE_SETTLE, SHAKE_HOLD = 2.6, 6, 0.5
+
+local function scareShake(t: number, seed: number): CFrame
+	local k = 1
+	if not State.settings.cameraShake then
+		k = 0.15
+	end
+	if reduced() or State.settings.reduceMotion then
+		k *= 0.3
+	end
+	local amp = math.rad(SHAKE_HIT * math.exp(-t * SHAKE_SETTLE) + SHAKE_HOLD) * k * 1.6
+	local f = t * 21
+	return CFrame.Angles(math.noise(f, seed, 1) * amp, math.noise(f, seed, 2) * amp, math.noise(f, seed, 3) * amp * 0.6)
 end
 
 local function ease(t: number): number
@@ -583,7 +596,7 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 	rig.Parent = Workspace
 	-- the camera stays exactly where it was: same place, same angle, same lens
 	cam:SetOverride(name, 50, function()
-		return camCf, fov
+		return camCf * scareShake(os.clock() - start, seed), fov
 	end)
 	mark(prof, "show")
 	prof.held = #held

@@ -777,7 +777,8 @@ do
 				end
 				lastHead = head.CFrame
 			end
-			if camera.CFrame ~= seen then
+			-- the view only shakes: the lens stays put, the angle within a few degrees
+			if (camera.CFrame.Position - seen.Position).Magnitude > 1e-3 or camera.CFrame.LookVector:Dot(seen.LookVector) < math.cos(math.rad(6)) then
 				moved = true
 			end
 			if math.abs(camera.FieldOfView - fov) > 1e-4 then
@@ -789,7 +790,7 @@ do
 			task.wait(1 / 60)
 		end
 		check(finished, "death " .. label .. " reaches the black screen")
-		check(not moved, "death " .. label .. ": the camera never moved")
+		check(not moved, "death " .. label .. ": the camera only shakes (never moves, never turns away)")
 		check(not fovMoved, "death " .. label .. ": the field of view never changed")
 		check(frozenFrames == 0, string.format("death %s: its face moves on every frame (%d frozen frames)", label, frozenFrames))
 		task.wait(0.25)
@@ -804,7 +805,18 @@ do
 
 	workspace:SetAttribute("ScareProfile", nil)
 	-- its motion: jumps between held poses, starting on the hit
-	check(#ScareController.DeathKeys >= 5 and ScareController.DeathKeys[1].at == 0, "the death has its keyed motion, starting on the hit")
+	check(#ScareController.DeathKeys >= 2 and ScareController.DeathKeys[1].at == 0, "the death has its keyed motion, starting on the hit")
+	-- no headbutts: no key rolls or turns the head or neck to a side
+	local sideways = 0
+	for _, key in ScareController.DeathKeys do
+		for _, cf in { key.head or CFrame.identity, key.neck or CFrame.identity } do
+			local _, ry, rz = cf:ToEulerAnglesXYZ()
+			if math.abs(math.deg(ry)) > 1 or math.abs(math.deg(rz)) > 1 then
+				sideways += 1
+			end
+		end
+	end
+	check(sideways == 0, "no jerks of the head to the sides (" .. sideways .. ")")
 
 	-- the short scare: same rules, half a second, then the camera is yours again
 	do
@@ -822,9 +834,9 @@ do
 		local moved = false
 		for _ = 1, 10 do
 			frames(1)
-			moved = moved or camera.CFrame ~= seen
+			moved = moved or (camera.CFrame.Position - seen.Position).Magnitude > 1e-3 or camera.CFrame.LookVector:Dot(seen.LookVector) < math.cos(math.rad(6))
 		end
-		check(not moved, "short scare: the camera never moved")
+		check(not moved, "short scare: the camera only shakes")
 		task.wait(0.6)
 		frames(3)
 		check(not ScareController:IsActive() and not Registry.CameraController:IsRegistered("Scare"), "short scare gives the camera back")

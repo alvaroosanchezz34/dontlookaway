@@ -99,18 +99,22 @@ siguen al jugador.
   el servidor cuando está cerca se queda: es una regla de juego justa. Pero
   ya no se planta a tu lado esperando: te pilla entre 0,3 y 0,8 s después de
   esa inhalación, en cuanto te alcanza (`ObserverService`).
-- **La cámara no se mueve.** Conserva la posición, la orientación (también
-  mirando al suelo o al techo) y el FOV de ese frame. No hay temblor ni zoom,
-  y el ratón no hace nada (`State.scareDark` congela la entrada y oculta el
-  cursor en `CameraController`). El que se mueve es él:
-  `ObserverRig.placeFace` pone su cara delante de donde apunta la cámara, con
-  el pitch incluido, derecha en pantalla y mirando al objetivo.
+- **La cámara se queda donde estaba.** Conserva la posición y el FOV de ese
+  frame. No hay zoom y el ratón no hace nada (`State.scareDark` congela la
+  entrada y oculta el cursor en `CameraController`). `ObserverRig.placeFace`
+  pone su cara delante de donde apuntabas, con el pitch incluido, derecha en
+  pantalla y mirando al objetivo.
+- **Temblor de la vista** (`scareShake`): fuerte en el golpe y se calma
+  enseguida en un temblor fino hasta el corte. Solo gira, así que la cara
+  sigue en el centro. Con «camera shake» desactivado, «reduced effects» o
+  «reduce motion» tiembla mucho menos.
 - **Todo lo demás, a negro en ese mismo frame,** y todo en local:
   - todas las luces del Workspace y la linterna apagadas;
   - en Lighting, a cero `Ambient`, `OutdoorAmbient`, `Brightness`,
     `EnvironmentDiffuseScale` y `EnvironmentSpecularScale`, y la
     `Atmosphere` sin densidad;
-  - sin cielo, sin grades que levanten el negro, sin blur;
+  - sin grades que levanten el negro y sin blur (el cielo no se toca: lo tapa
+    la caja negra, y cambiarlo obliga al motor a reiluminar el entorno);
   - sin HUD (todo `PlayerGui` menos `Overlay`) y sin los demás jugadores;
   - una caja de seis placas Neon negras alrededor de la cámara. Neon negro
     se ve negro le dé la luz que le dé, y tapa lo emisivo del edificio
@@ -123,27 +127,32 @@ siguen al jugador.
 - **La cara llena la pantalla.** La cabeza ocupa dos tercios del alto con el
   FOV del jugador. `ObserverRig.scareDistance(fov)` lo calcula con la cabeza
   medida (`ObserverMeshMeta.Head`). Con el FOV por defecto (74) la cara queda
-  a 1,03 studs.
-- **Una luz tenue en su cabeza y nada más.** Es un `PointLight` frío y débil
-  (alcance 2,2 y brillo 1,1), pegado abajo y a un lado de la cabeza
-  (`ScareController.Light`): saca el relieve y los ojos y deja media cara en
-  negro. Respira despacio, como una bombilla que no acaba de morir; nunca
-  estrobo, y fija con `reducedEffects`.
-- **El movimiento es suyo.** Poses clave que saltan sin interpolar
-  (`ScareController.DeathKeys`): un tirón seco de cabeza, otro desde el cuello
-  hacia el lado contrario, la cabeza tumbada sobre el hombro a 98° y
-  congelada un instante, tics, y al final se echa hacia el objetivo. Los ojos
-  se recalculan cada frame sobre la cabeza resuelta, así que no te sueltan. El
-  rig local va todo anclado y con las articulaciones apagadas: cada frame se
-  colocan las piezas con `ObserverRig.solve`, y cada salto se ve justo en el
-  frame en que ocurre.
+  a 1,33 studs.
+- **Una luz en su cabeza y nada más.** Es un `PointLight` frío (alcance 4,5 y
+  brillo 7), a un lado y algo por debajo de la cabeza
+  (`ScareController.Light`), con la exposición a +1,3 mientras dura el susto.
+  Con la piel de carbón, la mitad iluminada se lee y la otra queda en negro.
+  Respira despacio, como una bombilla que no acaba de morir; nunca estrobo, y
+  fija con `reducedEffects`.
+- **Nunca está quieto.**
+  - En cada frame tiene un temblor vivo en cabeza y cuello y avanza despacio
+    hacia el objetivo (hasta 0,3 studs).
+  - Al final se echa hacia ti (`ScareController.DeathKeys`).
+  - No hay cabezazos a los lados: se leían como golpes de cabeza.
+  - Los ojos se recalculan cada frame y no te sueltan.
+
+  Antes las poses saltaban de golpe con la cara congelada entre medias, y se
+  veía como cuatro imágenes sueltas (como lag). El rig local se construye por
+  adelantado y se reutiliza. Va anclado, con las articulaciones apagadas, y
+  cada frame se coloca en una sola pasada (`ObserverRig.solver`) con
+  `Workspace:BulkMoveTo`.
 - **Sonido.** Silencio total salvo el golpe: `ObserverImpact`,
   `ObserverScreech` y `JumpSting` juntos y fuertes, por un grupo propio
   (`ScareHit`, solo con el volumen general). Los demás grupos quedan a cero
   hasta el corte. `reducedEffects` no baja el golpe.
 - **Duración.** Entre 1,25 y 1,45 s de cara, según el `beat` del servidor.
   Después, corte seco a negro, pitido y la frase de la variante.
-- **Fuera** el glitch, el destello rojo, el blur y el temblor.
+- **Fuera** el glitch, el destello rojo y el blur.
 - **`Flash`** sigue las mismas reglas durante medio segundo. `MimicLunge` no
   cambia: es la cara del mimic, no la del Observer.
 
