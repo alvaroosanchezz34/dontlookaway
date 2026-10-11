@@ -1,5 +1,7 @@
 # The Observer: rediseño según la imagen de referencia
 
+> Sustituido por `OBSERVER_V2.md` (aspecto y jumpscare).
+
 Este rediseño sustituye al aspecto descrito en `ENTITIES_OVERHAUL.md`, que tenía
 una cara pálida, fauces y dientes. La IA, los estados, el jumpscare encuadrado
 y las herramientas de administración de ese documento siguen igual.
@@ -110,9 +112,7 @@ son el render de Roblox.**
 
 | Render | Imagen |
 |---|---|
-| Malla suave, versión con piezas, pasillo oscuro y perfil | ![](img/observer_ref_shots.jpg) |
-| Al final de un pasillo de 40 studs | ![](img/observer_ref_far.jpg) |
-| Fotograma del impacto del jumpscare | ![](img/observer_ref_scare.jpg) |
+| (imágenes reemplazadas por las de `OBSERVER_V2.md`) | |
 
 ## 5. Lo que tienes que hacer en Studio
 

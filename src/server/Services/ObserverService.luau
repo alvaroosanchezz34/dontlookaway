@@ -82,6 +82,17 @@ local active = false
 local closeTime: { [Player]: number } = {}
 local warned: { [Player]: number } = {}
 local lastVariant: { [Player]: string } = {}
+local lastSequence: { [Player]: string } = {}
+-- which death cinematics fit each situation (see ScareController)
+local SEQUENCES_FOR = {
+	behind = { "turn", "drop" },
+	side = { "turn", "peek" },
+	front = { "stillness", "drop" },
+	dark = { "lightsout" },
+	door = { "peek", "turn" },
+	mirror = { "mirror" },
+	mimic = { "mimic" },
+}
 
 ------------------------------------------------------------------------------------
 -- Model management
@@ -573,6 +584,22 @@ local function chooseVariant(victim: Player, vroot: BasePart)
 	local variant = rng:Weighted(options) or "behind"
 	lastVariant[victim] = variant
 	data.variant = variant
+	-- the cinematic's sequence and rhythm (ScareController): several fit
+	-- each situation; never the same sequence twice in a row for a player,
+	-- and the beat (0..1) changes how long each false calm lasts
+	local fits = SEQUENCES_FOR[variant] or { "turn" }
+	local choices = {}
+	for _, seq in fits do
+		if seq ~= lastSequence[victim] then
+			table.insert(choices, seq)
+		end
+	end
+	if #choices == 0 then
+		choices = fits
+	end
+	data.sequence = choices[rng:Int(1, #choices)]
+	data.beat = rng:Number()
+	lastSequence[victim] = data.sequence
 	data.side = data.side or (if rng:Chance(0.5) then 1 else -1)
 	return variant, data, lookDir
 end
@@ -1266,6 +1293,7 @@ function ObserverService:Start()
 		closeTime[player] = nil
 		warned[player] = nil
 		lastVariant[player] = nil
+		lastSequence[player] = nil
 		if target == player then
 			target = nil
 		end

@@ -558,46 +558,67 @@ do
 end
 
 section("death cinematics")
+-- every situation with its default sequence, then every sequence at both
+-- ends of its rhythm (beat 0 and 1)
+local scareCases = {}
 for _, variant in { "behind", "side", "front", "dark", "door", "mirror", "mimic" } do
+	table.insert(scareCases, { variant = variant })
+end
+for _, pair in { { "turn", "behind" }, { "turn", "side" }, { "stillness", "front" }, { "drop", "front" }, { "drop", "behind" }, { "lightsout", "dark" }, { "peek", "side" }, { "peek", "door" }, { "mirror", "mirror" }, { "mimic", "mimic" } } do
+	for _, beat in { 0, 1 } do
+		table.insert(scareCases, { variant = pair[2], sequence = pair[1], beat = beat })
+	end
+end
+local impactTimes = {}
+for _, case in scareCases do
+	local variant = case.variant
+	local label = variant .. "/" .. tostring(case.sequence or "default") .. (if case.beat then "@" .. case.beat else "")
 	local finished = false
 	local ok, err = pcall(function()
-		Registry.ScareController:Death({ variant = variant, position = Vector3.new(0, 3, 0), side = 1, door = Vector3.new(6, 0, 2), mirror = Vector3.new(0, 6, -8), mimicUserId = 2, mimicName = "Friend" }, function()
+		Registry.ScareController:Death({ variant = variant, sequence = case.sequence, beat = case.beat, position = Vector3.new(0, 3, 0), side = 1, door = Vector3.new(6, 0, 2), mirror = Vector3.new(0, 6, -8), mimicUserId = 2, mimicName = "Friend" }, function()
 			finished = true
 		end)
 	end)
-	check(ok, "death cinematic " .. variant .. ": " .. tostring(err))
-	local deadline = os.clock() + 4
+	check(ok, "death cinematic " .. label .. ": " .. tostring(err))
+	local deadline = os.clock() + 6
 	while not finished and os.clock() < deadline do
 		frames(2)
 		task.wait(0.05)
 	end
 	frames(4)
 	task.wait(0.3)
-	check(finished, "death cinematic " .. variant .. " reaches the black screen")
+	check(finished, "death cinematic " .. label .. " reaches the black screen")
 	-- the face, at the impact: close, in front of the lens, centred, looking into it
 	local f = Registry.ScareController.LastFrame
-	check(f ~= nil and f.variant == variant, "death cinematic " .. variant .. " measured its impact frame")
+	check(f ~= nil and f.variant == variant and (case.sequence == nil or f.sequence == case.sequence), "death cinematic " .. label .. " measured its impact frame")
 	if f then
-		check(f.inFront, "death cinematic " .. variant .. ": the face is in front of the camera")
-		check(math.abs(f.distance - 3) < 0.15, string.format("death cinematic %s: face %.2f studs from the lens", variant, f.distance))
-		check(f.centred > 0.995, string.format("death cinematic %s: face centred (%.3f)", variant, f.centred))
-		check(f.facing > 0.95, string.format("death cinematic %s: face turned to the camera (%.3f)", variant, f.facing))
+		check(f.inFront, "death cinematic " .. label .. ": the face is in front of the camera")
+		check(math.abs(f.distance - 3) < 0.15, string.format("death cinematic %s: face %.2f studs from the lens", label, f.distance))
+		check(f.centred > 0.995, string.format("death cinematic %s: face centred (%.3f)", label, f.centred))
+		check(f.facing > 0.95, string.format("death cinematic %s: face turned to the camera (%.3f)", label, f.facing))
+		impactTimes[string.format("%.2f", f.impactAt)] = true
 	end
-	check(not Registry.ScareController:IsActive(), "death cinematic " .. variant .. " cleans up")
+	check(not Registry.ScareController:IsActive(), "death cinematic " .. label .. " cleans up")
 	local leftovers = 0
 	for _, d in workspace:GetChildren() do
 		if d.Name == "ObserverScare" then
 			leftovers += 1
 		end
 	end
-	check(leftovers == 0, "no scare rig left behind after " .. variant)
+	check(leftovers == 0, "no scare rig left behind after " .. label)
 	Registry.CameraController:ClearOverride("Death")
 end
+-- the impact never comes at one fixed moment
+local distinct = 0
+for _ in impactTimes do
+	distinct += 1
+end
+check(distinct >= 8, "the impact comes at many different moments (" .. distinct .. ")")
 -- the admin scare test: plays, gives the camera back, reports the frame
 do
 	Registry.CameraController:ClearOverride("Death")
 	local okTest = pcall(function()
-		fire("Effect", { name = "ScareTest", variant = "front" })
+		fire("Effect", { name = "ScareTest", variant = "front", sequence = "stillness", beat = 0.5 })
 	end)
 	check(okTest, "admin scare test starts")
 	local deadline = os.clock() + 5

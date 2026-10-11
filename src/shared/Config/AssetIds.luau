@@ -80,6 +80,22 @@ AssetIds.Observer = {
 	skin = { color = 73026626049237, normal = 83633682521540, roughness = 128909048447810 },
 }
 
+-- The Observer V2: the baked maps of each body segment
+-- (assets/observer/<Segment>/<Segment>_{color,normal,roughness}.png).
+-- tools/sync_assets.py turns them into SurfaceAppearances.
+AssetIds.ObserverSkins = {
+	Head = { color = 0, normal = 0, roughness = 0 },
+	Neck = { color = 0, normal = 0, roughness = 0 },
+	UpperTorso = { color = 0, normal = 0, roughness = 0 },
+	LowerTorso = { color = 0, normal = 0, roughness = 0 },
+	UpperArm = { color = 0, normal = 0, roughness = 0 },
+	LowerArm = { color = 0, normal = 0, roughness = 0 },
+	Hand = { color = 0, normal = 0, roughness = 0 },
+	UpperLeg = { color = 0, normal = 0, roughness = 0 },
+	LowerLeg = { color = 0, normal = 0, roughness = 0 },
+	Foot = { color = 0, normal = 0, roughness = 0 },
+}
+
 -- Original synthesised audio (assets/audio/dla_<sheet>.ogg): three files, each
 -- holding many sounds (see Config/AudioSheets). Upload them as audio.
 AssetIds.Audio = {

@@ -3,38 +3,42 @@
 	Death cinematics and short scares, played with a LOCAL copy of The Observer
 	so it is framed exactly against your own camera (no network lag, no clipping
 	into walls you cannot see). The real, replicated Observer is hidden locally
-	while a cinematic runs.
+	while a cinematic runs. The server decides the catch (and the death, once);
+	this only presents it.
 
-	Every catch is SUDDEN - you must never see it coming - and follows the same
-	grammar, with a different sentence each time:
-	  1  the sound cuts out and the grade goes cold, all at once
-	  2  (gone: no breathing build-up)
-	  3  the camera is whipped round to it in about a tenth of a second
-	  4  it is there, much too close, already lunging
-	  5  THE IMPACT. It crosses the last metres in a blink and folds down to
-	     your eye level, its face three studs from the lens (the whole wide
-	     blade of its head on screen, both small eyes on you), looking
-	     straight into it, its long arms opening around you. The face is placed by forward
-	     kinematics (ObserverRig.placeFace), not guessed: it is always in the
-	     middle of the screen, level, turned to the camera, never behind it.
-	     On that exact frame a cold light snaps on from your camera onto its
-	     face (and a low warm one from below), so you SEE it even in a level 4
-	     blackout; it flickers but never goes dark. Its eyes are on you, and
-	     its head tilts, slowly. One loud hit and a scream; the
-	     shake and effects are kept small so they never hide the face.
-	  6  a hard cut to black, a ringing in your ears, a short line, then you
-	     watch the others
+	Why the old one was predictable: every catch had the same grammar and the
+	same timing - the sound cut out on the first frame (the tell), the camera
+	whipped round, it lunged in 0.2 s, hit. You learned it after two deaths.
 
-	Variants (chosen by the server from the situation)
-	  behind   you turn around slowly. It was there all along.
-	  side     a sharp turn to the side
-	  front    it stands ahead of you, perfectly still, then is not still
-	  dark     the light dies; when it comes back, it is at your face
-	  door     it leans out of a doorway beside you
-	  mirror   you see it in the mirror first, then you turn around
-	  mimic    a teammate stands with their back to you; their head turns all
-	           the way round; it is not them
-	Reduced effects removes flashes and strobing and softens the motion.
+	Now each catch is a SEQUENCE with phases, chosen by the server from the
+	situation, with its rhythm varied by a server-sent `beat` (0..1):
+	  A  false resolution: you turn and there is nothing; the corridor is
+	     quiet; it stands far away and does nothing
+	  B  rupture: the lights die, something at the edge of the frame, a
+	     shape coming down from above - short, and never the same
+	  C  impact: its face, lit, three studs from the lens, level, both small
+	     eyes on you (placed by ObserverRig.placeFace: always centred, always
+	     facing you). It holds there; its head tilts, slowly. Then it pushes
+	     in, once, with the scream
+	  D  resolution: a hard cut to black, a ringing, a line
+	Sequences
+	  turn       (behind / side) you turn to it: nothing. A breath. As you
+	             turn back, it is already in front of you
+	  stillness  (front) it stands ahead, perfectly still, its head tilting;
+	             then, without moving, it is at your face
+	  drop       (front, other rhythm) nothing ahead... its face comes down
+	             into the frame from above
+	  lightsout  (dark) the light dies; two small eyes far off; the light
+	             returns on nothing; it rises into your face from below
+	  peek       (door) half its head leans into the edge of the frame and
+	             withdraws; it comes from the other side
+	  mirror     you see it in the mirror first, then you turn around
+	  mimic      a teammate with their back to you turns their head all the
+	             way round; it is not them
+	The sound never announces the impact: the world keeps playing through the
+	false resolution and only drops at the hit itself. The shake and effects
+	are small so they never hide the face. Reduced effects softens motion and
+	removes flicker.
 ]]
 
 local Players = game:GetService("Players")
@@ -67,8 +71,10 @@ local LINES = {
 local active = false
 
 -- impact timing (seconds)
-local LUNGE = 0.2 -- the last metres: a blink
-local HOLD = 0.9 -- its face, lit, in yours (long enough to see it)
+local IMPACT_HOLD = 0.55 -- its face, lit, held: long enough to see it
+local PUSH = 0.12 -- then it pushes in, once
+local PUSH_DIST = 1.9 -- to this distance from the lens
+local AFTER = 0.3 -- held after the push, then black
 local FRAME_DIST = ObserverRig.ScareDistance -- studs from the lens to its face at the impact
 local FRAME_FOV = ObserverRig.ScareFov -- the whole blade of its head fits across the screen
 local SPOT = 2.2 -- the scare light at full strength: enough to read the head
@@ -192,16 +198,6 @@ local function applyPose(m: { [string]: Motor6D }, transforms: { [string]: CFram
 	end
 end
 
--- The inner eyes light up as the face opens.
-local function innerEyes(rig: Model, open: number)
-	for _, side in { "L", "R" } do
-		local eye = rig:FindFirstChild("Eye" .. side)
-		if eye and eye:IsA("BasePart") then
-			eye.Transparency = 1 - math.clamp(open, 0, 1)
-		end
-	end
-end
-
 -- The pose for this frame, with both eyes turned to the camera.
 local function scarePose(rig: Model, m: { [string]: Motor6D }, a: number, open: number, camPos: Vector3, extra: { [string]: CFrame }?)
 	local transforms = ObserverRig.ScarePose(a, open)
@@ -253,16 +249,55 @@ function ScareController:IsActive(): boolean
 	return active
 end
 
+-- The sequence for a variant when the server did not name one.
+local DEFAULT_SEQUENCE = {
+	behind = "turn",
+	side = "turn",
+	front = "stillness",
+	dark = "lightsout",
+	door = "peek",
+	mirror = "mirror",
+	mimic = "mimic",
+}
+ScareController.Sequences = { "turn", "stillness", "drop", "lightsout", "peek", "mirror", "mimic" }
+
+-- Shows all of the local rig, none of it, or only its two eyes.
+local function setRigVisible(rig: Model, mode: string)
+	for _, d in rig:GetDescendants() do
+		if d:IsA("BasePart") then
+			local eyePart = string.find(d.Name, "Eyeball") ~= nil or d.Name == "Pupil"
+			d.LocalTransparencyModifier = if mode == "all" or (mode == "eyes" and eyePart) then 0 else 1
+		end
+	end
+end
+
+local function yawOf(dir: Vector3): number
+	return math.atan2(-dir.X, -dir.Z)
+end
+
+local function dirOfYaw(yaw: number): Vector3
+	return Vector3.new(-math.sin(yaw), 0, -math.cos(yaw))
+end
+
+-- Turns from yaw a toward yaw b by the shortest way, t in 0..1.
+local function lerpYaw(a: number, b: number, t: number): number
+	local d = (b - a + math.pi) % (2 * math.pi) - math.pi
+	return a + d * t
+end
+
 --[[
-	Plays the death cinematic. payload: variant, position (victim root), and
-	variant context (door, doorDir, mirror, side, mimicUserId, mimicName).
-	Calls `done()` once the screen is black.
+	Plays the death cinematic. payload: variant, position (victim root),
+	sequence (optional; else DEFAULT_SEQUENCE[variant]), beat (0..1: the
+	rhythm of this catch), and variant context (door, mirror, side,
+	mimicUserId, mimicName). Calls `done()` once the screen is black.
 ]]
 function ScareController:Death(payload, done: () -> ())
 	local cam = Registry.CameraController
 	local fx = Registry.EffectsController
 	local audio = Registry.AudioController
 	local variant = payload.variant or "behind"
+	local sequence = if type(payload.sequence) == "string" and table.find(ScareController.Sequences, payload.sequence) then payload.sequence else (DEFAULT_SEQUENCE[variant] or "turn")
+	local beat = math.clamp(tonumber(payload.beat) or 0.5, 0, 1)
 	active = true
 	local start = os.clock()
 	local from = cam:GetCFrame()
@@ -271,93 +306,121 @@ function ScareController:Death(payload, done: () -> ())
 	flatLook = if flatLook.Magnitude > 0.01 then flatLook.Unit else Vector3.new(0, 0, -1)
 	local right = Vector3.new(-flatLook.Z, 0, flatLook.X)
 	local floorY = if typeof(payload.position) == "Vector3" then payload.position.Y - 3 else eye.Y - 4.5
+	local sideSign = if payload.side == -1 then -1 else 1
 	local function feetAt(p: Vector3): Vector3
 		return Vector3.new(p.X, floorY, p.Z)
 	end
 	setServerObserverHidden(true)
 
-	-- where it stands, where we look first. No build-up: the camera is
-	-- WHIPPED round (about a tenth of a second) and it is already lunging.
-	local rigFeet: Vector3
-	local firstLook: Vector3? = nil
-	local turnStart, turnTime = 0, 0.12
-	local lungeAt = 0.14
-	if variant == "behind" then
-		rigFeet = feetAt(eye - flatLook * 3)
-		turnTime = 0.13
+	-- where it came from (the turn) and where it will be (the impact)
+	local forwardYaw = yawOf(flatLook)
+	local turnDir = flatLook
+	if variant == "behind" or variant == "mirror" then
+		turnDir = -flatLook
 	elseif variant == "side" then
-		rigFeet = feetAt(eye + right * (payload.side or 1) * 2.8)
-		turnTime, lungeAt = 0.09, 0.1
-	elseif variant == "front" then
-		rigFeet = feetAt(eye + flatLook * 5)
-		lungeAt = 0.05
-	elseif variant == "dark" then
-		-- the light dies for a breath, then it is at your face
-		rigFeet = feetAt(eye + flatLook * 1.7)
-		lungeAt = 0.22
+		turnDir = right * sideSign
 	elseif variant == "door" and typeof(payload.door) == "Vector3" then
 		local to = Util.flat(payload.door - eye)
-		local d = math.clamp(to.Magnitude, 2.5, 6)
-		rigFeet = feetAt(eye + (if to.Magnitude > 0.01 then to.Unit else flatLook) * d)
-	elseif variant == "mirror" then
-		-- a glimpse in the glass, then the whip round
-		rigFeet = feetAt(eye - flatLook * 3)
-		firstLook = if typeof(payload.mirror) == "Vector3" then payload.mirror else nil
-		turnStart, turnTime = 0.2, 0.1
-		lungeAt = 0.3
-	elseif variant == "mimic" then
-		-- its head spins round, and it is on you
-		rigFeet = feetAt(eye + flatLook * 4)
-		lungeAt = 0.32
-	else
-		rigFeet = feetAt(eye - flatLook * 3)
+		if to.Magnitude > 0.01 then
+			turnDir = to.Unit
+		end
 	end
-	local rig, m = spawnRig(rigFeet, eye)
+	local turnYaw = yawOf(turnDir)
+
+	-- the timeline of this sequence: when the impact comes, and what happens before
+	local impactAt: number
+	local T = {}
+	if sequence == "turn" then
+		T.turn = 0.42
+		T.hold = 0.45 + 0.6 * beat
+		T.back = 0.22
+		-- it is there before the turn back is even finished
+		impactAt = T.turn + T.hold + T.back * 0.55
+	elseif sequence == "stillness" then
+		T.hold = 0.9 + 0.8 * beat
+		impactAt = T.hold
+	elseif sequence == "drop" then
+		T.hold = 0.45 + 0.5 * beat
+		T.move = 0.16
+		impactAt = T.hold + T.move
+	elseif sequence == "lightsout" then
+		T.dark = 0.55 + 0.45 * beat
+		T.calm = 0.35 + 0.35 * beat
+		T.move = 0.14
+		impactAt = T.dark + T.calm + T.move
+	elseif sequence == "peek" then
+		T.peek = 0.45
+		T.hold = 0.4 + 0.5 * beat
+		T.move = 0.12
+		impactAt = T.peek + T.hold + T.move
+	elseif sequence == "mirror" then
+		T.glimpse = 0.5
+		T.turn = 0.16
+		impactAt = T.glimpse + T.turn
+	else -- mimic
+		T.turn = 0.55
+		impactAt = T.turn
+	end
+
+	-- where the impact is: straight ahead of where the camera will be looking
+	local impactYaw = forwardYaw
+	if sequence == "turn" then
+		impactYaw = lerpYaw(turnYaw, forwardYaw, 0.55)
+	elseif sequence == "mirror" then
+		impactYaw = yawOf(-flatLook)
+	end
+	local impactDir = dirOfYaw(impactYaw)
+	local impactFace = eye + impactDir * FRAME_DIST
+
+	local rig, m = spawnRig(feetAt(eye + flatLook * 6), eye)
+	setRigVisible(rig, "none")
 	local teammate: Model? = nil
-	if variant == "mimic" then
+	if sequence == "mimic" then
 		teammate = cloneTeammate(payload.mimicUserId)
 		if teammate then
-			-- back turned, standing where it will be
-			local root = teammate:FindFirstChild("HumanoidRootPart") :: BasePart?
-			if root then
-				local away = Util.flat(rigFeet - eye)
-				teammate:PivotTo(CFrame.lookAt(rigFeet + Vector3.new(0, 3, 0), rigFeet + Vector3.new(0, 3, 0) + away.Unit))
-			end
+			-- back turned, standing ahead
+			local at = feetAt(eye + flatLook * 4) + Vector3.new(0, 3, 0)
+			teammate:PivotTo(CFrame.lookAt(at, at + flatLook))
 			teammate.Parent = Workspace
-			rig.Parent = nil
 		end
-	elseif variant == "dark" then
-		rig.Parent = nil
 	end
 	local rigAlive = true
-	-- the face, wherever the rig is: solved from the pose (no physics lag)
 	local currentPose: { [string]: CFrame } = scarePose(rig, m, 0, 0, eye)
 	local function facePoint(): Vector3
 		local root = rig.PrimaryPart
 		if not root then
-			return rigFeet + Vector3.new(0, 8.6, 0)
+			return eye + flatLook * 6
 		end
 		return (root.CFrame * ObserverRig.headFromRoot(m, currentPose) * ObserverRig.FaceAnchor).Position
 	end
-	local lookTarget = firstLook or (eye + flatLook * 10)
-	-- where the face starts (standing) and where it ends (in your face)
-	local startFace = facePoint()
-	local toRig = Util.flat(startFace - eye)
-	local frameDir = if toRig.Magnitude > 0.01 then toRig.Unit else flatLook
-	local endFace = eye + frameDir * FRAME_DIST
-	local framedFace = startFace
+	-- stands it on the floor at `feet`, facing you, head tilted by `tilt`
+	local function stand(feet: Vector3, tilt: number)
+		currentPose = scarePose(rig, m, 0, 0, eye, { HeadJoint = CFrame.Angles(0, 0, math.rad(tilt)) })
+		applyPose(m, currentPose)
+		moveRig(rig, feet, eye)
+	end
+	-- places its face exactly at `face`, facing you (pose blend a)
+	local function frame(face: Vector3, a: number, extra: { [string]: CFrame }?)
+		currentPose = scarePose(rig, m, a, 0, eye, extra)
+		applyPose(m, currentPose)
+		rig:PivotTo(ObserverRig.placeFace(m, currentPose, face, eye))
+	end
 
-	-- 1. the sound drops out at once, the grade turns cold (no slow build-up)
-	audio:Silence(2.2)
-	Kit.tween(fx:GetGrade(), 0.06, { TintColor = if variant == "dark" then Color3.fromRGB(255, 205, 200) else Color3.fromRGB(205, 220, 255), Saturation = -0.5 })
-	if variant == "dark" then
-		fx:Fade(0.95, 0.03)
-		audio:Play("FlashlightDead", nil, { volume = 0.8 })
-		task.delay(lungeAt - 0.03, function()
-			rig.Parent = Workspace
-			fx:Fade(0, 0.03)
-		end)
-	elseif variant == "mirror" then
+	-- the camera: what it looks at and its field of view, set every frame
+	local lookAt = eye + flatLook * 10
+	local fov = 70
+	local shake = CFrame.identity
+	local impactStarted: number? = nil
+	local pushed = false
+	local light = makeScareLight()
+	local lightLevel = 0
+	local lightFace = eye + flatLook * 6
+	ScareController.LastFrame = nil
+	cam:SetOverride("Death", 50, function()
+		return CFrame.lookAt(eye, lookAt) * shake, fov
+	end)
+
+	if sequence == "mirror" then
 		task.delay(0.02, function()
 			-- the figure shows in the glass first
 			for _, mirror in CollectionService:GetTagged("Mirror") do
@@ -365,7 +428,7 @@ function ScareController:Death(payload, done: () -> ())
 				local figure = glass and glass:FindFirstChild("Figure", true)
 				if figure and glass:IsA("BasePart") and typeof(payload.mirror) == "Vector3" and (glass.Position - payload.mirror).Magnitude < 1 then
 					(figure :: GuiObject).Visible = true
-					task.delay(0.5, function()
+					task.delay(T.glimpse, function()
 						(figure :: GuiObject).Visible = false
 					end)
 				end
@@ -373,40 +436,131 @@ function ScareController:Death(payload, done: () -> ())
 		end)
 	end
 
-	local mimicSwapped = false
-	local impactDone = false
-	local impactAt: number? = nil
-	local light = makeScareLight()
-	ScareController.LastFrame = nil
-	cam:SetOverride("Death", 50, function()
-		local t = os.clock() - start
-		local target = lookTarget
-		local turn = ease((t - turnStart) / turnTime)
-		if variant == "mimic" then
-			target = rigFeet + Vector3.new(0, 4.5, 0)
-		elseif variant == "front" or variant == "dark" then
-			target = framedFace
-		else
-			target = lookTarget:Lerp(framedFace, turn)
-		end
-		local fov = 70
-		local shake = CFrame.identity
-		-- 4/5: the lunge: the view settles on its face as it arrives
-		if t >= lungeAt then
-			local l = ease(math.clamp((t - lungeAt) / LUNGE, 0, 1))
-			target = framedFace
-			fov = 70 + (FRAME_FOV - 70) * l
-			if impactAt then
-				-- a small jolt that dies out fast: never enough to lose the face
-				local h = os.clock() - impactAt
-				local jolt = math.exp(-h * 6) * (if reduced() then 0.3 else 1)
-				shake = CFrame.Angles(math.noise(h * 40, 1) * 0.012 * jolt, math.noise(h * 40, 2) * 0.016 * jolt, math.noise(h * 30, 3) * 0.02 * jolt)
+	local function look(yaw: number)
+		lookAt = eye + dirOfYaw(yaw) * 10
+	end
+
+	-- phases A and B: everything before the impact
+	local darkStarted, lightBack = false, false
+	local function before(t: number)
+		if sequence == "turn" then
+			if t < T.turn then
+				look(lerpYaw(forwardYaw, turnYaw, ease(t / T.turn)))
+			elseif t < T.turn + T.hold then
+				look(turnYaw) -- nothing there. The world keeps going.
+			else
+				look(lerpYaw(turnYaw, forwardYaw, ease((t - T.turn - T.hold) / T.back)))
+			end
+		elseif sequence == "stillness" then
+			-- far ahead, perfectly still; only its head tilts, slowly
+			setRigVisible(rig, "all")
+			stand(feetAt(eye + flatLook * 6), 24 * ease(t / T.hold))
+			lookAt = facePoint()
+			fov = 70 - 6 * ease(t / T.hold)
+			lightLevel, lightFace = 0.3, facePoint()
+		elseif sequence == "drop" then
+			look(forwardYaw)
+			if t >= T.hold then
+				-- its face comes down into the frame from above
+				local k = ease((t - T.hold) / T.move)
+				setRigVisible(rig, "all")
+				local face = impactFace + Vector3.new(0, 2.6 * (1 - k), 0)
+				frame(face, 1, { HeadJoint = CFrame.Angles(0, 0, math.rad(-20 * (1 - k))) })
+				lightLevel, lightFace = 0.6 * k, face
+			end
+		elseif sequence == "lightsout" then
+			look(forwardYaw)
+			if not darkStarted then
+				darkStarted = true
+				fx:Fade(0.96, 0.05)
+				audio:Silence(T.dark)
+				audio:Play("FlashlightDead", nil, { volume = 0.8 })
+			end
+			if t < T.dark then
+				-- two small eyes, far off, for a moment
+				local third = T.dark / 3
+				setRigVisible(rig, if t > third and t < 2 * third then "eyes" else "none")
+				stand(feetAt(eye + flatLook * 8), 6)
+			elseif not lightBack then
+				lightBack = true
+				setRigVisible(rig, "none")
+				fx:Fade(0, 0.08)
+			end
+			if t >= T.dark + T.calm then
+				-- it rises into your face from below
+				local k = ease((t - T.dark - T.calm) / T.move)
+				setRigVisible(rig, "all")
+				local face = impactFace - Vector3.new(0, 2.4 * (1 - k), 0)
+				frame(face, 1)
+				lightLevel, lightFace = 0.6 * k, face
+			end
+		elseif sequence == "peek" then
+			look(forwardYaw)
+			if t < T.peek then
+				-- half its head leans into the edge of the frame...
+				setRigVisible(rig, "all")
+				local k = math.sin(math.clamp(t / T.peek, 0, 1) * math.pi)
+				stand(feetAt(eye + flatLook * 4.5 + right * sideSign * (2.9 - 0.8 * k)), -sideSign * 30 * k)
+				lightLevel, lightFace = 0.25, facePoint()
+			elseif t < T.peek + T.hold then
+				setRigVisible(rig, "none") -- ...and is gone
+				lightLevel = 0
+			else
+				-- it comes from the other side
+				local k = ease((t - T.peek - T.hold) / T.move)
+				setRigVisible(rig, "all")
+				local face = impactFace - right * sideSign * 2.4 * (1 - k)
+				frame(face, 1)
+				lightLevel, lightFace = 0.6 * k, face
+			end
+		elseif sequence == "mirror" then
+			if t < T.glimpse then
+				lookAt = if typeof(payload.mirror) == "Vector3" then payload.mirror else eye + flatLook * 10
+			else
+				look(lerpYaw(forwardYaw, impactYaw, ease((t - T.glimpse) / T.turn)))
+			end
+		else -- mimic: their head turns all the way round
+			look(forwardYaw)
+			if teammate then
+				local head = teammate:FindFirstChild("Head")
+				local neck = head and head:FindFirstChild("Neck")
+				if neck and neck:IsA("Motor6D") then
+					local h = ease(t / T.turn)
+					neck.Transform = CFrame.Angles(math.rad(-10 * h), math.rad(178 * h), math.rad(16 * h))
+				end
 			end
 		end
-		return CFrame.lookAt(eye, target) * shake, fov
-	end)
+	end
 
-	-- animate the rig (and the mimic) frame by frame
+	-- phase C: the impact
+	local function impact(ti: number)
+		if teammate then
+			teammate:Destroy()
+			teammate = nil
+		end
+		setRigVisible(rig, "all")
+		-- held: its head tilts, slowly. Then one push, with the scream.
+		local tilt = 12 * ease(ti / IMPACT_HOLD)
+		local push = ease(math.clamp((ti - IMPACT_HOLD) / PUSH, 0, 1))
+		local dist = FRAME_DIST + (PUSH_DIST - FRAME_DIST) * push
+		local face = eye + impactDir * dist
+		frame(face, 1, { HeadJoint = CFrame.Angles(math.rad(-6 * push), 0, math.rad(tilt)) })
+		lookAt = face
+		fov = FRAME_FOV - 4 * push
+		local tremble = (if reduced() then 0.3 else 1) * (0.004 + 0.012 * math.exp(-math.max(0, ti - IMPACT_HOLD) * 8) * push)
+		shake = CFrame.Angles(math.noise(ti * 30, 1) * tremble, math.noise(ti * 30, 2) * tremble, 0)
+		lightFace = face
+		lightLevel = if reduced() then 0.8 elseif ti < 0.05 then 1 elseif math.floor(ti * 20) % 6 == 4 then 0.8 else 0.96
+		if not pushed and push > 0 then
+			pushed = true
+			audio:Play("ObserverScreech", nil, { volume = 1 })
+			cam:Shake(if reduced() then 0.2 else 0.45)
+			if not reduced() then
+				fx:Flash(Color3.fromRGB(150, 10, 10), 0.1, 0.2)
+			end
+		end
+	end
+
 	local conn
 	conn = RunService.RenderStepped:Connect(function()
 		local t = os.clock() - start
@@ -414,91 +568,44 @@ function ScareController:Death(payload, done: () -> ())
 			conn:Disconnect()
 			return
 		end
-		if teammate and not mimicSwapped then
-			-- its head turns all the way round, too slowly
-			local head = teammate:FindFirstChild("Head")
-			local neck = head and head:FindFirstChild("Neck")
-			if neck and neck:IsA("Motor6D") then
-				local h = ease(t / 0.26)
-				neck.Transform = CFrame.Angles(math.rad(-10 * h), math.rad(178 * h), math.rad(16 * h))
+		if t < impactAt then
+			before(t)
+		else
+			if not impactStarted then
+				impactStarted = os.clock()
+				-- the hit: light, sound and a cold grade on the same frame (the
+				-- world only goes quiet now, never before)
+				audio:Silence(2.2)
+				audio:Play("ObserverImpact", nil, { volume = 1 })
+				audio:Play("JumpSting", nil, { volume = 1 })
+				fx:Fade(0, 0.02)
+				Kit.tween(fx:GetGrade(), 0.06, { TintColor = Color3.fromRGB(205, 220, 255), Saturation = -0.5 })
+				fx:Glitch(if reduced() then 0.05 else 0.12, 0.1)
 			end
-			if t >= lungeAt - 0.04 then
-				mimicSwapped = true
-				teammate:Destroy()
-				teammate = nil
-				rig.Parent = Workspace
-			end
-		end
-		if t < lungeAt then
-			-- standing, head tilted, its eyes already on you
-			currentPose = scarePose(rig, m, 0, 0, eye)
-			applyPose(m, currentPose)
-			moveRig(rig, rigFeet, eye)
-			framedFace = facePoint()
-			aimScareLight(light, eye, framedFace, 0)
-			return
-		end
-		local l = math.clamp((t - lungeAt) / LUNGE, 0, 1)
-		local a = ease(l)
-		local open, extra = 0, nil
-		if impactAt then
-			local h = os.clock() - impactAt
-			-- the face splits open just after the hit, then holds
-			open = ease(math.clamp((h - 0.08) / 0.22, 0, 1))
-			-- a short shudder of the head, dying out (no constant jitter)
-			local shudder = math.exp(-h * 5) * (if reduced() then 0.3 else 1)
-			extra = { HeadJoint = CFrame.Angles(0, math.rad(math.sin(h * 70) * 2.5 * shudder), math.rad(math.sin(h * 55) * 2 * shudder)) }
-		end
-		currentPose = scarePose(rig, m, a, open, eye, extra)
-		applyPose(m, currentPose)
-		innerEyes(rig, open)
-		-- the face travels from where it stood to two studs from the lens; the
-		-- body is placed around it so it is always level and facing the camera
-		framedFace = startFace:Lerp(endFace, a)
-		rig:PivotTo(ObserverRig.placeFace(m, currentPose, framedFace, eye))
-		if l >= 1 and not impactDone then
-			impactDone = true
-			impactAt = os.clock()
-			-- 5: THE IMPACT - light, hit and scream on the same frame
-			audio:Play("ObserverImpact", nil, { volume = 1 })
-			audio:Play("ObserverScreech", nil, { volume = 1 })
-			audio:Play("JumpSting", nil, { volume = 1 })
-			cam:Shake(if reduced() then 0.2 else 0.45)
-			fx:Glitch(if reduced() then 0.08 else 0.2, 0.15)
-			if not reduced() then
-				-- a faint red edge for a heartbeat: the face stays clear
-				fx:Flash(Color3.fromRGB(150, 10, 10), 0.1, 0.2)
-			end
-			-- what the player sees, for tests and the admin scare test
-			local camCf = CFrame.lookAt(eye, framedFace)
-			local root = rig.PrimaryPart :: BasePart
-			local head = root.CFrame * ObserverRig.headFromRoot(m, currentPose) * ObserverRig.FaceAnchor
-			local toCam = eye - head.Position
-			ScareController.LastFrame = {
-				variant = variant,
-				distance = toCam.Magnitude,
-				facing = head.LookVector:Dot(toCam.Unit), -- 1 = looking straight into the lens
-				centred = camCf.LookVector:Dot((head.Position - eye).Unit), -- 1 = dead centre
-				inFront = camCf:PointToObjectSpace(head.Position).Z < 0,
-			}
-		end
-		-- the light: dark until the impact, then on, flickering a little but
-		-- never going out (the face must stay readable)
-		local level = 0
-		if impactAt then
-			local h = os.clock() - impactAt
-			if reduced() then
-				level = 0.8
-			else
-				local frame = math.floor(h * 20)
-				level = if h < 0.05 then 1 elseif frame % 5 == 3 then 0.78 else 0.96
+			local ti = os.clock() - (impactStarted :: number)
+			impact(ti)
+			if not ScareController.LastFrame then
+				-- what the player sees on the frame of the hit
+				local root = rig.PrimaryPart :: BasePart
+				local head = root.CFrame * ObserverRig.headFromRoot(m, currentPose) * ObserverRig.FaceAnchor
+				local toCam = eye - head.Position
+				local camCf = CFrame.lookAt(eye, lookAt)
+				ScareController.LastFrame = {
+					variant = variant,
+					sequence = sequence,
+					distance = toCam.Magnitude,
+					facing = head.LookVector:Dot(toCam.Unit),
+					centred = camCf.LookVector:Dot((head.Position - eye).Unit),
+					inFront = camCf:PointToObjectSpace(head.Position).Z < 0,
+					impactAt = impactAt,
+				}
 			end
 		end
-		aimScareLight(light, eye, framedFace, level)
+		aimScareLight(light, eye, lightFace, lightLevel)
 	end)
 
-	-- 6: a hard cut to black, a ringing, a line
-	task.delay(lungeAt + LUNGE + HOLD, function()
+	-- phase D: a hard cut to black, a ringing, a line
+	task.delay(impactAt + IMPACT_HOLD + PUSH + AFTER, function()
 		fx:Fade(1, 0.02)
 		audio:Play("TinnitusRing", nil, { volume = 0.8 })
 		destroyScareLight(light)
@@ -569,7 +676,6 @@ function ScareController:Flash(kind: string?)
 	local rig, m = spawnRig(from.Position + look * 3 - Vector3.new(0, 4.5, 0), from.Position)
 	local transforms = scarePose(rig, m, 1, 0.6, from.Position)
 	applyPose(m, transforms)
-	innerEyes(rig, 0.6)
 	local face = from.Position + look * (FRAME_DIST + 0.3) + Vector3.new(0, from.LookVector.Y * 1.5, 0)
 	rig:PivotTo(ObserverRig.placeFace(m, transforms, face, from.Position))
 	-- lit on the very frame it appears, so it reads even in a blackout

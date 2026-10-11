@@ -222,6 +222,30 @@ def add_flat_mesh(m, coll):
     o.matrix_world = cframe_matrix(m["pos"], m["rx"], m["ry"], m["rz"])
     for poly in me.polygons:
         poly.use_smooth = True
+    if m.get("maps") and os.path.exists(os.path.join(ROOT, m["maps"] + "_color.png")):
+        # baked maps through the mesh UVs (as a SurfaceAppearance would)
+        key = "maps|" + m["maps"]
+        if key not in _mats:
+            mat = bpy.data.materials.new(key)
+            mat.use_nodes = True
+            nt = mat.node_tree
+            bsdf = nt.nodes["Principled BSDF"]
+            for kind, sock, nc in (("color", "Base Color", False), ("roughness", "Roughness", True)):
+                t = nt.nodes.new("ShaderNodeTexImage")
+                t.image = bpy.data.images.load(os.path.join(ROOT, "%s_%s.png" % (m["maps"], kind)), check_existing=True)
+                if nc:
+                    t.image.colorspace_settings.name = "Non-Color"
+                nt.links.new(t.outputs["Color"], bsdf.inputs[sock])
+            t = nt.nodes.new("ShaderNodeTexImage")
+            t.image = bpy.data.images.load(os.path.join(ROOT, m["maps"] + "_normal.png"), check_existing=True)
+            t.image.colorspace_settings.name = "Non-Color"
+            nm = nt.nodes.new("ShaderNodeNormalMap")
+            nt.links.new(t.outputs["Color"], nm.inputs["Color"])
+            nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
+            _mats[key] = mat
+        me.materials.clear()
+        me.materials.append(_mats[key])
+        return True
     key = "flat|%d,%d,%d" % tuple(m["color"])
     if key not in _mats:
         mat = bpy.data.materials.new(key)

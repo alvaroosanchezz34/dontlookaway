@@ -5,14 +5,14 @@
 ]]
 
 return {
-	Head = { size = Vector3.new(4.4544, 0.9282, 0.4770), offset = Vector3.new(0.0000, -0.1369, 0.0000), triangles = 4256 },
-	Neck = { size = Vector3.new(0.5594, 1.3640, 0.3424), offset = Vector3.new(0.0000, -0.0311, 0.0000), triangles = 2016 },
-	UpperTorso = { size = Vector3.new(2.0629, 2.6091, 0.4806), offset = Vector3.new(0.0000, -0.0935, 0.0000), triangles = 2912 },
-	LowerTorso = { size = Vector3.new(0.8260, 1.3112, 0.4436), offset = Vector3.new(0.0000, -0.0075, 0.0000), triangles = 2016 },
-	UpperArm = { size = Vector3.new(0.2450, 3.1758, 0.2449), offset = Vector3.new(0.0000, 0.0045, 0.0000), triangles = 2464 },
-	LowerArm = { size = Vector3.new(0.2013, 2.8586, 0.2013), offset = Vector3.new(0.0000, 0.0341, 0.0000), triangles = 2464 },
-	Hand = { size = Vector3.new(0.1718, 0.8284, 0.1254), offset = Vector3.new(0.0000, 0.0011, 0.0000), triangles = 2016 },
-	UpperLeg = { size = Vector3.new(0.3372, 2.7280, 0.3372), offset = Vector3.new(0.0000, 0.0386, 0.0000), triangles = 2464 },
-	LowerLeg = { size = Vector3.new(0.2399, 2.3767, 0.2399), offset = Vector3.new(0.0000, 0.0371, 0.0000), triangles = 2464 },
-	Foot = { size = Vector3.new(0.2008, 0.1647, 0.7412), offset = Vector3.new(0.0000, -0.0051, 0.0197), triangles = 1568 },
+	Head = { size = Vector3.new(4.4167, 1.3837, 0.7985), offset = Vector3.new(-0.1240, -0.1488, 0.0472), triangles = 6000 },
+	Neck = { size = Vector3.new(1.2323, 1.5179, 0.4623), offset = Vector3.new(-0.0032, -0.0418, 0.0422), triangles = 2400 },
+	UpperTorso = { size = Vector3.new(2.4125, 3.3345, 0.9582), offset = Vector3.new(0.0030, -0.1383, 0.0740), triangles = 6000 },
+	LowerTorso = { size = Vector3.new(0.9254, 1.1534, 0.4850), offset = Vector3.new(-0.0030, 0.0948, 0.0016), triangles = 2400 },
+	UpperArm = { size = Vector3.new(0.3882, 3.4038, 0.3921), offset = Vector3.new(0.0063, -0.1619, -0.0028), triangles = 2400 },
+	LowerArm = { size = Vector3.new(0.3062, 3.0681, 0.3013), offset = Vector3.new(0.0022, 0.0159, 0.0167), triangles = 2000 },
+	Hand = { size = Vector3.new(0.2042, 0.9956, 0.1421), offset = Vector3.new(0.0009, -0.0947, -0.0008), triangles = 1600 },
+	UpperLeg = { size = Vector3.new(0.5041, 3.1069, 0.5109), offset = Vector3.new(-0.0152, -0.0245, 0.0027), triangles = 2400 },
+	LowerLeg = { size = Vector3.new(0.3193, 2.5088, 0.3915), offset = Vector3.new(0.0043, 0.0136, 0.0106), triangles = 2000 },
+	Foot = { size = Vector3.new(0.2112, 0.2840, 0.7737), offset = Vector3.new(-0.0001, 0.0571, -0.0352), triangles = 1400 },
 }

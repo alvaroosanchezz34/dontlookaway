@@ -617,6 +617,9 @@ do
 	check(closest > 0.12, string.format("observer segments differ in size (closest %.2f)", closest))
 	for name, meta in MeshMeta do
 		check(fs.isFile("assets/observer/" .. name .. ".obj"), "observer mesh file " .. name)
+		for _, map in { "color", "normal", "roughness" } do
+			check(fs.isFile(string.format("assets/observer/%s/%s_%s.png", name, name, map)), string.format("observer %s baked %s map", name, map))
+		end
 		check(meta.triangles > 0 and meta.triangles < 20000, string.format("observer %s under the triangle limit (%d)", name, meta.triangles))
 	end
 	local rig = ObserverRig.build(CFrame.new(0, 0, 0), { localCopy = true })
@@ -705,7 +708,8 @@ do
 	for _, d in rig:GetDescendants() do
 		if d:IsA("BasePart") and d.Transparency < 1 then
 			if string.find(d.Name, "Eyeball") then
-				check(lum(d.Color) > 0.45 and d.Size.X < 0.25, "small pale eye: " .. d.Name)
+				-- dim self-lit grey (Neon): pale against the black, never a lamp
+				check(lum(d.Color) > 0.3 and lum(d.Color) < 0.6 and d.Size.X < 0.2, "small pale eye: " .. d.Name)
 			elseif d.Name ~= "Pupil" and lum(d.Color) > 0.06 then
 				table.insert(bright, d.Name)
 			end

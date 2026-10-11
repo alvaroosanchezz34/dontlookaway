@@ -221,11 +221,21 @@ end
 
 -- Plays a death cinematic on your own screen without killing you, then
 -- gives control back; the client reports how the face was framed.
-local SCARE_VARIANTS = { behind = true, side = true, front = true, dark = true, door = true, mirror = true, mimic = true }
-COMMANDS.scareTest = function(admin, variant)
-	variant = if type(variant) == "string" and SCARE_VARIANTS[variant] then variant else "front"
-	Net.fire(admin, "Effect", { name = "ScareTest", variant = variant })
-	return "playing scare test: " .. variant
+-- arg: a sequence (turn, stillness, drop, lightsout, peek, mirror, mimic);
+-- the matching situation is used for it
+local SCARE_TESTS = {
+	turn = "behind",
+	stillness = "front",
+	drop = "front",
+	lightsout = "dark",
+	peek = "side",
+	mirror = "mirror",
+	mimic = "mimic",
+}
+COMMANDS.scareTest = function(admin, sequence)
+	sequence = if type(sequence) == "string" and SCARE_TESTS[sequence] then sequence else "turn"
+	Net.fire(admin, "Effect", { name = "ScareTest", variant = SCARE_TESTS[sequence], sequence = sequence, beat = math.random() })
+	return "playing scare test: " .. sequence
 end
 
 COMMANDS.scareReport = function(_, report)
@@ -235,7 +245,7 @@ COMMANDS.scareReport = function(_, report)
 	local ok = report.inFront == true and type(report.distance) == "number" and math.abs(report.distance - ObserverRig.ScareDistance) < 0.3 and (tonumber(report.facing) or 0) > 0.9 and (tonumber(report.centred) or 0) > 0.98
 	return string.format(
 		"scare test %s %s: face %.2f studs, facing camera %.2f, centred %.3f, in front %s",
-		tostring(report.variant),
+		tostring(report.sequence or report.variant),
 		if ok then "OK" else "CHECK",
 		tonumber(report.distance) or -1,
 		tonumber(report.facing) or -1,

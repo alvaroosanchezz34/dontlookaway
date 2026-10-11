@@ -68,7 +68,7 @@ ObserverRig.MeshDetails = MESH_DETAILS
 -- matte, near-black: it absorbs light (SmoothPlastic, no reflectance)
 local SKIN = Color3.fromRGB(9, 9, 10)
 -- the eyes: a pale grey that is self-lit but dim (no bloom, no halo)
-local EYE = Color3.fromRGB(150, 150, 146)
+local EYE = Color3.fromRGB(104, 102, 96)
 local PUPIL = Color3.fromRGB(2, 2, 2)
 
 -- The smooth body (tools/blender/build_observer.py): one flowing mesh per
@@ -77,6 +77,13 @@ local PUPIL = Color3.fromRGB(2, 2, 2)
 ObserverRig.UseSculptedBody = true
 
 ObserverRig.Height = 9.6
+
+-- Eye centres in head space (must match EYE_L / EYE_R in
+-- tools/blender/build_observer.py: the sockets are carved around them).
+ObserverRig.EyeOffsets = {
+	L = CFrame.new(-0.19, 0.12, -0.23),
+	R = CFrame.new(0.21, 0.05, -0.22),
+}
 ObserverRig.HipHeight = 4.0
 
 local function part(model, name, size, cf, color, material)
@@ -210,12 +217,15 @@ function ObserverRig.build(base: CFrame?, opts: { [string]: any }?): Model
 	-- close to the middle; they turn (EyeTurnL / EyeTurnR)
 	for _, s in { -1, 1 } do
 		local side = if s < 0 then "L" else "R"
-		local eyeAt = head.CFrame * CFrame.new(s * 0.2, 0.1, -0.24)
-		local ball = part(model, "Eyeball" .. side, Vector3.new(0.17, 0.17, 0.17), eyeAt, EYE, Enum.Material.Neon)
+		-- asymmetric: the left eye sits higher and a little smaller, each in
+		-- its own deep socket (carved in the sculpted head)
+		local eyeAt = head.CFrame * ObserverRig.EyeOffsets[side]
+		local d = if side == "L" then 0.105 else 0.115
+		local ball = part(model, "Eyeball" .. side, Vector3.new(d, d, d), eyeAt, EYE, Enum.Material.Neon)
 		ball.Shape = Enum.PartType.Ball
 		ball.CastShadow = false
 		motor("EyeTurn" .. side, head, ball, eyeAt)
-		local pupil = ellipsoid(model, "Pupil", Vector3.new(0.075, 0.08, 0.03), ball.CFrame * CFrame.new(0, 0.012, -0.075), PUPIL)
+		local pupil = ellipsoid(model, "Pupil", Vector3.new(d * 0.58, d * 0.64, 0.025), ball.CFrame * CFrame.new(0, d * 0.05, -d * 0.44), PUPIL)
 		pupil.CastShadow = false
 		weld(ball, pupil)
 	end
@@ -367,6 +377,20 @@ function ObserverRig.configuredMeshes(): number
 	return n
 end
 
+-- The segment's baked skin (src/shared/ObserverSkins, written by
+-- tools/sync_assets.py: scripts may not set SurfaceAppearance maps).
+local function applySkin(mesh: BasePart, meshName: string)
+	mesh.Color = SKIN
+	mesh.Material = Enum.Material.SmoothPlastic
+	mesh.Reflectance = 0
+	mesh.CastShadow = true
+	local skins = script.Parent:FindFirstChild("ObserverSkins")
+	local skin = skins and skins:FindFirstChild(meshName)
+	if skin and not mesh:FindFirstChildWhichIsA("SurfaceAppearance") then
+		skin:Clone().Parent = mesh
+	end
+end
+
 function ObserverRig.loadMeshes(): number
 	if not RunService:IsServer() then
 		return 0
@@ -379,7 +403,7 @@ function ObserverRig.loadMeshes(): number
 		local ok, mesh = false, nil
 		if meshUrl then
 			ok, mesh = pcall(function()
-				return game:GetService("AssetService"):CreateMeshPartAsync(meshUrl, {
+				return game:GetService("AssetService"):CreateMeshPartAsync(Content.fromUri(meshUrl :: string), {
 					CollisionFidelity = Enum.CollisionFidelity.Box,
 					RenderFidelity = Enum.RenderFidelity.Precise,
 				})
@@ -404,16 +428,10 @@ function ObserverRig.loadMeshes(): number
 			if ok and mesh then
 				mesh.Name = meshName
 				mesh.Size = MeshMeta[meshName].size
-				mesh.Color = SKIN
-				mesh.Material = Enum.Material.SmoothPlastic
-				mesh.Reflectance = 0.06
-				mesh.CastShadow = true
-				-- the PBR skin is a SurfaceAppearance placed in the game by Rojo
-				-- (scripts may not set its maps): ReplicatedStorage.Shared.ObserverSkin
-				local skinTemplate = script.Parent:FindFirstChild("ObserverSkin")
-				if skinTemplate then
-					skinTemplate:Clone().Parent = mesh
+				for _, d in mesh:GetChildren() do
+					d:Destroy()
 				end
+				applySkin(mesh, meshName)
 				if not folder then
 					folder = Instance.new("Folder")
 					folder.Name = TEMPLATE_FOLDER
@@ -466,10 +484,7 @@ function ObserverRig.loadMeshes(): number
 				end
 				mesh.Name = best
 				mesh.Size = MeshMeta[best].size
-				mesh.Color = SKIN
-				mesh.Material = Enum.Material.SmoothPlastic
-				mesh.Reflectance = 0
-				mesh.CastShadow = true
+				applySkin(mesh, best)
 				if not folder then
 					folder = Instance.new("Folder")
 					folder.Name = TEMPLATE_FOLDER
@@ -493,7 +508,7 @@ end
 ------------------------------------------------------------------------------------
 
 -- Between the eyes, on the face: what a jumpscare frames (head space).
-ObserverRig.FaceAnchor = CFrame.new(0, 0.1, -0.3)
+ObserverRig.FaceAnchor = CFrame.new(0, 0.08, -0.3)
 
 -- The jumpscare frames the whole head: its face this far from the lens, with
 -- this vertical field of view (the 4.6-stud blade fits across the screen).

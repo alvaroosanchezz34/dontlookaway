@@ -351,6 +351,8 @@ handlers.ScareTest = function(p)
 	local root = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
 	Registry.ScareController:Death({
 		variant = p.variant or "front",
+		sequence = p.sequence,
+		beat = p.beat,
 		position = if root then (root :: BasePart).Position else nil,
 		side = 1,
 		mimicUserId = localPlayer.UserId,
@@ -362,7 +364,7 @@ handlers.ScareTest = function(p)
 			EffectsController:ResetPost()
 			EffectsController:Fade(0, 0.4)
 			local f = Registry.ScareController.LastFrame
-			Net.event("Admin"):FireServer("scareReport", if f then { variant = f.variant, distance = f.distance, facing = f.facing, centred = f.centred, inFront = f.inFront } else nil)
+			Net.event("Admin"):FireServer("scareReport", if f then { variant = f.variant, sequence = f.sequence, distance = f.distance, facing = f.facing, centred = f.centred, inFront = f.inFront } else nil)
 		end)
 	end)
 end

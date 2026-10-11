@@ -6,6 +6,7 @@ so Rojo places them in the game instead:
     src/materials/<Variant>.model.json     -> MaterialService (one per texture)
     src/shared/ObserverSkin.model.json     -> ReplicatedStorage.Shared.ObserverSkin
     src/shared/PropSkins/<Prop>.model.json -> ReplicatedStorage.Shared.PropSkins (hero prop meshes)
+    src/shared/ObserverSkins/<Segment>.model.json -> ReplicatedStorage.Shared.ObserverSkins (The Observer V2)
     default.project.json                   -> MaterialService base-material overrides
 
 Source of truth: src/shared/Config/AssetIds.luau. Run after changing any id:
@@ -22,6 +23,7 @@ IDS = os.path.join(ROOT, "src", "shared", "Config", "AssetIds.luau")
 MATERIALS = os.path.join(ROOT, "src", "materials")
 SKIN = os.path.join(ROOT, "src", "shared", "ObserverSkin.model.json")
 PROP_SKINS = os.path.join(ROOT, "src", "shared", "PropSkins")
+OBSERVER_SKINS = os.path.join(ROOT, "src", "shared", "ObserverSkins")
 PROJECT = os.path.join(ROOT, "default.project.json")
 
 # texture key -> (variant name, base material, studs per tile, overrides the base material?)
@@ -115,6 +117,24 @@ def main():
                     fh.write("\n")
                 prop_skins += 1
 
+    # The Observer V2: one SurfaceAppearance per body segment (baked maps)
+    os.makedirs(OBSERVER_SKINS, exist_ok=True)
+    for f in os.listdir(OBSERVER_SKINS):
+        if f.endswith(".model.json"):
+            os.remove(os.path.join(OBSERVER_SKINS, f))
+    open(os.path.join(OBSERVER_SKINS, ".gitkeep"), "w").close()
+    obs_block = re.search(r"AssetIds\.ObserverSkins\s*=\s*\{(.*?)\n\}", src, re.S)
+    observer_skins = 0
+    if obs_block:
+        for name, body in re.findall(r"\t(\w+)\s*=\s*\{([^}]*)\}", obs_block.group(1)):
+            ids = {k: int(v) for k, v in re.findall(r"(\w+)\s*=\s*(\d+)", body)}
+            if ids.get("color", 0) > 0:
+                props = {MAPS[k]: url(v) for k, v in ids.items() if k in MAPS and v > 0}
+                with open(os.path.join(OBSERVER_SKINS, name + ".model.json"), "w", encoding="utf-8") as fh:
+                    json.dump({"ClassName": "SurfaceAppearance", "Properties": props}, fh, indent=2)
+                    fh.write("\n")
+                observer_skins += 1
+
     project = json.load(open(PROJECT, encoding="utf-8"))
     ms = project["tree"].setdefault("MaterialService", {"$className": "MaterialService"})
     ms["$path"] = "src/materials"
@@ -124,7 +144,7 @@ def main():
     with open(PROJECT, "w", encoding="utf-8") as fh:
         json.dump(project, fh, indent=2)
         fh.write("\n")
-    print("materials: %d variants, %d overrides; observer skin: %s; prop skins: %d" % (active, len(overrides), "yes" if skin.get("color", 0) > 0 else "no", prop_skins))
+    print("materials: %d variants, %d overrides; observer skin: %s; prop skins: %d; observer segment skins: %d" % (active, len(overrides), "yes" if skin.get("color", 0) > 0 else "no", prop_skins, observer_skins))
 
 
 if __name__ == "__main__":

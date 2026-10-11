@@ -128,6 +128,50 @@ elseif shot == "scareOld" then
 	local head = world[rig:FindFirstChild("Head")]
 	camera = { eye = v3(eye - (head.Position - eye).Unit * 0.85), target = v3(head.Position), fov = 30 }
 	addLight("SpotLight", eye - look * 0.4, (head.Position - eye).Unit, 9, 18, 70, roblox.Color3.fromRGB(226, 234, 255), true)
+elseif shot == "inspect" or shot == "inspectHead" then
+	-- studio look at the form: three-quarter view, a key light and a rim
+	rootCf = CFrame.new(0, ObserverRig.HipHeight + 1, -12) * CFrame.Angles(0, math.pi, 0)
+	transforms = ObserverRig.ScarePose(0, 0)
+	local world = ObserverRig.solve(rig, rootCf, transforms)
+	for _, side in { "L", "R" } do
+		local m = motors["EyeTurn" .. side]
+		local rest = world[m.Part0] * m.C0
+		local rel = rest:PointToObjectSpace(Vector3.new(4, 7, -6))
+		transforms["EyeTurn" .. side] = CFrame.Angles(math.atan2(rel.Y, math.sqrt(rel.X * rel.X + rel.Z * rel.Z)), math.atan2(-rel.X, -rel.Z), 0)
+	end
+	if shot == "inspectHead" then
+		camera = { eye = v3(Vector3.new(1.3, 9.3, -7.6)), target = v3(Vector3.new(0, 8.85, -12)), fov = 46 }
+	else
+		camera = { eye = v3(Vector3.new(3.6, 5.2, -5.4)), target = v3(Vector3.new(0, 4.9, -12)), fov = 74 }
+	end
+	addPart("Floor", CFrame.new(0, -0.5, -12), Vector3.new(30, 1, 30), roblox.Color3.fromRGB(70, 68, 66), "Concrete")
+	addLight("SpotLight", Vector3.new(5, 11, -5), (Vector3.new(0, 6, -12) - Vector3.new(5, 11, -5)).Unit, 3, 26, 60, roblox.Color3.fromRGB(240, 236, 228), true)
+	addLight("SpotLight", Vector3.new(-4, 9, -18), (Vector3.new(0, 6, -12) - Vector3.new(-4, 9, -18)).Unit, 2.5, 22, 60, roblox.Color3.fromRGB(200, 214, 240), true)
+elseif shot == "walk" then
+	-- mid-stride in ObserverFX's STALK gait (phase p = 1.3), seen three-quarter
+	rootCf = CFrame.new(0, ObserverRig.HipHeight + 1, -10) * CFrame.Angles(0, math.pi * 0.8, 0)
+	local p = 1.3
+	local sn = math.sin(p)
+	transforms = {
+		RootJoint = CFrame.new(0, math.abs(math.cos(p)) * 0.1, 0),
+		Waist = CFrame.Angles(math.rad(-6), sn * 0.04, 0),
+		NeckJoint = CFrame.Angles(math.rad(4), 0, 0),
+		LeftShoulder = CFrame.Angles(math.sin(p - 0.9) * 0.22, 0, math.rad(-3)),
+		RightShoulder = CFrame.Angles(-math.sin(p - 0.9) * 0.22, 0, math.rad(3)),
+		LeftHip = CFrame.Angles(math.max(0, sn) * 0.7 - math.max(0, -sn) * 0.2, 0, 0),
+		RightHip = CFrame.Angles(math.max(0, -sn) * 0.7 - math.max(0, sn) * 0.2, 0, 0),
+		LeftKnee = CFrame.Angles(-math.max(0, sn) * 1.0, 0, 0),
+		RightKnee = CFrame.Angles(-math.max(0, -sn) * 1.0, 0, 0),
+	}
+	camera = { eye = v3(Vector3.new(0, 5.2, 0)), target = v3(Vector3.new(0, 5.0, -10)), fov = 70 }
+	addPart("Floor", CFrame.new(0, -0.5, -10), Vector3.new(30, 1, 30), roblox.Color3.fromRGB(80, 78, 74), "Concrete")
+	addLight("SpotLight", Vector3.new(4, 11, -4), (Vector3.new(0, 5, -10) - Vector3.new(4, 11, -4)).Unit, 2.6, 26, 70, roblox.Color3.fromRGB(240, 236, 228), true)
+	addLight("SpotLight", Vector3.new(-4, 9, -16), (Vector3.new(0, 6, -10) - Vector3.new(-4, 9, -16)).Unit, 2.2, 22, 60, roblox.Color3.fromRGB(200, 214, 240), true)
+elseif shot == "eyesDark" then
+	-- the lights-out sequence: only its two eyes, eight studs ahead, in the dark
+	rootCf = CFrame.new(0, ObserverRig.HipHeight + 1, -8) * CFrame.Angles(0, math.pi, 0)
+	transforms = ObserverRig.ScarePose(0, 0)
+	camera = { eye = v3(eye), target = v3(Vector3.new(0, 8.6, -8)), fov = 70 }
 elseif shot == "stand" or shot == "far" or shot == "side" or shot == "dark" then
 	local dist = if shot == "far" then 40 elseif shot == "side" then 10 else 12
 	-- facing the camera (+Z). Angles, not CFrame.lookAt: Lune's lookAt faces
@@ -166,10 +210,16 @@ local meshes = {}
 local skipped = 0
 for part, cf in world do
 	local meshName = ObserverRig.SegmentMesh[part.Name]
+	if shot == "eyesDark" and not (string.find(part.Name, "Eyeball") or part.Name == "Pupil") then
+		meshName = nil
+		skipped += 1
+		continue
+	end
 	if body == "smooth" and meshName and MeshMeta[meshName] then
 		local mcf = cf * CFrame.new(MeshMeta[meshName].offset)
 		table.insert(meshes, {
 			file = "assets/observer/" .. meshName .. ".obj",
+			maps = "assets/observer/" .. meshName .. "/" .. meshName,
 			bboxCentre = true,
 			color = c3(part.Color),
 			pos = v3(mcf.Position),
