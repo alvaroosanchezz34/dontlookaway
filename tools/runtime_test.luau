@@ -298,8 +298,18 @@ do
 	local normal, blackout = LightingService.Presets.NORMAL, LightingService.Presets.BLACKOUT
 	-- NORMAL: no ambient fill (only the fixtures light), a cold hard grade
 	local amb = math.max(normal.Ambient.R, normal.Ambient.G, normal.Ambient.B) * 255
-	check(amb <= 10, "NORMAL has no ambient fill (max channel " .. math.floor(amb + 0.5) .. ")")
-	check(normal.cc.Contrast >= 0.15 and normal.cc.Saturation <= -0.4, "NORMAL grade is contrasted and desaturated (contrast " .. normal.cc.Contrast .. ", saturation " .. normal.cc.Saturation .. ")")
+	-- NORMAL: a dim neutral grey floor (the fixtures do the lighting), a cold
+	-- near-monochrome grade (docs/LIGHTING_MONOCHROME.md)
+	local spread = (math.max(normal.Ambient.R, normal.Ambient.G, normal.Ambient.B) - math.min(normal.Ambient.R, normal.Ambient.G, normal.Ambient.B)) * 255
+	check(amb <= 24 and spread <= 3, "NORMAL's ambient is a dim neutral grey (max channel " .. math.floor(amb + 0.5) .. ")")
+	check(normal.cc.Contrast >= 0.1 and normal.cc.Saturation <= -0.4, "NORMAL grade is contrasted and desaturated (contrast " .. normal.cc.Contrast .. ", saturation " .. normal.cc.Saturation .. ")")
+	-- ColorCorrection pivots contrast round mid grey: black on screen is
+	-- 0.5 - (1 + contrast) / 2 + brightness. Inside, it is a deep grey, never 0
+	for _, name in { "NORMAL", "EMERGENCY", "BLACKOUT", "CINEMATIC", "ESCAPE" } do
+		local cc = LightingService.Presets[name].cc
+		local black = 0.5 - (1 + cc.Contrast) / 2 + cc.Brightness
+		check(black >= 0.02 and black <= 0.06, string.format("%s: black reads as a deep grey (%.3f)", name, black))
+	end
 	check(normal.Ambient ~= blackout.Ambient and normal.ExposureCompensation ~= blackout.ExposureCompensation, "blackout differs from normal")
 	-- surfaces have real albedo: colour (linear) x texture mean of the main surfaces
 	local Layout = requireModule(Server.Map.Layout)

@@ -94,6 +94,7 @@ for _, d in map.Root:GetDescendants() do
 				material = d.Material.Name,
 				variant = d.MaterialVariant,
 				transparency = d.Transparency,
+				castShadow = d.CastShadow,
 			})
 		end
 	elseif d:IsA("Light") then
@@ -138,7 +139,9 @@ for _, d in map.Root:GetDescendants() do
 					dir = v3(dir),
 					range = d.Range,
 					angle = if d:IsA("PointLight") then 180 else (d :: any).Angle,
-					shadows = d.Shadows,
+					-- a lamp near the camera casts shadows (LightController's shadow
+					-- LOD): measured as the player standing there sees it
+					shadows = d.Shadows or isFixture,
 					room = if isFixture then fixture:GetAttribute("Room") else nil,
 					fixture = if isFixture then fixture:GetFullName() else nil,
 					states = per,

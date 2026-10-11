@@ -48,6 +48,18 @@ def grade(col, preset):
     return np.clip(disp, 0, 1)
 
 
+_skip = {}
+
+
+def geo_skip(data, glass, emit):
+    """Parts that cast no shadow: glass, glowing parts and CastShadow = false."""
+    key = id(data)
+    if key not in _skip:
+        no_cast = np.array([p.get("castShadow", True) is False for p in data["parts"]])
+        _skip[key] = glass | emit | no_cast
+    return _skip[key]
+
+
 def probe_value(data, geo, state, probe):
     pos, R, half, alb, emit, glass = geo
     preset = data["presets"][data["statePresets"][state]]
@@ -72,7 +84,7 @@ def probe_value(data, geo, state, probe):
             k *= float(np.clip((cosang - outer) / (inner - outer + 1e-6), 0, 1))
         if k <= 1e-5:
             continue
-        if L["shadows"] and ls.occluded(pt, lp, pos, R, half, glass | emit)[0]:
+        if L["shadows"] and ls.occluded(pt, lp, pos, R, half, geo_skip(data, glass, emit))[0]:
             continue
         E += k * ls.lin(L["color"])
     amb = ls.lin(preset["ambient"])

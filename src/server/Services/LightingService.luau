@@ -55,6 +55,17 @@ local dof: DepthOfFieldEffect
 -- exposure). The escape and the scripted moments change the colour and the
 -- grade, never the amount of light. Only the places outside the building
 -- (LOBBY, OUTSIDE, RESULTS) are lighter.
+-- The black is a deep grey, never a dead screen (MONOCHROME): ColorCorrection
+-- pivots contrast round mid grey, so without a lift every dark tone below a
+-- threshold is crushed to 0 and the stretch between two lamps reads as a hole
+-- right next to the pool. Each interior grade lifts its blacks by half its
+-- contrast plus BLACK_FLOOR, like the raised blacks of old film. Measured in
+-- docs/LIGHTING_MONOCHROME.md.
+local BLACK_FLOOR = 0.035
+local function lifted(contrast: number): number
+	return contrast / 2 + BLACK_FLOOR
+end
+
 LightingService.Presets = {
 	LOBBY = {
 		Ambient = Color3.fromRGB(34, 32, 30),
@@ -72,10 +83,10 @@ LightingService.Presets = {
 	},
 	-- main power lost: emergency lamps, exit signs, the flashlight
 	EMERGENCY = {
-		Ambient = Color3.fromRGB(5, 5, 7),
-		OutdoorAmbient = Color3.fromRGB(7, 8, 10),
-		ExposureCompensation = 0,
-		cc = { Brightness = 0, Contrast = 0.2, Saturation = -0.5, TintColor = Color3.fromRGB(226, 234, 250) },
+		Ambient = Color3.fromRGB(18, 18, 20),
+		OutdoorAmbient = Color3.fromRGB(20, 21, 24),
+		ExposureCompensation = 0.8,
+		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.5, TintColor = Color3.fromRGB(226, 234, 250) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(14, 15, 18), Decay = Color3.fromRGB(6, 6, 8) },
 	},
 	-- NORMAL: the building with power and no event. The reference for play: a
@@ -85,38 +96,38 @@ LightingService.Presets = {
 	-- near-monochrome grade, no haze to grey the distance. The contrast is kept
 	-- moderate: a hard one crushes the penumbra of every pool to black.
 	NORMAL = {
-		Ambient = Color3.fromRGB(7, 7, 8),
-		OutdoorAmbient = Color3.fromRGB(9, 10, 12),
-		ExposureCompensation = 0,
-		cc = { Brightness = 0.0, Contrast = 0.16, Saturation = -0.6, TintColor = Color3.fromRGB(228, 236, 250) },
+		Ambient = Color3.fromRGB(22, 22, 23),
+		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
+		ExposureCompensation = 0.8,
+		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.6, TintColor = Color3.fromRGB(228, 236, 250) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(26, 28, 32), Decay = Color3.fromRGB(10, 10, 12) },
 	},
 	-- scripted moments (cinematics, the Observer's reveal): the same building,
 	-- harder and colder, for a few seconds at a time. NORMAL's light, a
 	-- harsher, colder grade
 	CINEMATIC = {
-		Ambient = Color3.fromRGB(6, 6, 8),
-		OutdoorAmbient = Color3.fromRGB(8, 9, 12),
-		ExposureCompensation = 0,
-		cc = { Brightness = 0, Contrast = 0.22, Saturation = -0.68, TintColor = Color3.fromRGB(220, 230, 252) },
+		Ambient = Color3.fromRGB(20, 20, 22),
+		OutdoorAmbient = Color3.fromRGB(22, 23, 27),
+		ExposureCompensation = 0.8,
+		cc = { Brightness = lifted(0.18), Contrast = 0.18, Saturation = -0.68, TintColor = Color3.fromRGB(220, 230, 252) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(24, 27, 33), Decay = Color3.fromRGB(9, 10, 12) },
 	},
 	-- a total blackout: the darkest the game gets. Only what glows and the
 	-- silhouettes right next to you; everything else needs the flashlight
 	BLACKOUT = {
-		Ambient = Color3.fromRGB(3, 3, 4),
-		OutdoorAmbient = Color3.fromRGB(4, 4, 6),
-		ExposureCompensation = -0.05,
-		cc = { Brightness = 0, Contrast = 0.22, Saturation = -0.5, TintColor = Color3.fromRGB(236, 228, 232) },
+		Ambient = Color3.fromRGB(14, 14, 16),
+		OutdoorAmbient = Color3.fromRGB(16, 16, 19),
+		ExposureCompensation = 0.75,
+		cc = { Brightness = lifted(0.18), Contrast = 0.18, Saturation = -0.5, TintColor = Color3.fromRGB(236, 228, 232) },
 		atmosphere = { Density = 0.2, Haze = 0.1, Glare = 0, Color = Color3.fromRGB(8, 8, 10), Decay = Color3.fromRGB(4, 4, 5) },
 	},
 	-- the way out: NORMAL's light turned red and harder (the fixtures pulse,
 	-- the alarm beacons turn), not a brighter or hazier building
 	ESCAPE = {
-		Ambient = Color3.fromRGB(8, 5, 5),
-		OutdoorAmbient = Color3.fromRGB(10, 7, 7),
-		ExposureCompensation = 0,
-		cc = { Brightness = 0, Contrast = 0.2, Saturation = -0.45, TintColor = Color3.fromRGB(255, 222, 216) },
+		Ambient = Color3.fromRGB(22, 17, 17),
+		OutdoorAmbient = Color3.fromRGB(24, 19, 19),
+		ExposureCompensation = 0.8,
+		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.45, TintColor = Color3.fromRGB(255, 222, 216) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(32, 22, 22), Decay = Color3.fromRGB(12, 8, 8) },
 	},
 	RESULTS = {
