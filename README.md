@@ -236,8 +236,21 @@ LUAU_DEFS=/path/to/globalTypes.d.luau tools/check.sh   # luau-analyze over every
 rojo build default.project.json -o build/test.rbxlx    # project builds
 
 # headless tests with Lune (https://lune-org.github.io)
-lune run tools/runtime_test.luau build/test.rbxlx     # server: maps, lobby, rounds, anomalies, puzzles, story
+lune run tools/runtime_test.luau build/test.rbxlx     # server: maps, materials, prop meshes, the Observer rig, round rules, perception, lighting
 lune run tools/client_test.luau build/test.rbxlx      # client: every controller, menus, supply room, results, death cinematics
 lune run tools/validate_map.luau build/test.rbxlx     # geometry audit over 20 seeds
 lune run tools/zfight.luau build/test.rbxlx 3         # coplanar faces that would flicker (z-fighting)
 ```
+
+Tool versions that work (October 2026):
+
+- **Lune 0.10.x.** 0.8.x panics while loading the place. With 0.10 the Observer
+  rig measurements in `runtime_test` and the death cinematics in `client_test`
+  fail for a harness reason: tables keyed by `Instance` miss, because Lune hands
+  out a new object on every access.
+- **Rojo 7.6.1** does not know `SurfaceAppearance.AlphaMode = "Opaque"` (the
+  Observer skins). Build the test place from a copy where it reads `"Overlay"`,
+  and build a binary `.rbxl`: Lune 0.10 cannot read the newer XML format.
+- **Static analysis:** stock `luau-analyze` has no definitions option; use
+  `luau-lsp analyze --platform=roblox --sourcemap=sourcemap.json
+  --definitions=globalTypes.d.luau src` with a Rojo sourcemap.

@@ -1,5 +1,9 @@
 # Fallos pendientes
 
+> **Pasada de coherencia** (rama `claude/epic-cannon-fcf3p3`, guion en
+> `PROMPT_CORRECCIONES.md`): al final de este documento está lo que se
+> arregló y lo que queda por comprobar en Studio.
+
 Apuntados en la rama `fixes/vega`, sin arreglar todavía. En cada uno: dónde
 creo que está, qué creo que lo causa y cómo comprobarlo en Studio. Son
 hipótesis sacadas de leer el código y de medir los archivos, no de verlo en
@@ -34,9 +38,18 @@ los muebles se ven como cajas. Si es así, la solución es la misma que con el
 Observer: subir desde tu cuenta (o la del grupo dueño del juego)
 `assets/props/*.obj` y los `.ogg` de `assets/audio/`, y pasarme los IDs.
 
-## 1. Tirones de pantalla
+## 1. Tirones de pantalla — ARREGLADO EN CÓDIGO (`e53a5b6`), falta verlo en Studio
 
-**Dónde**
+**Arreglo:** el cuerpo gira con un `AlignOrientation` (en el paso de física)
+en vez de escribir `root.CFrame` en cada frame; `DetailLOD` tiene un margen
+de ±10 % y cambia como mucho 4 grupos por pasada, los más cercanos primero;
+`LightController` recoge las luces `PoweredLight` una vez por mapa y evalúa
+los fixtures lejanos en 8 tandas, una por frame. La cámara sigue usando
+`head.Position`: con la física a 240 Hz y sin la pelea del `CFrame` no
+debería dar saltos; si a 144 Hz todavía se nota, el siguiente paso es
+interpolarla. **Comprobar:** el paso 2 de abajo (60 Hz frente a 144 Hz).
+
+**Dónde (antes)**
 
 - `src/client/Controllers/CameraController.luau:173`: en cada frame de render
   se escribe `root.CFrame` del personaje para que siga el giro de la cámara.
@@ -95,9 +108,16 @@ rótulos de salida, las cúpulas de las balizas y las siluetas más cercanas.
 Hace falta la linterna. La batería no cambia; en NIGHTMARE queda justa
 (unos 11 min de luz continua con todas las pilas encontradas).
 
-## 3. Gráficos de plástico en casi todas las habitaciones
+## 3. Gráficos de plástico en casi todas las habitaciones — ARREGLADO EN PARTE (`b00ede2`)
 
-**Dónde**
+**Arreglo:** ninguna pieza visible es `SmoothPlastic` (63 en `Props.luau`,
+las superficies `porcelain`, `grime`, `paper` y `plastic` de
+`VisualStandards` y detalles del mapa, el lobby y los pickups). Cada una usa
+el material del que está hecha. `EnvironmentSpecularScale` ya estaba a 0,5.
+**Sigue pendiente:** el punto 0 (mallas de props subidas por otra cuenta) y
+el punto 6 (rugosidad).
+
+**Dónde (antes)**
 
 - `src/server/Map/Props.luau`: 63 piezas con `Material.SmoothPlastic`.
 - `default.project.json:98-115`: `MaterialService` solo sustituye Plaster,
@@ -161,7 +181,7 @@ siguen viendo tu sombra.
 **Comprobado en Studio:** 0 piezas del cuerpo con sombra, y 0 % del haz
 tapado a -65°.
 
-## 6. Texturas de plástico en las salas
+## 6. Texturas de plástico en las salas — PENDIENTE (hay que volver a hornear y subir)
 
 **Dónde:** los mapas de rugosidad de los props horneados en Blender
 (`tools/blender/dla_blender.py:444-471`, margen de 8 px e islas con margen
@@ -189,9 +209,18 @@ ancho e islas con más separación. Después, volver a subir esos mapas.
 linterna. Si los bordes y las aristas brillan como plástico mojado y de
 cerca no, es esto.
 
-## 7. Inconsistencias e incoherencias
+## 7. Inconsistencias e incoherencias — ARREGLADO (`145c3ee`, `8423b1b`, `b1a588c`)
 
-Necesito ejemplos concretos de lo que has visto. Lo que he encontrado yo:
+- `OBSERVER_REDESIGN.md` ahora dice claramente que es histórico y remite al
+  código (`145c3ee`).
+- El aviso de mallas del Observer nombra la causa real: subida antigua, id
+  sin segmento o error de carga; solo culpa a la propiedad si el error es de
+  permisos (`8423b1b`).
+- La regla queda escrita (README y cabecera de `LightingService`,
+  `b1a588c`): la oscuridad es oscura; el único negro total es el del susto,
+  a propósito y solo en tu pantalla.
+
+Lo que había apuntado:
 
 - `docs/OBSERVER_REDESIGN.md` todavía describe la cabeza como una hoja de
   4,6 studs y el susto a 3 studs. Está marcado como sustituido, pero
@@ -226,3 +255,57 @@ Necesito ejemplos concretos de lo que has visto. Lo que he encontrado yo:
 does not match» o «Failed to load». Después pega
 `tools/studio/check_image_ids.luau` en la Command Bar: lista cada ID que es
 de Decal y su Image.
+
+## 9. Pasada de coherencia: qué se arregló y qué falta ver en Studio
+
+Hecho con pruebas de Lune (`tools/runtime_test.luau`, secciones «round
+rules», «perception», «the observer: its breath», «the collapse», «scares»,
+«lighting»), `luau-lsp analyze` sin errores nuevos, `validate_map` (0
+problemas en 20 semillas) y `zfight` (los mismos 17 pares que antes).
+
+| Punto | Commit | Qué cambia |
+|---|---|---|
+| A1 | `1e48c5b` | Llaves, fusibles, cassette y ofrendas caen donde muere o sale su portador (o vuelven a su sitio). |
+| A2 | `ef25b42` | Las anomalías no cuentan como fallo con la cuota cumplida ni en la huida; las de la huida y la del tutorial nunca. |
+| A3 | `d41cc92` | Finales propios: LOCKED IN (persiana) y THE NIGHT RAN OUT (tiempo). |
+| A4 + A5 | `1dbaf01` | Ángulos con nombre (`GameConfig.Perception`), FOV real de cada cliente, un solo `IsDark`, y en la oscuridad el Observer solo se congela si se le ve. |
+| A6 | `82667b5` | La respiración deja 1,2 / 0,9 / 0,6 s para girarse. |
+| A7 | `1c5cadd` | El apagón total del COLLAPSE ocurre también sin corriente. |
+| A8 | `4d4a684` | La caja cae fuera de la vista, en 0,4 s, tumbada en el suelo y nunca dentro de nada. |
+| B1 | `732f90e` | ESCAPE y CINEMATIC no iluminan más que NORMAL; la exposición baja con cada nivel. |
+| B2 | `e53a5b6` | Ver el punto 1. |
+| B3 | `b00ede2` | Ver el punto 3. |
+| B4 | `c24b8f2`, `1e3c38b` | Todos los colores de la interfaz salen de `Theme`. |
+| C1-C6 | `b1a588c` … `145c3ee` | README, comentarios, tutorial, guía de controles, aviso de mallas, documentos del Observer. |
+
+**Decisiones tomadas (DECIDIR del guion):**
+
+- En la oscuridad mirar no basta: el Observer solo queda quieto si está a
+  menos de 12 studs, en el haz de una linterna o junto a una barra de luz.
+  Las anomalías siguen sin cambiar en la periferia aunque esté oscuro.
+- Las anomalías que aparecen a la vista al empezar la huida y en el apagón
+  total se quedan como excepción consciente, escrita en `AnomalyService` y
+  el README.
+- El apagón total sin corriente sigue la definición del nivel 4: apaga la
+  mitad de las lámparas de emergencia y deja las balizas y los rótulos de
+  salida (no los apaga, como sugería el guion).
+
+**Comprobar en Studio:**
+
+1. Girar andando a 60 y a 144 Hz: que el cuerpo siga a la cámara sin
+   retraso visible y sin tirones (`AlignOrientation`).
+2. En un apagón, mirar al Observer a 20 studs sin linterna: debe acercarse;
+   con la linterna encima, debe quedarse quieto. Ajustar
+   `GameConfig.Perception.DarkSightRange` si la partida se vuelve injusta.
+3. Oír la respiración y girarse a tiempo en las tres dificultades.
+4. Ver la caja tumbada (susto `falling_box`) y que no tape una puerta.
+5. Mirar la huida y una escena cinemática: rojo y duro, no más claro.
+6. Recorrer salas con props: papel, carteles, aseos y máquinas sin brillo de
+   plástico.
+
+**Pruebas que ya fallaban antes de esta pasada (no son de estos cambios):**
+con Lune 0.10 la sección «the observer: reference silhouette» de
+`runtime_test` y las cinemáticas de muerte de `client_test` fallan porque
+las tablas indexadas por `Instance` no coinciden (Lune devuelve un objeto
+nuevo en cada acceso). Lune 0.8.x se cuelga al cargar el place.
+
