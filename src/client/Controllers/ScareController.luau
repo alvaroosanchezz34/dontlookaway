@@ -26,12 +26,14 @@
 	    and the exposure up while its face is there: the lit half of the
 	    charcoal face reads, the other half stays in the black. It breathes
 	    slowly like a dying bulb, never strobes (steady with reduced effects).
-	  * It moves, not you: dry jerks of the head and neck, pose jumps with no
-	    interpolation, the eyes on you the whole time, a tilt no neck allows
-	    held frozen for a moment, then in at you.
-	  * No hitch: the local rig is built ahead of time and reused, a pose is
-	    solved and moved in one go (Workspace:BulkMoveTo) only when it jumps,
-	    and between jumps a frame only touches the light.
+	  * It moves, not you, and it is never still: a fine living tremor of the
+	    head and neck on every frame, a slow creep toward the lens, and dry
+	    jerks that snap to a new pose in a few frames (an instant jump with
+	    a frozen face between jumps read as a slideshow, as lag), the eyes on
+	    you the whole time, a tilt no neck allows, then in at you.
+	  * No hitch: the local rig is built ahead of time and reused, and each
+	    frame's pose is solved in one precomputed pass and moved in one call
+	    (Workspace:BulkMoveTo).
 	  * Silence on the hit frame except the hit (ObserverImpact, ObserverScreech
 	    and JumpSting together, loud, through their own group). Nothing else
 	    sounds until the cut. Reduced effects never lowers the hit.
@@ -94,11 +96,14 @@ local function deg(x: number, y: number, z: number): CFrame
 end
 
 --[[
-	What it does, as poses held until the next key: no interpolation, every
-	change is a jump. head / neck multiply onto ScarePose(1) (joint frames:
-	-X pitch leans toward you, Z rolls in the plane of the face). A few
-	deliberate jumps: fast flickering ones read as the game stuttering.
+	What it does: the pose of each key, reached from the previous one in SNAP
+	seconds (a jerk: fast, but drawn on every frame), with a living tremor on
+	top. head / neck multiply onto ScarePose(1) (joint frames: -X pitch leans
+	toward you, Z rolls in the plane of the face).
 ]]
+local SNAP = 0.06
+-- how far it creeps toward the lens while its face is up (studs per second, most)
+local CREEP_SPEED, CREEP_MAX = 0.22, 0.3
 type Key = { at: number, head: CFrame?, neck: CFrame? }
 local DEATH_KEYS: { Key } = {
 	{ at = 0 }, -- the hit: dead level, both eyes on you
@@ -430,16 +435,6 @@ local function moveParts(parts: { BasePart }, cframes: { CFrame })
 	end
 end
 
-local function keyAt(keys: { Key }, t: number): Key
-	local key = keys[1]
-	for _, k in keys do
-		if k.at <= t then
-			key = k
-		end
-	end
-	return key
-end
-
 -- The joint transforms of a key: ScarePose(1) with the key on top.
 local function poseOf(base: { [string]: CFrame }, key: Key): { [string]: CFrame }
 	local transforms = table.clone(base)
@@ -448,6 +443,30 @@ local function poseOf(base: { [string]: CFrame }, key: Key): { [string]: CFrame 
 	end
 	transforms.HeadJoint = (base.HeadJoint or CFrame.identity) * (key.head or CFrame.identity)
 	return transforms
+end
+
+-- The pose at `t`: snapping from the previous key to the current one, and a
+-- tremor of the head and neck that changes on every frame (none on the very
+-- first frame, which is measured).
+local function poseAt(base: { [string]: CFrame }, keys: { Key }, t: number, seed: number): { [string]: CFrame }
+	local i = 1
+	for j, k in keys do
+		if k.at <= t then
+			i = j
+		end
+	end
+	local from, to = poseOf(base, keys[math.max(i - 1, 1)]), poseOf(base, keys[i])
+	local x = math.clamp((t - keys[i].at) / SNAP, 0, 1)
+	x = 1 - (1 - x) ^ 3
+	local out = {}
+	for name, cf in to do
+		out[name] = (from[name] or CFrame.identity):Lerp(cf, x)
+	end
+	local live = math.min(t / 0.08, 1)
+	out.HeadJoint = (out.HeadJoint or CFrame.identity)
+		* deg(math.noise(t * 7, seed) * 2.2 * live, math.noise(t * 6, seed + 3) * 1.6 * live, math.noise(t * 8, seed + 7) * 2.5 * live)
+	out.NeckJoint = (out.NeckJoint or CFrame.identity) * deg(math.noise(t * 1.5, seed + 11) * 3 * live, 0, math.noise(t * 1.2, seed + 13) * 2 * live)
+	return out
 end
 
 ------------------------------------------------------------------------------------
@@ -531,21 +550,18 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 
 	local held, restore
 	local start = os.clock()
-	local shown: Key? = nil
 	local function frame()
 		local t = os.clock() - start
-		local key = keyAt(keys, t)
-		if key ~= shown then
-			-- a jump: the new pose, both eyes on you, the light on its head
-			shown = key
-			local transforms = poseOf(base, key)
-			local headCf = rootCf * ObserverRig.headFromRoot(m, transforms)
-			for k, v in ObserverRig.eyesAt(rig, m, eye, 40, headCf) do
-				transforms[k] = v
-			end
-			moveParts(sr.solve(rootCf, transforms))
-			sr.lightPart.CFrame = headCf * ScareController.Light.offset
+		-- this frame's pose, creeping toward the lens; both eyes on you, the
+		-- light on its head
+		local transforms = poseAt(base, keys, t, seed)
+		local root = CFrame.new(-camCf.LookVector * math.min(t * CREEP_SPEED, CREEP_MAX)) * rootCf
+		local headCf = root * ObserverRig.headFromRoot(m, transforms)
+		for k, v in ObserverRig.eyesAt(rig, m, eye, 40, headCf) do
+			transforms[k] = v
 		end
+		moveParts(sr.solve(root, transforms))
+		sr.lightPart.CFrame = headCf * ScareController.Light.offset
 		-- a bulb that will not quite die: slow, uneven, never a strobe
 		local breathe = if reduced() then 1 else 0.8 + 0.2 * math.clamp(0.5 + math.noise(t * 1.3, seed * 3.1), 0, 1)
 		light.Brightness = ScareController.Light.brightness * breathe

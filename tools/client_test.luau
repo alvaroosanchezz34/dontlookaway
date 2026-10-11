@@ -763,10 +763,20 @@ do
 		Lighting.Ambient = Color3.fromRGB(50, 40, 30)
 		before["Lighting.Ambient"] = tostring(Color3.fromRGB(50, 40, 30))
 		local moved, fovMoved, steps = false, false, 0
+		-- it is never a still picture: its head moves on every frame
+		local lastHead, frozenFrames = nil, 0
 		local deadline = os.clock() + 4
 		while not finished and os.clock() < deadline do
 			frames(1)
 			steps += 1
+			local rig = scareRig()
+			local head = rig and rig:FindFirstChild("Head")
+			if head then
+				if lastHead and head.CFrame == lastHead then
+					frozenFrames += 1
+				end
+				lastHead = head.CFrame
+			end
 			if camera.CFrame ~= seen then
 				moved = true
 			end
@@ -781,6 +791,7 @@ do
 		check(finished, "death " .. label .. " reaches the black screen")
 		check(not moved, "death " .. label .. ": the camera never moved")
 		check(not fovMoved, "death " .. label .. ": the field of view never changed")
+		check(frozenFrames == 0, string.format("death %s: its face moves on every frame (%d frozen frames)", label, frozenFrames))
 		task.wait(0.25)
 		frames(3)
 		check(not ScareController:IsActive() and not State.scareDark, "death " .. label .. " cleans up")
