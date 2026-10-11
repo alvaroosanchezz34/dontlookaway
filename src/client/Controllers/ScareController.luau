@@ -69,10 +69,12 @@ local DEATH_HOLD = 1.25
 local BEAT_HOLD = 0.2
 local FLASH_HOLD = 0.5
 
--- The light on its head (head space: low and to its left, a little forward,
--- so it rakes up one side of the face and the other half stays black).
+-- The light on its head (head space: to its left and a little below, so it
+-- rakes up one side of the face and the other half stays black). Chosen over
+-- a light from straight below (only lights the jaw) and a plain side light
+-- (loses the face) in tools/observer_shot.luau renders.
 ScareController.Light = {
-	offset = CFrame.new(-0.55, -0.8, -0.7),
+	offset = CFrame.new(-0.9, -0.4, -0.45),
 	range = 2.2,
 	brightness = 1.1,
 	color = Color3.fromRGB(196, 212, 255),
