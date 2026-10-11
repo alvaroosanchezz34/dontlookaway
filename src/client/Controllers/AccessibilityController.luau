@@ -1,8 +1,8 @@
 --[[
 	AccessibilityController
 	Applies the presentation settings that are not owned by a single system:
-	  brightness    a gentle user grade (never enough to erase the darkness, never
-	                enough to make it pitch black)
+	  brightness    a small user grade, +-0.04: helps a dark screen, never
+	                erases the dark (LightingService)
 	  colorMode     colour-blind friendly remaps of the UI danger / good colours and
 	                a high-contrast grade
 	  graphics      AUTO / LOW / MEDIUM / HIGH: shadow-casting fixtures and particle
@@ -83,7 +83,7 @@ local function apply()
 	-- brightness 0..1, 0.5 neutral
 	local b = math.clamp(tonumber(s.brightness) or 0.5, 0, 1) - 0.5
 	local mode = PALETTES[s.colorMode] and s.colorMode or "NORMAL"
-	userGrade.Brightness = b * 0.14
+	userGrade.Brightness = b * 0.08
 	userGrade.Contrast = if mode == "HIGH_CONTRAST" then 0.22 else 0
 	userGrade.Saturation = if mode == "HIGH_CONTRAST" then 0.1 else 0
 	local palette = PALETTES[mode]

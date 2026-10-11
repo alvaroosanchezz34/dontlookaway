@@ -18,10 +18,9 @@
 	  4 total     everything off except some red emergency lamps, the beacons
 	              and the battery-backed exit signs
 
-	Never blind: on top of the fixtures, a soft "dark adaptation" light follows the
-	camera. When the lights die it is darkest for a heartbeat, then your eyes
-	adjust over a few seconds and walls, doors, floors and teammates come back as
-	cold silhouettes. The flashlight remains the only way to see detail.
+	Without power the dark is real: no light follows the camera. What you see
+	without the flashlight is what glows (tubes still on, exit signs, beacon
+	domes) and the faint red of the beacons; the flashlight is how you see.
 
 	Lights far from the camera are disabled locally (light LOD) so the building
 	stays fast on phones and consoles; their glowing tubes still read from afar.
@@ -37,11 +36,9 @@
 local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
 local Net = require(ReplicatedStorage.Shared.Net)
-local Util = require(ReplicatedStorage.Shared.Util.Util)
 local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
 local VisualStandards = require(ReplicatedStorage.Shared.VisualStandards)
@@ -53,7 +50,6 @@ local useMain = true
 local EMERGENCY_COLOR = Color3.fromRGB(255, 176, 120)
 local ALARM_COLOR = Color3.fromRGB(255, 64, 52)
 local DARK = Color3.fromRGB(38, 38, 36)
-local ADAPT_COLOR = Color3.fromRGB(168, 184, 222)
 
 type LightEntry = { light: Light, ratio: number, solo: number, main: boolean }
 type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string }
@@ -64,12 +60,6 @@ local beacons: { [Model]: Beacon } = {}
 local signs: { [Model]: PointLight } = {}
 local roomFlicker: { [string]: number } = {}
 local random = Random.new()
-
-local adaptHolder: Part
-local adaptLight: PointLight
-local adaptGrade: ColorCorrectionEffect
-local adaptation = 0 -- 0 = eyes used to light, 1 = fully adjusted to the dark
-local darkness = 0 -- how dark the building is around you right now (0..1)
 
 local function hashFrac(a: number, b: number): number
 	local h = (a * 7919 + b * 104729 + 1013) % 100003
@@ -248,11 +238,11 @@ local function updateBeacons(camPos: Vector3, now: number, dt: number)
 			local on = active and dist < LOD_DISTANCE and not State.scareDark
 			for _, beam in b.beams do
 				beam.Enabled = on
-				beam.Brightness = if strong then 2.2 else 1.3
+				beam.Brightness = if strong then 0.8 else 0.5
 			end
 			if b.glow then
 				b.glow.Enabled = on
-				b.glow.Brightness = if strong then 1.1 else 0.7
+				b.glow.Brightness = if strong then 0.45 else 0.3
 			end
 			if b.dome then
 				b.dome.Material = if active then Enum.Material.Neon else Enum.Material.Glass
@@ -278,44 +268,6 @@ local function updateSigns(camPos: Vector3)
 	end
 end
 
--- How dark is it where the camera is? Counts lit fixtures nearby.
-local function measureDarkness(camPos: Vector3): number
-	if State.round.state == "LOBBY" or State.status == "MENU" then
-		return 0
-	end
-	local litNear = 0
-	for _, info in fixtures do
-		if info.lit and #info.lights > 0 then
-			local d = (info.model:GetPivot().Position - camPos).Magnitude
-			if d < 26 then
-				litNear += (1 - d / 26) * info.level
-			end
-		end
-	end
-	return math.clamp(1 - litNear * 0.9, 0, 1)
-end
-
-local function updateAdaptation(dt: number, camPos: Vector3)
-	local playing = State.status == "ALIVE" or State.status == "DEAD" or State.status == "ESCAPED"
-	local target = if playing then darkness else 0
-	-- eyes go blind instantly but take a few seconds to adjust to the dark
-	if target > adaptation then
-		adaptation += (target - adaptation) * Util.damp(0.55, dt)
-	else
-		adaptation += (target - adaptation) * Util.damp(2.5, dt)
-	end
-	local level = blackoutLevel()
-	local strength = 0.24 + (if level >= 4 then 0.06 else 0)
-	local gamma = State.settings.brightness or 0.5
-	strength *= 0.6 + gamma * 0.8
-	adaptHolder.CFrame = CFrame.new(camPos + Vector3.new(0, 1.2, 0))
-	adaptLight.Enabled = adaptation > 0.02 and not State.scareDark
-	adaptLight.Brightness = adaptation * strength
-	adaptLight.Range = 16 + adaptation * 6
-	adaptGrade.Brightness = adaptation * 0.035 * (0.6 + gamma * 0.8)
-	adaptGrade.Contrast = -adaptation * 0.04
-end
-
 function LightController:FlickerRoom(roomId: string, duration: number)
 	roomFlicker[roomId] = os.clock() + duration
 end
@@ -339,10 +291,6 @@ function LightController:FlickerNear(position: Vector3, radius: number, duration
 	return hits[1] and hits[1].at
 end
 
-function LightController:GetDarkness(): number
-	return darkness
-end
-
 local function applyPowered()
 	local power = Workspace:GetAttribute("Power") == true
 	for _, d in Workspace:GetDescendants() do
@@ -356,29 +304,6 @@ local function applyPowered()
 			d.Color = if power then Color3.fromRGB(46, 62, 56) else Color3.fromRGB(18, 22, 20)
 		end
 	end
-end
-
-function LightController:Init()
-	adaptHolder = Instance.new("Part")
-	adaptHolder.Name = "DarkAdaptation"
-	adaptHolder.Size = Vector3.new(0.2, 0.2, 0.2)
-	adaptHolder.Transparency = 1
-	adaptHolder.Anchored = true
-	adaptHolder.CanCollide = false
-	adaptHolder.CanQuery = false
-	adaptHolder.CanTouch = false
-	adaptHolder.CastShadow = false
-	adaptHolder.Parent = Workspace
-	adaptLight = Instance.new("PointLight")
-	adaptLight.Color = ADAPT_COLOR
-	adaptLight.Shadows = false
-	adaptLight.Range = 16
-	adaptLight.Brightness = 0
-	adaptLight.Enabled = false
-	adaptLight.Parent = adaptHolder
-	adaptGrade = Instance.new("ColorCorrectionEffect")
-	adaptGrade.Name = "DarkAdaptation"
-	adaptGrade.Parent = Lighting
 end
 
 function LightController:Start()
@@ -420,12 +345,10 @@ function LightController:Start()
 	end)
 	-- near fixtures every frame (smooth flicker), far ones a few times a second
 	local farAcc = 0
-	local darkAcc = 0
 	RunService.RenderStepped:Connect(function(dt)
 		local camPos = Workspace.CurrentCamera.CFrame.Position
 		local now = os.clock()
 		farAcc += dt
-		darkAcc += dt
 		local doFar = farAcc > 0.35
 		if doFar then
 			farAcc = 0
@@ -446,11 +369,6 @@ function LightController:Start()
 			end
 		end
 		updateBeacons(camPos, now, dt)
-		if darkAcc > 0.2 then
-			darkAcc = 0
-			darkness = measureDarkness(camPos)
-		end
-		updateAdaptation(dt, camPos)
 	end)
 	-- ambient random flickers on nearby lights (not every light is stable)
 	task.spawn(function()

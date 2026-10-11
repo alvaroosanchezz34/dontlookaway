@@ -5,10 +5,14 @@
 	depth. Per-player effects (fear tint, blur, blink, dark adaptation) are handled
 	on clients.
 
-	Darkness is never black. Every preset keeps a faint, cold ambient floor (the
-	moon through dirty windows, light bleeding from the street), so walls, doors,
-	floors and teammates always read as silhouettes. The flashlight is the main
-	source of detail, never the only source of orientation.
+	Darkness is dark. With power, only the fixtures light anything: each throws a
+	short pool and the space between them is near black. Without power
+	(EMERGENCY) and in a total blackout (BLACKOUT) there is no ambient fill and
+	no light follows the camera: what you see without the flashlight is what
+	glows (tubes still on, exit signs, beacon domes) and the silhouettes right
+	next to you. Low light means you need the flashlight. The only lift is the
+	player's brightness setting (AccessibilityController), kept to a small range
+	so it helps a dark screen without erasing the dark.
 
 	Power
 	  workspace "Power" (bool)        MAIN circuit fixtures need it
@@ -58,13 +62,13 @@ LightingService.Presets = {
 		cc = { Brightness = 0.0, Contrast = 0.14, Saturation = -0.3, TintColor = Color3.fromRGB(226, 234, 255) },
 		atmosphere = { Density = 0.4, Haze = 2.1, Glare = 0, Color = Color3.fromRGB(70, 78, 92), Decay = Color3.fromRGB(36, 40, 50) },
 	},
-	-- main power lost: moonlight, emergency lighting, flashlight
+	-- main power lost: emergency lamps, exit signs, the flashlight
 	EMERGENCY = {
-		Ambient = Color3.fromRGB(24, 26, 33),
-		OutdoorAmbient = Color3.fromRGB(34, 39, 50),
-		ExposureCompensation = 0.4,
-		cc = { Brightness = 0.01, Contrast = 0.14, Saturation = -0.3, TintColor = Color3.fromRGB(228, 236, 248) },
-		atmosphere = { Density = 0.36, Haze = 1.7, Glare = 0, Color = Color3.fromRGB(58, 63, 74), Decay = Color3.fromRGB(28, 31, 38) },
+		Ambient = Color3.fromRGB(5, 5, 7),
+		OutdoorAmbient = Color3.fromRGB(7, 8, 10),
+		ExposureCompensation = 0.05,
+		cc = { Brightness = 0, Contrast = 0.2, Saturation = -0.5, TintColor = Color3.fromRGB(226, 234, 250) },
+		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(14, 15, 18), Decay = Color3.fromRGB(6, 6, 8) },
 	},
 	-- NORMAL: the building with power and no event. The reference for play: a
 	-- near-black corridor where only the fixtures light anything. Each one
@@ -87,13 +91,14 @@ LightingService.Presets = {
 		cc = { Brightness = -0.01, Contrast = 0.18, Saturation = -0.32, TintColor = Color3.fromRGB(232, 236, 248) },
 		atmosphere = { Density = 0.32, Haze = 1.6, Glare = 0, Color = Color3.fromRGB(58, 62, 72), Decay = Color3.fromRGB(28, 30, 36) },
 	},
-	-- a total blackout: the darkest the game ever gets, still never black
+	-- a total blackout: the darkest the game gets. Only what glows and the
+	-- silhouettes right next to you; everything else needs the flashlight
 	BLACKOUT = {
-		Ambient = Color3.fromRGB(19, 20, 27),
-		OutdoorAmbient = Color3.fromRGB(28, 31, 42),
-		ExposureCompensation = 0.45,
-		cc = { Brightness = 0.0, Contrast = 0.18, Saturation = -0.38, TintColor = Color3.fromRGB(236, 226, 228) },
-		atmosphere = { Density = 0.4, Haze = 2, Glare = 0, Color = Color3.fromRGB(52, 50, 58), Decay = Color3.fromRGB(26, 24, 30) },
+		Ambient = Color3.fromRGB(3, 3, 4),
+		OutdoorAmbient = Color3.fromRGB(4, 4, 6),
+		ExposureCompensation = 0.1,
+		cc = { Brightness = 0, Contrast = 0.22, Saturation = -0.5, TintColor = Color3.fromRGB(236, 228, 232) },
+		atmosphere = { Density = 0.2, Haze = 0.1, Glare = 0, Color = Color3.fromRGB(8, 8, 10), Decay = Color3.fromRGB(4, 4, 5) },
 	},
 	ESCAPE = {
 		Ambient = Color3.fromRGB(28, 20, 20),
