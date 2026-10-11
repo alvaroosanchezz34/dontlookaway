@@ -445,6 +445,45 @@ local function poseOf(base: { [string]: CFrame }, key: Key): { [string]: CFrame 
 end
 
 ------------------------------------------------------------------------------------
+-- Profiling (debug): Workspace attribute ScareProfile = true prints, after
+-- each scare, how long every phase took and the worst frame during it
+------------------------------------------------------------------------------------
+
+type Profile = { on: boolean, marks: { { any } }, frames: number, dtSum: number, dtMax: number, enforceMax: number, frameMax: number, held: number }
+
+local function newProfile(): Profile
+	return { on = Workspace:GetAttribute("ScareProfile") == true, marks = {}, frames = 0, dtSum = 0, dtMax = 0, enforceMax = 0, frameMax = 0, held = 0 }
+end
+
+local function mark(prof: Profile, label: string)
+	if prof.on then
+		table.insert(prof.marks, { label, os.clock() })
+	end
+end
+
+local function report(prof: Profile, name: string)
+	if not prof.on or #prof.marks == 0 then
+		return
+	end
+	local parts = {}
+	for i = 2, #prof.marks do
+		table.insert(parts, string.format("%s %.1f ms", prof.marks[i][1], (prof.marks[i][2] - prof.marks[i - 1][2]) * 1000))
+	end
+	print(string.format("[ScareProfile] %s | hit frame: %s | %d properties held", name, table.concat(parts, ", "), prof.held))
+	if prof.frames > 0 then
+		print(string.format(
+			"[ScareProfile] %s | %d frames, average %.1f ms, worst %.1f ms | per frame: enforce worst %.2f ms, pose worst %.2f ms",
+			name,
+			prof.frames,
+			prof.dtSum / prof.frames * 1000,
+			prof.dtMax * 1000,
+			prof.enforceMax * 1000,
+			prof.frameMax * 1000
+		))
+	end
+end
+
+------------------------------------------------------------------------------------
 -- The scare
 ------------------------------------------------------------------------------------
 
@@ -465,12 +504,16 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 	if current then
 		current()
 	end
+	local prof = newProfile()
+	mark(prof, "start")
 	local cam = Registry.CameraController
 	local camera = Workspace.CurrentCamera
 	local camCf = cam:GetCFrame()
 	local fov = camera.FieldOfView
 	local eye = camCf.Position
+	local hadRig = cachedRig
 	local sr = scareRig()
+	mark(prof, if cachedRig == hadRig then "rig (cached)" else "rig (BUILT NOW)")
 	local rig, m, light = sr.model, sr.motors, sr.light
 	local headPart = sr.head
 	local base = ObserverRig.ScarePose(1, 0)
@@ -502,7 +545,9 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 	end
 	local ok, err = pcall(function()
 		held, restore = blackout(eye, { rig })
+		mark(prof, "blackout")
 		frame()
+		mark(prof, "first pose")
 	end)
 	if not ok then
 		if restore then
@@ -517,6 +562,8 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 	cam:SetOverride(name, 50, function()
 		return camCf, fov
 	end)
+	mark(prof, "show")
+	prof.held = #held
 
 	-- what the player sees on the hit frame
 	local anchor = headPart.CFrame * ObserverRig.FaceAnchor
@@ -549,6 +596,7 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 		restore()
 		-- parked for the next scare
 		rig.Parent = nil
+		report(prof, name)
 		if name ~= "Death" then
 			cam:ClearOverride(name)
 		end
@@ -556,12 +604,21 @@ local function present(name: string, keys: { Key }, seed: number, info: { [strin
 			current = nil
 		end
 	end
-	conn = RunService.RenderStepped:Connect(function()
+	conn = RunService.RenderStepped:Connect(function(dt: number)
 		if stopped then
 			return
 		end
+		local t0 = os.clock()
 		enforce(held)
+		local t1 = os.clock()
 		local ok, err = pcall(frame)
+		if prof.on then
+			prof.frames += 1
+			prof.dtSum += dt
+			prof.dtMax = math.max(prof.dtMax, dt)
+			prof.enforceMax = math.max(prof.enforceMax, t1 - t0)
+			prof.frameMax = math.max(prof.frameMax, os.clock() - t1)
+		end
 		if not ok then
 			warn("[ScareController] " .. tostring(err))
 			stop()

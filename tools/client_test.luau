@@ -726,6 +726,8 @@ do
 			table.insert(cases, { variant = "front", pitch = pitch, beat = beat })
 		end
 	end
+	-- the debug profile runs too (prints a report after each scare)
+	workspace:SetAttribute("ScareProfile", true)
 	for i, case in cases do
 		local label = string.format("%s, pitch %d, beat %.1f", case.variant, case.pitch, case.beat)
 		-- the player's view, held by an override just under the death's (no character in Lune)
@@ -789,6 +791,7 @@ do
 		Registry.EffectsController:Fade(0, 0)
 	end
 
+	workspace:SetAttribute("ScareProfile", nil)
 	-- its motion: jumps between held poses, starting on the hit
 	check(#ScareController.DeathKeys >= 5 and ScareController.DeathKeys[1].at == 0, "the death has its keyed motion, starting on the hit")
 
