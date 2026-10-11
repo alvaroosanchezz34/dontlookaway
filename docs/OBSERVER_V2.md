@@ -96,7 +96,9 @@ siguen al jugador.
 - **Instantáneo.** El frame en que llega la muerte ya es el golpe: sin falsa
   calma, sin giros y sin aviso. `ScareController:Death` lo monta todo en la
   misma llamada, antes del siguiente render. La inhalación de aviso que manda
-  el servidor cuando está cerca se queda: es una regla de juego justa.
+  el servidor cuando está cerca se queda: es una regla de juego justa. Pero
+  ya no se planta a tu lado esperando: te pilla entre 0,3 y 0,8 s después de
+  esa inhalación, en cuanto te alcanza (`ObserverService`).
 - **La cámara no se mueve.** Conserva la posición, la orientación (también
   mirando al suelo o al techo) y el FOV de ese frame. No hay temblor ni zoom,
   y el ratón no hace nada (`State.scareDark` congela la entrada y oculta el

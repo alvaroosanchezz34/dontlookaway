@@ -68,7 +68,6 @@ GameConfig.Difficulty = {
 		HintDelay = 70, -- seconds without progress before the first nudge
 		HintMaxLevel = 5,
 		ObserverCunning = 0, -- 0..2: use of darkness, blink steps, mimic frequency
-		WarningTime = 2.2, -- seconds of audible warning before a catch is possible
 		RewardMultiplier = 1,
 		TensionRate = 1, -- multiplier on the director's tension budget refill (how often big events can happen)
 	},
@@ -91,7 +90,6 @@ GameConfig.Difficulty = {
 		HintDelay = 120,
 		HintMaxLevel = 4,
 		ObserverCunning = 1,
-		WarningTime = 1.6,
 		RewardMultiplier = 1.4,
 		TensionRate = 1.15,
 	},
@@ -114,7 +112,6 @@ GameConfig.Difficulty = {
 		HintDelay = 200,
 		HintMaxLevel = 2,
 		ObserverCunning = 2,
-		WarningTime = 1.1,
 		RewardMultiplier = 2,
 		TensionRate = 1.35,
 	},

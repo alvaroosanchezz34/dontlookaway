@@ -14,8 +14,6 @@
 	  REPOSITIONING  moving far away, unseen: a long, even, loping stride
 	  STALKING       closing in: slow, high-kneed, arms hanging, head locked on
 	                 its target
-	  THREATENING    it straightens to its full height, its arms open a little
-	                 and the seam of its face parts: you are about to be caught
 	  ATTACKING      the face splits open, arms reaching (what others see)
 	  (idle)         deep, slow breathing; the head follows you
 	It sheds black ash when it appears or leaves. Mimics give themselves away:
@@ -191,20 +189,6 @@ local function animate(rig: Rig, dt: number)
 	end
 	local speed = Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
 	local head = headToward(rig, root, camPos, dt, alive and dist < 60)
-	if behavior == "THREATENING" then
-		-- it straightens to its full height, arms open, the seam parts
-		set(rig, "Waist", CFrame.Angles(math.rad(10), 0, 0))
-		set(rig, "NeckJoint", CFrame.Angles(math.rad(8), 0, 0))
-		set(rig, "HeadJoint", head)
-		set(rig, "LeftShoulder", CFrame.Angles(math.rad(12), 0, math.rad(-26)))
-		set(rig, "RightShoulder", CFrame.Angles(math.rad(12), 0, math.rad(26)))
-		set(rig, "LeftElbow", CFrame.Angles(math.rad(18), 0, 0))
-		set(rig, "RightElbow", CFrame.Angles(math.rad(18), 0, 0))
-		set(rig, "RootJoint", CFrame.new(0, 0.25, 0))
-		apply(rig, dt, 3)
-		setFace(rig, rig.faceOpen + (0.18 - rig.faceOpen) * (1 - math.exp(-2 * dt)))
-		return
-	end
 	setFace(rig, rig.faceOpen * math.exp(-4 * dt))
 	if speed > 0.6 then
 		local gait = if speed > 13 then "CHASE" elseif behavior == "REPOSITIONING" then "LOPE" else "STALK"

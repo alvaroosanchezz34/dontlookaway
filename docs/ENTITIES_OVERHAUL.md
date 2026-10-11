@@ -126,7 +126,7 @@ Observer con la misma función, también lo usa.
 | OBSERVING | Lo miran: inmóvil; solo los ojos te siguen. |
 | REPOSITIONING | Lejos: zancada larga y regular. |
 | STALKING | Se acerca despacio, con la cabeza fija en ti. |
-| THREATENING | Te alcanza: se yergue, abre un poco los brazos, la costura se entreabre y frena. Es el aviso antes del ataque. |
+| ~~THREATENING~~ | Retirado (rama `fixes/vega`): plantarse a tu lado antes de atacar hacía el ataque predecible. El único aviso es la inhalación; te pilla entre 0,3 y 0,8 s después de oírla, en cuanto te alcanza. |
 | ATTACKING | El ataque. |
 | RECOVERY | Tras desatascarse. |
 

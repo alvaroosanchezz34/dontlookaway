@@ -20,8 +20,10 @@
 	Fairness
 	  * it is never seen moving or teleporting: every jump happens unseen
 	  * a hunt starts out of sight, at a distance, with a real path to its target
-	  * before it can catch anyone it must have been close for a few seconds
-	    (difficulty WarningTime): you always hear it breathe first
+	  * you always hear it breathe first: within 14 studs it inhales, and it
+	    can only catch you a short random moment (0.3-0.8 s) after you heard
+	    it. Once you have, it takes you the instant it reaches you: it never
+	    stands at your side counting down (that made the catch predictable)
 	  * the dark helps it (faster, bolder) and blackouts invite it out
 	Catches play one of several death cinematics chosen from the situation:
 	behind, beside, in front, in the dark, through a door, in a mirror, or
@@ -79,8 +81,8 @@ local behavior: string? = nil
 local align: AlignOrientation? = nil
 local attackLock = false
 local active = false
-local closeTime: { [Player]: number } = {}
-local warned: { [Player]: number } = {}
+local warned: { [Player]: number } = {} -- when it last breathed near them
+local strikeAfter: { [Player]: number } = {} -- seconds after that breath it may strike
 local lastVariant: { [Player]: string } = {}
 local lastSequence: { [Player]: string } = {}
 -- which death cinematics fit each situation (see ScareController)
@@ -136,7 +138,7 @@ local function ensureModel()
 end
 
 -- What it is doing, for the clients' animation (ObserverFX): OBSERVING,
--- REPOSITIONING, STALKING, THREATENING, ATTACKING, RECOVERY (or nil).
+-- REPOSITIONING, STALKING, ATTACKING, RECOVERY (or nil).
 local function setBehavior(b: string?)
 	if behavior == b then
 		return
@@ -671,7 +673,6 @@ local function attack(victim: Player)
 	Registry.AnalyticsService:Event(victim, "ObserverCatch", 1, { variant = info.variant })
 	task.delay(3, function()
 		attackLock = false
-		closeTime[victim] = 0
 		if mode == "escape" then
 			-- keep coming during the escape, but from somewhere else
 			park()
@@ -1092,33 +1093,23 @@ local function tick(dt: number)
 	local targetDist = (tr.Position - root.Position).Magnitude
 	setState(if targetDist < 40 then S.Hunting else S.Moving)
 	local cfg = Registry.RoundService:GetDifficultyConfig()
-	-- THREATENING: someone is within reach and has been warned for a while:
-	-- it straightens up and slows (the clear signal before a catch)
-	local threatening = false
-	for _, p in Registry.PlayerService:GetAlive() do
-		local pr = Util.getRoot(p)
-		if pr and (pr.Position - root.Position).Magnitude < 14 and (closeTime[p] or 0) >= (cfg.WarningTime or 1.5) * 0.5 then
-			threatening = true
-		end
-	end
-	setBehavior(if threatening then "THREATENING" elseif targetDist < 40 then "STALKING" else "REPOSITIONING")
+	-- no tell before a catch: it keeps coming at the same gait
+	setBehavior(if targetDist < 40 then "STALKING" else "REPOSITIONING")
 	-- warnings first: you always hear it before it can reach you
 	for _, p in Registry.PlayerService:GetAlive() do
 		local pr = Util.getRoot(p)
 		if pr then
 			local d = (pr.Position - root.Position).Magnitude
-			if d < 14 then
-				closeTime[p] = (closeTime[p] or 0) + dt
-				if (warned[p] or 0) < os.clock() - 8 then
-					warned[p] = os.clock()
-					Registry.AudioService:PlayAtFor({ p }, "ObserverInhale", headPos(), { volume = 1 })
-					Net.fire(p, "Effect", { name = "ObserverClose" })
-				end
-			else
-				closeTime[p] = math.max(0, (closeTime[p] or 0) - dt * 0.5)
+			if d < 14 and (warned[p] or 0) < os.clock() - 8 then
+				warned[p] = os.clock()
+				strikeAfter[p] = Registry.HorrorDirector:Rng():Number(0.3, 0.8)
+				Registry.AudioService:PlayAtFor({ p }, "ObserverInhale", headPos(), { volume = 1 })
+				Net.fire(p, "Effect", { name = "ObserverClose" })
 			end
-			-- catch anyone close who is not looking at it, once they have been warned
-			if d <= GameConfig.Observer.CatchDistance + 1.5 and (closeTime[p] or 0) >= (cfg.WarningTime or 1.5) then
+			-- catch anyone in reach who has heard it breathe: at once, never
+			-- standing beside them waiting
+			local heard = warned[p] and os.clock() - warned[p] >= (strikeAfter[p] or 0.5)
+			if d <= GameConfig.Observer.CatchDistance + 1.5 and heard then
 				attack(p)
 				return
 			end
@@ -1164,7 +1155,6 @@ function ObserverService:BeginRound()
 	active = true
 	metThisRound = {}
 	totalStare = {}
-	closeTime = {}
 	guardianAwarded = {}
 	stareTime = {}
 	blinkingUntil = {}
@@ -1290,8 +1280,8 @@ function ObserverService:Start()
 		blinkingUntil[player] = nil
 		metThisRound[player] = nil
 		guardianAwarded[player] = nil
-		closeTime[player] = nil
 		warned[player] = nil
+		strikeAfter[player] = nil
 		lastVariant[player] = nil
 		lastSequence[player] = nil
 		if target == player then
