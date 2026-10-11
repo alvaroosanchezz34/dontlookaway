@@ -56,7 +56,7 @@ local function deathSequence(payload)
 	Registry.AudioController:PlayUI("DeathHit")
 	fx:Glitch(1, 0.4)
 	if not State.settings.reducedEffects then
-		fx:Flash(Color3.fromRGB(120, 20, 20), 0.35, 0.6)
+		fx:Flash(Kit.C.DangerDim, 0.35, 0.6)
 	end
 	cam:Shake(1)
 	fx:Blur(10, 1.2)

@@ -21,7 +21,27 @@ Theme.Colors = {
 	Stamina = Color3.fromRGB(200, 198, 190),
 	Battery = Color3.fromRGB(226, 220, 196),
 	Accent = Color3.fromRGB(140, 186, 214), -- the one cold accent: selection, owned, progress
+	Warning = Color3.fromRGB(214, 190, 140), -- a caution, not yet danger
+	Lost = Color3.fromRGB(196, 170, 166), -- the title of an ending nobody walked away from
+	-- paper in the world's hands: notes, documents, the archive
+	Paper = Color3.fromRGB(214, 206, 184),
+	PaperShade = Color3.fromRGB(205, 196, 176),
+	Ink = Color3.fromRGB(34, 30, 26),
+	InkFaint = Color3.fromRGB(90, 84, 76),
+	Archive = Color3.fromRGB(196, 178, 140),
+	-- devices: the keypad and the readouts of the field tools
+	Device = Color3.fromRGB(34, 36, 38),
+	DeviceEdge = Color3.fromRGB(70, 72, 74),
+	Key = Color3.fromRGB(176, 176, 170),
+	KeyOk = Color3.fromRGB(170, 196, 170),
+	KeyClear = Color3.fromRGB(196, 170, 160),
+	KeyInk = Color3.fromRGB(20, 20, 20),
+	LcdBack = Color3.fromRGB(20, 32, 26),
+	Lcd = Color3.fromRGB(150, 230, 170),
 }
+
+-- an LCD's "wrong" is the danger red, lit
+Theme.Colors.LcdError = Theme.Colors.Danger:Lerp(Color3.new(1, 1, 1), 0.4)
 
 Theme.Fonts = {
 	Title = Font.fromEnum(Enum.Font.GothamBlack),

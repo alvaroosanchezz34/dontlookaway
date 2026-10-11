@@ -148,7 +148,7 @@ local function updateViewmodel(dt: number)
 		for _, d in m:GetChildren() do
 			local bar = d:GetAttribute("Bar")
 			if bar and d:IsA("BasePart") then
-				d.Color = if bar <= meterBarsValue then (if bar >= 4 then Color3.fromRGB(230, 90, 70) else Color3.fromRGB(120, 230, 140)) else Color3.fromRGB(50, 60, 50)
+				d.Color = if bar <= meterBarsValue then (if bar >= 4 then C.LcdError else C.Lcd) else C.LcdBack
 			end
 		end
 	elseif viewmodelId == "SIGNAL_TRACKER" then
@@ -182,7 +182,7 @@ local function updateRadio()
 				local dist = (root.Position - camera.CFrame.Position).Magnitude
 				local x = viewport.X / 2 + math.sin(angle) * viewport.X * 0.4
 				local y = viewport.Y / 2 - math.cos(angle) * viewport.Y * 0.38
-				local chip = Kit.text({ Text = string.format("%s  %dm", string.upper(p.DisplayName), math.floor(dist / 3.5)), Size = UDim2.fromOffset(180, 20), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(x, y), TextXAlignment = Enum.TextXAlignment.Center, FontFace = Kit.F.Mono, TextSize = 13, TextColor3 = Color3.fromRGB(150, 230, 170), TextStrokeTransparency = 0.5, Parent = radioLayer })
+				local chip = Kit.text({ Text = string.format("%s  %dm", string.upper(p.DisplayName), math.floor(dist / 3.5)), Size = UDim2.fromOffset(180, 20), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(x, y), TextXAlignment = Enum.TextXAlignment.Center, FontFace = Kit.F.Mono, TextSize = 13, TextColor3 = C.Lcd, TextStrokeTransparency = 0.5, Parent = radioLayer })
 				chip.ZIndex = 3
 			end
 		end

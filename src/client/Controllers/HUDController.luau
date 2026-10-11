@@ -227,7 +227,7 @@ function HUDController:SoundIndicator(position: Vector3, text: string)
 end
 
 function HUDController:Toast(text: string, kind: string?, sub: string?)
-	local color = if kind == "danger" then C.Danger elseif kind == "warning" then Color3.fromRGB(214, 190, 140) elseif kind == "team" then Color3.fromRGB(190, 206, 220) else C.Text
+	local color = if kind == "danger" then C.Danger elseif kind == "warning" then C.Warning elseif kind == "team" then C.Accent else C.Text
 	local toast = Kit.frame({ Size = UDim2.fromOffset(560, if sub then 52 else 36), BackgroundColor3 = C.Black, BackgroundTransparency = 0.45, Parent = toastList })
 	Kit.corner(toast, 4)
 	local label = Kit.text({ Text = text, Size = UDim2.new(1, -24, 0, 30), Position = UDim2.fromOffset(12, 3), TextXAlignment = Enum.TextXAlignment.Center, FontFace = Kit.F.Heading, TextSize = 17, TextColor3 = color, Parent = toast })
@@ -273,10 +273,10 @@ function HUDController:NoteHint(text: string, duration: number?)
 	if holder then
 		holder:Destroy()
 	end
-	local note = Kit.frame({ Name = "NoteHint", Size = UDim2.fromOffset(470, 0), AutomaticSize = Enum.AutomaticSize.Y, Position = UDim2.fromOffset(40, 300), BackgroundColor3 = Color3.fromRGB(214, 206, 184), BackgroundTransparency = 0.12, Parent = gui })
+	local note = Kit.frame({ Name = "NoteHint", Size = UDim2.fromOffset(470, 0), AutomaticSize = Enum.AutomaticSize.Y, Position = UDim2.fromOffset(40, 300), BackgroundColor3 = C.Paper, BackgroundTransparency = 0.12, Parent = gui })
 	Kit.corner(note, 3)
 	Kit.padding(note, 10, 14)
-	local label = Kit.text({ Text = text, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, FontFace = Kit.F.Type, TextSize = 17, TextColor3 = Color3.fromRGB(34, 30, 26), TextWrapped = true, Parent = note })
+	local label = Kit.text({ Text = text, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, FontFace = Kit.F.Type, TextSize = 17, TextColor3 = C.Ink, TextWrapped = true, Parent = note })
 	note.BackgroundTransparency = 1
 	label.TextTransparency = 1
 	Kit.tween(note, 0.5, { BackgroundTransparency = 0.12 })
@@ -382,7 +382,7 @@ local function renderObjectives()
 		local row = Kit.frame({ Size = UDim2.fromOffset(460, if item.primary then 28 else 24), BackgroundTransparency = 1, LayoutOrder = i, Parent = objectivesFrame })
 		if item.hint then
 			-- a soft-guidance line: where to go, in the notebook's hand
-			Kit.text({ Text = item.text, Size = UDim2.new(1, -22, 1, 0), Position = UDim2.fromOffset(22, 0), FontFace = Kit.F.Type, TextSize = 15, TextColor3 = Color3.fromRGB(214, 206, 184), TextStrokeTransparency = 0.7, Parent = row })
+			Kit.text({ Text = item.text, Size = UDim2.new(1, -22, 1, 0), Position = UDim2.fromOffset(22, 0), FontFace = Kit.F.Type, TextSize = 15, TextColor3 = C.Paper, TextStrokeTransparency = 0.7, Parent = row })
 			continue
 		end
 		local box = Kit.frame({ Size = UDim2.fromOffset(10, 10), Position = UDim2.new(0, 0, 0.5, -5), BackgroundColor3 = if item.done then C.Text else C.Panel, BackgroundTransparency = if item.done then 0.1 else 0.5, Parent = row })
@@ -540,11 +540,11 @@ function HUDController:Start()
 		elseif p.type == "cosmetic" then
 			self:Toast("Unlocked: " .. (p.name or ""), "info")
 		elseif p.type == "lore" then
-			self:Card("ARCHIVE  ·  " .. tostring(p.category or ""), p.name or "", string.format("%d / %d entries  ·  read it again at the Field Office", p.found or 0, p.total or 0), Color3.fromRGB(196, 178, 140))
+			self:Card("ARCHIVE  ·  " .. tostring(p.category or ""), p.name or "", string.format("%d / %d entries  ·  read it again at the Field Office", p.found or 0, p.total or 0), C.Archive)
 		elseif p.type == "challenge" then
 			self:Card("CHALLENGE COMPLETE", p.name or "", string.format("+%d ECHOES   +%d XP", p.echoes or 0, p.xp or 0), C.Good)
 		elseif p.type == "equipment" then
-			self:Card("NEW EQUIPMENT", p.name or "", p.description, Color3.fromRGB(150, 190, 230))
+			self:Card("NEW EQUIPMENT", p.name or "", p.description, C.Accent)
 		end
 	end)
 	Net.event("Caption").OnClientEvent:Connect(function(p)
