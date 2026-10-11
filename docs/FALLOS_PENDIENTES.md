@@ -68,38 +68,32 @@ Observer: subir desde tu cuenta (o la del grupo dueño del juego)
 3. Para descartarlo: comenta la línea 173 de `CameraController` y gira
    andando. Si el temblor desaparece (aunque el cuerpo ya no gire), es eso.
 
-## 2. La luz de los blackouts
+## 2. La luz de los blackouts — ARREGLADO (`54096d0`)
 
-**Dónde**
+**Visto en Studio (antes):** en un apagón de nivel 4, sin linterna, el pasillo
+entero se leía con claridad, todo teñido de rojo. La linterna apenas cambiaba
+nada.
 
-- `src/client/Controllers/LightController.luau:298-317`
-  (`updateAdaptation`) y `:374`: una `PointLight` azul fría de hasta 22 studs
-  sigue a la cámara (1,2 studs por encima) y no proyecta sombras.
-- `src/client/Controllers/LightController.luau:193-200`: la luz de
-  emergencia pasa a rojo y pulsa.
-- `src/client/Controllers/LightController.luau:240-267` y
-  `src/server/Map/Props.luau:714-727`: balizas giratorias con dos focos rojos
-  de 22 studs sin sombras.
-- `src/server/Services/LightingService.luau:90-96`: el preset `BLACKOUT`
-  tiene ambiente (19, 20, 27) y exposición +0,45.
+**Causa:**
 
-**Causa probable**
+- la luz de adaptación: una `PointLight` sin sombras de hasta 22 studs que
+  seguía a la cámara;
+- el preset `BLACKOUT`, con ambiente (19, 20, 27) y exposición +0,45;
+- los focos de las balizas a 2,2.
 
-- La «adaptación a la oscuridad» es un halo plano que va contigo y atraviesa
-  paredes porque no tiene sombras. Ilumina igual el suelo y las paredes a tu
-  alrededor, en cualquier habitación. No parece luz de nada.
-- Los focos rojos de las balizas tampoco tienen sombras: barren a través de
-  los muros.
-- La exposición alta del preset aclara el negro y lo vuelve gris.
+**Arreglo:**
 
-**Cómo comprobarlo**
+- `LightController.luau`: fuera la luz de adaptación y su grade. Las balizas
+  bajan a 0,8 / 0,5 (`:241`, `:245`).
+- `LightingService.luau:66` y `:96`: `EMERGENCY` y `BLACKOUT` sin ambiente de
+  relleno, sin subida de exposición y sin bruma gris.
+- `AccessibilityController.luau:86`: el ajuste de brillo sigue funcionando,
+  en ±0,04.
 
-1. Lanza un apagón de nivel 4 con la herramienta de admin y quédate quieto
-   en una sala con la linterna apagada.
-2. En el Explorer, desactiva `Workspace.DarkAdaptation.PointLight`. Si el
-   halo que te sigue desaparece y el apagón se ve mejor, es eso.
-3. Junto a una pared con una baliza al otro lado: si ves la luz roja girar a
-   tu lado de la pared, son los focos sin sombras.
+**Ahora:** sin linterna solo se ven los tubos que quedan encendidos, los
+rótulos de salida, las cúpulas de las balizas y las siluetas más cercanas.
+Hace falta la linterna. La batería no cambia; en NIGHTMARE queda justa
+(unos 11 min de luz continua con todas las pilas encontradas).
 
 ## 3. Gráficos de plástico en casi todas las habitaciones
 
@@ -146,39 +140,26 @@ son otros y la piel también.
 
 No he rediseñado nada más.
 
-## 5. Sombras raras en el suelo durante los blackouts
+## 5. Sombras raras en el suelo durante los blackouts — ARREGLADO (`a0e2354`)
 
-**Dónde**
+**Causa demostrada:** tu propio cuerpo oculto. Medido en Studio durante un
+apagón de nivel 4:
 
-- `src/client/Controllers/CameraController.luau:121-131`
-  (`hideCharacter`): tu propio cuerpo se oculta con
-  `LocalTransparencyModifier`.
-- `src/client/Controllers/FlashlightController.luau:166` y `:311`, `:320`:
-  la linterna sale de debajo y a la derecha de la cámara, con sombras.
-- `src/client/Controllers/LightController.luau:216`: las luces se encienden
-  y apagan de golpe al cruzar la distancia de LOD.
-- `src/server/Services/LightingService.luau:125`: `ShadowSoftness = 0.15`,
-  sombras muy duras.
+- las únicas luces con sombras encendidas eran las dos de tu linterna
+  (`Core` y `Spill`). Las de emergencia, las balizas, la luna y la luz de
+  adaptación tienen `Shadows = false`, así que no pueden crear sombras;
+- quieto, ninguna luz entró ni salió del LOD (0 cambios en 4 s);
+- `LocalTransparencyModifier` oculta el cuerpo pero no quita su sombra. Las
+  17 piezas del personaje tenían `CastShadow = true`. Al mirar al suelo
+  (-65°), la cabeza invisible tapaba el 33 % del haz de la linterna y dejaba
+  una mancha oscura en el suelo que se movía contigo.
 
-**Causa probable**
+**Arreglo:** `CameraController.luau:131`: las piezas ocultas tienen
+`CastShadow = false`. La propiedad no se replica, así que tus compañeros
+siguen viendo tu sombra.
 
-- Ocultar el personaje con `LocalTransparencyModifier` no siempre quita su
-  sombra. Con la linterna (con sombras) saliendo a la altura de la mano, tu
-  cuerpo invisible puede proyectar una mancha oscura en el suelo que se mueve
-  contigo.
-- En un apagón, la linterna es casi la única luz con sombras, así que
-  cualquier sombra suya destaca.
-- Además, las luces que entran y salen del LOD hacen aparecer y desaparecer
-  sombras de golpe.
-
-**Cómo comprobarlo**
-
-1. Apagón de nivel 4, linterna encendida, mira al suelo y anda. Si ves una
-   silueta oscura que te sigue, es tu propio cuerpo.
-2. Para confirmarlo: pon `CastShadow = false` en las piezas de tu personaje
-   desde la consola y repite.
-3. Si las sombras saltan al moverte por un pasillo largo, es el LOD de luces
-   (`LightController`, `LOD_DISTANCE`).
+**Comprobado en Studio:** 0 piezas del cuerpo con sombra, y 0 % del haz
+tapado a -65°.
 
 ## 6. Texturas de plástico en las salas
 
