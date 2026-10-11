@@ -411,7 +411,8 @@ end
 local function buildMain()
 	mainMenu = Kit.frame({ Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = menuGui })
 	local shade = Kit.frame({ Size = UDim2.fromScale(0.55, 1), BackgroundColor3 = Color3.new(), Parent = mainMenu })
-	Kit.new("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 1) }), Parent = shade })
+	-- dark enough behind the title to read it, light enough to see the room
+	Kit.new("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1) }), Parent = shade })
 	title = Kit.text({ Text = GameConfig.GameName, Size = UDim2.fromOffset(900, 96), Position = UDim2.fromOffset(110, 170), FontFace = Kit.F.Title, TextSize = 84, Parent = mainMenu })
 	Kit.text({ Text = GameConfig.Tagline, Size = UDim2.fromOffset(900, 30), Position = UDim2.fromOffset(114, 266), FontFace = Kit.F.Light, TextSize = 22, TextColor3 = C.TextDim, Parent = mainMenu })
 	local buttons = Kit.frame({ Name = "Buttons", Size = UDim2.fromOffset(320, 420), Position = UDim2.fromOffset(110, 360), BackgroundTransparency = 1, Parent = mainMenu })

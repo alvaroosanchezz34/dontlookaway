@@ -121,6 +121,16 @@ VisualStandards.Moonlight = {
 	wash = { brightness = 0.2, range = 18, angle = 50 },
 }
 
+-- The main menu (MenuLook, client only): a dim grey light with a source you
+-- can see (bare bulbs in the shots), the cold, nearly colourless grade, and
+-- a little more exposure than the building in play. Tenuous, never bright.
+VisualStandards.MenuLook = {
+	ambient = Color3.fromRGB(34, 34, 36),
+	outdoorAmbient = Color3.fromRGB(36, 38, 42),
+	exposure = 1.0,
+	cc = { Brightness = 0.04, Contrast = 0.06, Saturation = -0.7, TintColor = Color3.fromRGB(236, 238, 244) },
+}
+
 VisualStandards.Quality = {
 	[1] = { lightLod = 70, secondary = false, detailLod = 40, shadowLights = 2 },
 	[2] = { lightLod = 95, secondary = true, detailLod = 70, shadowLights = 10 },

@@ -989,9 +989,25 @@ fire("RoundState", { state = "LOBBY", difficulty = "NORMAL", seed = 7, elapsed =
 localPlayer:SetAttribute("Status", "LOBBY")
 frames(5)
 
--- the menu cinematic again
-localPlayer:SetAttribute("Status", "MENU")
-frames(5)
+-- the menu cinematic again, with its own light (MenuLook)
+do
+	local VS = requireModule(RS.Shared.VisualStandards)
+	local Lighting = game:GetService("Lighting")
+	local before = Lighting.ExposureCompensation
+	localPlayer:SetAttribute("Status", "MENU")
+	frames(5)
+	local lights = workspace:FindFirstChild("MenuLights")
+	check(Registry.MenuLook:IsActive(), "the menu has its own light")
+	check(lights ~= nil and #lights:GetChildren() >= 4, "bare bulbs hang in the menu's shots")
+	check(math.abs(Lighting.ExposureCompensation - VS.MenuLook.exposure) < 1e-3, "the menu's exposure is applied")
+	check(Lighting:FindFirstChild("MenuGrade") ~= nil, "the menu's grade is on")
+	localPlayer:SetAttribute("Status", "LOBBY")
+	frames(3)
+	check(workspace:FindFirstChild("MenuLights") == nil and Lighting:FindFirstChild("MenuGrade") == nil, "no menu light is left behind")
+	check(math.abs(Lighting.ExposureCompensation - before) < 1e-3, "the server's exposure is back")
+	localPlayer:SetAttribute("Status", "MENU")
+	frames(5)
+end
 
 section("click every button")
 local clicked = 0
