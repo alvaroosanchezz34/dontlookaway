@@ -1813,6 +1813,19 @@ do
 		"Scene_Campaign04_ThisFrameShouldNotExist",
 		"Scene_Campaign05_ItHasSeenYou",
 	}
+	-- who may open it: anyone pressing Play in Studio (user- or group-owned
+	-- place), nobody on a public server
+	do
+		local Access = requireModule(RS.Marketing.MarketingAccess)
+		local Config = requireModule(RS.Marketing.MarketingConfig)
+		local groupStudio = { studio = true, privateServerId = "", privateServerOwnerId = 0, creatorType = roblox.Enum.CreatorType.Group, creatorId = 555 }
+		local userStudio = { studio = true, privateServerId = "", privateServerOwnerId = 0, creatorType = roblox.Enum.CreatorType.User, creatorId = 42 }
+		local publicServer = { studio = false, privateServerId = "", privateServerOwnerId = 0, creatorType = roblox.Enum.CreatorType.User, creatorId = 42 }
+		check(Access.isAuthorized(987654, Config, groupStudio), "marketing access: a developer in Studio on a group-owned place")
+		check(Access.isAuthorized(987654, Config, userStudio), "marketing access: a collaborator in Studio on a user-owned place")
+		check(not Access.isAuthorized(42, Config, publicServer), "marketing access: never on a public server, not even the owner")
+		check(not Access.isAuthorized(987654, Config, publicServer), "marketing access: never on a public server")
+	end
 	-- the seeded random source repeats
 	Rng.seed(7)
 	local a1, a2 = Rng:NextNumber(), Rng:NextInteger(1, 100)

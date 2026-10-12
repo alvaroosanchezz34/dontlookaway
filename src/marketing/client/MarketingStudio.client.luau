@@ -36,6 +36,7 @@ if not granted() then
 		task.wait(0.25)
 	end
 	if not granted() then
+		warn("[Marketing] Marketing Studio is not enabled for this account here (UserId " .. tostring(player.UserId) .. "). Add it to MarketingConfig.AdminUserIds, or check MarketingConfig.AllowEveryoneInStudio.")
 		return
 	end
 end

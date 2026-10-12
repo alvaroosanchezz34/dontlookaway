@@ -65,8 +65,11 @@ MarketingConfig.AdminUserIds = { 123456789 }
 
 Ya están autorizados sin añadir nada:
 
+- **en Studio, quien pulse Play** (para abrir el place en Studio hace falta permiso de edición), aunque el place sea de un grupo (`AllowEveryoneInStudio`, la misma regla que el panel de admin F8);
 - el propietario de la experiencia (si es de un usuario);
 - los jugadores de prueba de Studio (Test → Clients and Servers).
+
+Si no se abre, mira la salida: `[Marketing] Marketing Studio ready` significa que está cargado (F7, F6 o el botón 🎬 abajo a la derecha); `[Marketing] Marketing Studio is not enabled for this account here` dice qué UserId añadir.
 
 ## 3. Ejecutar Scene01 en Studio
 

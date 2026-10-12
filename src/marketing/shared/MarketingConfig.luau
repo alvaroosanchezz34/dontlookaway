@@ -25,6 +25,10 @@ MarketingConfig.AdminUserIds = {}
 MarketingConfig.AllowPlaceOwner = true
 -- Studio "local server" test players have UserIds <= 0.
 MarketingConfig.AllowStudioTestPlayers = true
+-- In Studio, whoever presses Play is a developer (opening the place in Studio
+-- needs edit access), whatever owns the place, a user or a group. Same rule as
+-- the admin panel (F8).
+MarketingConfig.AllowEveryoneInStudio = true
 
 -- Panel
 MarketingConfig.ToggleKey = Enum.KeyCode.F7

@@ -60,6 +60,9 @@ function MarketingAccess.isAuthorized(userId: number, config, env): boolean
 	if config.AllowPlaceOwner and env.creatorType == Enum.CreatorType.User and userId == env.creatorId and userId > 0 then
 		return true
 	end
+	if env.studio and config.AllowEveryoneInStudio then
+		return true
+	end
 	if env.studio and config.AllowStudioTestPlayers and userId <= 0 then
 		return true
 	end
