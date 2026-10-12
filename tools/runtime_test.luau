@@ -2219,6 +2219,13 @@ do
 	check(string.find(obs, "mode == nil or mode == \"distortion\"", 1, true) ~= nil, "only its borrower can give it back")
 	check(string.find(Server.Services.AnomalyService.Source, "DistortionService:IsResidue", 1, true) ~= nil, "reports know about a distortion's traces")
 	check(string.find(Server.Services.PingService.Source, "DistortionService:IsBusy", 1, true) ~= nil, "no pings from inside a distortion")
+	-- the catch: the victim's screen hides it before it is put beside them
+	local attackBody = string.match(obs, "local function attack%(victim: Player%)(.-)\nend\n")
+	local caughtAt = attackBody and string.find(attackBody, "name = \"Caught\"", 1, true)
+	local deathPivot = attackBody and string.find(attackBody, "-- where everyone else sees it standing", 1, true)
+	check(caughtAt ~= nil and deathPivot ~= nil and caughtAt < deathPivot, "the victim is told to hide it before it is moved beside them")
+	local dsrc = Server.Services.DistortionService.Source
+	check(string.find(dsrc, "busyUI[player] and not forced", 1, true) ~= nil, "an admin test is not blocked by the admin panel itself")
 end
 
 section("summary")

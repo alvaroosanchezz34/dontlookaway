@@ -681,6 +681,18 @@ end
 	`sequence` is only echoed in the report. Calls `done()` once the screen
 	is black.
 ]]
+-- Hides the real Observer on this screen at once (the server is about to
+-- put it beside you for the others to see): the catch shows nothing until
+-- the cinematic. Comes back on its own if no cinematic follows.
+function ScareController:HideServerObserver(seconds: number)
+	setServerObserverHidden(true)
+	task.delay(seconds, function()
+		if not current then
+			setServerObserverHidden(false)
+		end
+	end)
+end
+
 function ScareController:Death(payload, done: () -> ())
 	local fx = Registry.EffectsController
 	local audio = Registry.AudioController

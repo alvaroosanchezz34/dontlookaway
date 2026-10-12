@@ -285,6 +285,13 @@ handlers.WrongRoom = function()
 	end)
 end
 
+-- caught: nothing of it on your screen until the death cinematic
+handlers.Caught = function()
+	if Registry.ScareController then
+		Registry.ScareController:HideServerObserver(6)
+	end
+end
+
 handlers.DustBurst = function(p)
 	if p.at then
 		particleBurst(p.at, Color3.fromRGB(150, 146, 136), 40, 6, 0.25)

@@ -648,6 +648,10 @@ local function attack(victim: Player)
 		end)
 		return
 	end
+	-- the victim must never see it being put in place beside them: their
+	-- screen hides it first (this cue arrives before the move replicates),
+	-- then the death cinematic plays all at once
+	Net.fire(victim, "Effect", { name = "Caught" })
 	local info = { variant = "behind" }
 	if vroot then
 		local variant, data, lookDir = chooseVariant(victim, vroot)

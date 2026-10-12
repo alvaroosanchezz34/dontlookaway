@@ -190,7 +190,8 @@ function DistortionService:PlayerAllows(player: Player, def: any, forced: boolea
 	if Registry.ObserverService:ProximityLevel(player) > 1 then
 		return false, "The Observer is near them"
 	end
-	if busyUI[player] then
+	-- (an admin test is started from the admin panel, itself a menu)
+	if busyUI[player] and not forced then
 		return false, "a menu, puzzle or note is open"
 	end
 	if Registry.InteractionService.IsHolding and Registry.InteractionService:IsHolding(player) then
