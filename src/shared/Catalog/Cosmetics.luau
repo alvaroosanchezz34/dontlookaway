@@ -8,6 +8,7 @@
 		level      level required (free once reached)
 		achievement awarded by an achievement
 		pass       requires a game pass key from GameConfig.GamePasses
+		premium    sold as a Developer Product (Config/Monetization key)
 		default    owned by everyone
 ]]
 
@@ -38,6 +39,8 @@ Cosmetics.List = {
 	{ id = "FL_SILVER", category = "FLASHLIGHT", name = "Silver Lantern", pass = "VIP", light = Color3.fromRGB(246, 246, 255), body = Color3.fromRGB(190, 190, 196) },
 	{ id = "FL_NOIR", category = "FLASHLIGHT", name = "Noir", pass = "FlashlightCollection", light = Color3.fromRGB(250, 250, 250), body = Color3.fromRGB(12, 12, 12) },
 	{ id = "FL_ROSE", category = "FLASHLIGHT", name = "Faded Rose", pass = "FlashlightCollection", light = Color3.fromRGB(255, 226, 226), body = Color3.fromRGB(120, 80, 84) },
+	{ id = "FL_CANDLE", category = "FLASHLIGHT", name = "Candlelight", premium = "SKIN_CANDLE", light = Color3.fromRGB(255, 200, 140), body = Color3.fromRGB(96, 62, 34) },
+	{ id = "FL_ASHEN", category = "FLASHLIGHT", name = "Ashen", premium = "SKIN_ASHEN", light = Color3.fromRGB(232, 240, 255), body = Color3.fromRGB(58, 56, 54) },
 
 	-- Beam effects
 	{ id = "BM_CLEAN", category = "BEAM", name = "Clean Beam", default = true, effect = "clean" },
@@ -74,6 +77,7 @@ Cosmetics.List = {
 	{ id = "TI_TENANT", category = "TITLE", name = "Tenant", price = 500 },
 	{ id = "TI_UNSEEN", category = "TITLE", name = "Unseen", level = 25 },
 	{ id = "TI_VIP", category = "TITLE", name = "Patron", pass = "VIP" },
+	{ id = "TI_SUPPORTER", category = "TITLE", name = "Supporter", premium = "SUPPORT" },
 
 	-- Gloves (your hands in first person, and your character's hands)
 	{ id = "GL_BARE", category = "GLOVES", name = "Bare Hands", default = true, color = nil },
@@ -90,6 +94,7 @@ Cosmetics.List = {
 	{ id = "BD_MOON", category = "BADGE", name = "Crescent", price = 400, glyph = "☾" },
 	{ id = "BD_STAR", category = "BADGE", name = "Unblinking Star", achievement = "HARD_ESCAPE", glyph = "✦" },
 	{ id = "BD_SKULL", category = "BADGE", name = "Nightmare", achievement = "NIGHTMARE", glyph = "✕" },
+	{ id = "BD_SUPPORTER", category = "BADGE", name = "Lit Candle", premium = "SUPPORT", glyph = "☼" },
 
 	-- Titles earned through the new milestones
 	{ id = "TI_INVESTIGATOR", category = "TITLE", name = "Field Investigator", achievement = "DAILY_DEVOTION" },

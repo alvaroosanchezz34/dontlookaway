@@ -20,6 +20,7 @@ local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local ShopPanel = require(script.Parent.Parent.UI.ShopPanel)
+local PremiumPanel = require(script.Parent.Parent.UI.PremiumPanel)
 
 local MenuController = {}
 
@@ -247,7 +248,22 @@ local function journal(body: Frame, tab: string?)
 end
 
 local function shop(body: Frame, tab: string?)
-	ShopPanel.build(body, { tabs = tabs, backButton = backButton }, tab)
+	ShopPanel.build(body, {
+		tabs = tabs,
+		backButton = backButton,
+		openPremium = function()
+			(MenuController :: any):OpenPanel("PREMIUM")
+		end,
+	}, tab)
+end
+
+local function premium(body: Frame)
+	PremiumPanel.build(body, {
+		backButton = backButton,
+		openShop = function()
+			(MenuController :: any):OpenPanel("SHOP")
+		end,
+	})
 end
 
 local function sendSettings()
@@ -381,6 +397,7 @@ local PANELS = {
 	HOWTO = { title = "HOW TO PLAY", build = howToPlay, size = UDim2.fromOffset(920, 820) },
 	JOURNAL = { title = "ANOMALY JOURNAL", build = journal, size = UDim2.fromOffset(1400, 880) },
 	SHOP = { title = "SUPPLY ROOM", build = shop, size = UDim2.fromOffset(1400, 880) },
+	PREMIUM = { title = "PREMIUM STORE", build = premium, size = UDim2.fromOffset(1340, 860) },
 	SETTINGS = { title = "SETTINGS", build = settings, size = UDim2.fromOffset(920, 860) },
 	CREDITS = { title = "CREDITS", build = credits, size = UDim2.fromOffset(820, 640) },
 }
@@ -394,6 +411,11 @@ function MenuController:OpenPanel(name: string, tab: string?)
 	local panel, body = Kit.panel(panelGui, def.title, def.size)
 	currentPanel = panel
 	currentPanelName = name
+	-- a short, quiet arrival: the panel settles into place
+	local pop = Kit.new("UIScale", { Scale = 0.97, Parent = panel })
+	Kit.tween(pop, 0.22, { Scale = 1 })
+	panel.Position = UDim2.new(0.5, 0, 0.5, 12)
+	Kit.tween(panel, 0.22, { Position = UDim2.fromScale(0.5, 0.5) })
 	State.setUIOpen(true)
 	Kit.sound("UIOpen")
 	def.build(body, tab)
@@ -565,7 +587,7 @@ function MenuController:Start()
 		if State.status ~= "LOBBY" and State.status ~= "ALIVE" and pauseMenu.Visible then
 			self:SetPaused(false)
 		end
-		if State.status == "ALIVE" and currentPanelName == "SHOP" then
+		if State.status == "ALIVE" and (currentPanelName == "SHOP" or currentPanelName == "PREMIUM") then
 			closePanel()
 		end
 	end)

@@ -110,9 +110,13 @@ local function refreshClient(player: Player)
 	Net.fire(player, "ToolEvent", { kind = "gear", gear = EquipmentService:GetGear(player) })
 end
 
-local function deny(player: Player, text: string)
-	Net.fire(player, "Notify", { kind = "info", text = text })
+local function deny(player: Player, text: string, action: string?, id: string?)
+	Net.fire(player, "ShopResult", { action = action, id = id, ok = false, reason = text })
 	Registry.AudioService:Play2D({ player }, "UIError")
+end
+
+local function done(player: Player, action: string, id: string)
+	Net.fire(player, "ShopResult", { action = action, id = id, ok = true })
 end
 
 ------------------------------------------------------------------------------------
@@ -128,17 +132,19 @@ local function buy(player: Player, id: string)
 	local item = Equipment.get(id)
 	local d = data(player)
 	if not item or not d or item.default or not item.price then
+		deny(player, "This isn't for sale.", "buy", id)
 		return
 	end
 	if d.gear.owned[id] then
+		deny(player, "You already own this.", "buy", id)
 		return
 	end
 	if item.level and Progression.fromTotal(d.xp) < item.level then
-		deny(player, "Reach level " .. item.level .. " to buy the " .. item.name .. ".")
+		deny(player, "Reach level " .. item.level .. " to buy the " .. item.name .. ".", "buy", id)
 		return
 	end
 	if d.echoes < item.price then
-		deny(player, "Not enough Echoes.")
+		deny(player, "Not enough Echoes.", "buy", id)
 		return
 	end
 	-- one atomic update: the check and the charge happen together
@@ -160,10 +166,12 @@ local function buy(player: Player, id: string)
 		end
 	end)
 	if not bought then
+		deny(player, "That purchase didn't go through. Nothing was spent.", "buy", id)
 		return
 	end
 	Registry.AudioService:Play2D({ player }, "UIPurchase")
 	Net.fire(player, "ToolEvent", { kind = "purchased", id = id })
+	done(player, "buy", id)
 	Registry.AnalyticsService:Event(player, "EquipmentPurchased", item.price, { id = id })
 	-- every tool owned
 	local all = true
@@ -182,22 +190,24 @@ local function upgrade(player: Player, id: string)
 	local def = Equipment.UpgradesById[id]
 	local d = data(player)
 	if not def or not d then
+		deny(player, "Unknown upgrade.", "upgrade", id)
 		return
 	end
 	local current = d.upgrades[id] or 0
 	local nextLevel = def.levels[current + 1]
 	if not nextLevel then
+		deny(player, "Already at its highest level.", "upgrade", id)
 		return
 	end
 	if nextLevel.level and Progression.fromTotal(d.xp) < nextLevel.level then
-		deny(player, "Reach level " .. nextLevel.level .. " for this upgrade.")
+		deny(player, "Reach level " .. nextLevel.level .. " for this upgrade.", "upgrade", id)
 		return
 	end
 	if d.echoes < nextLevel.price then
-		deny(player, "Not enough Echoes.")
+		deny(player, "Not enough Echoes.", "upgrade", id)
 		return
 	end
-	local done = false
+	local upgraded = false
 	Registry.DataService:Update(player, function(dd)
 		local cur = dd.upgrades[id] or 0
 		if cur ~= current or dd.echoes < nextLevel.price then
@@ -205,11 +215,14 @@ local function upgrade(player: Player, id: string)
 		end
 		dd.echoes -= nextLevel.price
 		dd.upgrades[id] = cur + 1
-		done = true
+		upgraded = true
 	end)
-	if done then
+	if not upgraded then
+		deny(player, "That upgrade didn't go through. Nothing was spent.", "upgrade", id)
+	else
 		Registry.AudioService:Play2D({ player }, "UIPurchase")
 		Net.fire(player, "ToolEvent", { kind = "upgraded", id = id, level = current + 1 })
+		done(player, "upgrade", id)
 		Registry.AnalyticsService:Event(player, "UpgradePurchased", nextLevel.price, { id = id, level = current + 1 })
 		EquipmentService:ApplyPassive(player)
 		refreshClient(player)
@@ -218,7 +231,8 @@ end
 
 local function equip(player: Player, id: string)
 	local item = Equipment.get(id)
-	if not item or not EquipmentService:Owns(player, id) then
+	if not item or not EquipmentService:Owns(player, id) or item.kind == "TOOL" then
+		deny(player, "You can't equip that.", "equip", id)
 		return
 	end
 	Registry.DataService:Update(player, function(dd)
@@ -230,6 +244,7 @@ local function equip(player: Player, id: string)
 	end)
 	Registry.AudioService:Play2D({ player }, "UIEquip")
 	refreshClient(player)
+	done(player, "equip", id)
 end
 
 local function setLoadout(player: Player, list: any)
@@ -260,6 +275,7 @@ local function setLoadout(player: Player, list: any)
 	Registry.AnalyticsService:Milestone(player, "LOADOUT_CHANGE", #clean)
 	Registry.AudioService:Play2D({ player }, "UIEquip")
 	refreshClient(player)
+	done(player, "loadout", "")
 end
 
 ------------------------------------------------------------------------------------
@@ -647,7 +663,11 @@ end
 
 function EquipmentService:Init()
 	Net.on("Gear", function(player, action, arg)
-		if type(action) ~= "string" or not inLobby(player) then
+		if type(action) ~= "string" then
+			return
+		end
+		if not inLobby(player) then
+			deny(player, "The supply room is closed during a night.", action, if type(arg) == "string" then arg else nil)
 			return
 		end
 		if action == "buy" and type(arg) == "string" then

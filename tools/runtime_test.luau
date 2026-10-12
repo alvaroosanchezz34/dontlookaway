@@ -1582,6 +1582,214 @@ do
 	end
 end
 
+section("shops: every purchase is the server's, once, and only what it should be")
+do
+	local Net = requireModule(RS.Shared.Net)
+	local Cosmetics = requireModule(RS.Shared.Catalog.Cosmetics)
+	local Equipment = requireModule(RS.Shared.Catalog.Equipment)
+	local Monetization = requireModule(RS.Shared.Config.Monetization)
+	local Progression = requireModule(RS.Shared.Progression)
+	local DataTemplate = requireModule(Server.Services.DataService).Template
+	local function deepCopy(t)
+		if type(t) ~= "table" then
+			return t
+		end
+		local out = {}
+		for k, v in t do
+			out[k] = deepCopy(v)
+		end
+		return out
+	end
+	local data = deepCopy(DataTemplate)
+	local persistent, saveWorks, saves = true, true, 0
+	local sent = {}
+	local savedFire = Net.fire
+	Net.fire = function(player, name, payload)
+		table.insert(sent, { name = name, payload = payload })
+	end
+	local function last(name)
+		for i = #sent, 1, -1 do
+			if sent[i].name == name then
+				return sent[i].payload
+			end
+		end
+		return nil
+	end
+	local status = "LOBBY"
+	local player = fakePlayer(9301, Vector3.new(0, 3, 0))
+	withRegistry({
+		DataService = {
+			Get = function()
+				return data
+			end,
+			WaitFor = function()
+				return data
+			end,
+			IsPersistent = function()
+				return persistent
+			end,
+			Update = function(_, _, fn)
+				fn(data)
+				return true
+			end,
+			SaveNow = function()
+				saves += 1
+				return persistent and saveWorks
+			end,
+		},
+		AudioService = { Play2D = noop },
+		AnalyticsService = { Event = noop, Milestone = noop },
+		ProgressionService = { Push = noop, Award = noop },
+		PlayerService = { GetStatus = function()
+			return status
+		end },
+	}, function(Registry)
+		local Economy = requireModule(Server.Services.EconomyService)
+		Registry.EconomyService = Economy
+		Economy.ApplyCosmetics = noop
+		-- cosmetics, with Echoes
+		local item = Cosmetics.get("FL_TUNGSTEN")
+		data.echoes = item.price - 1
+		local handlers = {}
+		local savedOn, savedHandle = Net.on, Net.handle
+		Net.on = function(name, fn)
+			handlers[name] = fn
+		end
+		Net.handle = noop
+		Economy:Init()
+		Net.on = savedOn
+		handlers.Shop(player, "buy", "FL_TUNGSTEN")
+		check(not data.owned.FL_TUNGSTEN and data.echoes == item.price - 1, "cosmetic: not enough Echoes buys nothing and spends nothing")
+		check(last("ShopResult") and last("ShopResult").ok == false and last("ShopResult").reason == "Not enough Echoes.", "cosmetic: the answer says why")
+		data.echoes = item.price * 2 - 1
+		handlers.Shop(player, "buy", "FL_TUNGSTEN")
+		handlers.Shop(player, "buy", "FL_TUNGSTEN")
+		check(data.owned.FL_TUNGSTEN and data.echoes == item.price - 1, "cosmetic: two requests in a row buy once and charge once")
+		check(last("ShopResult").ok == false and last("ShopResult").reason == "You already own this.", "cosmetic: the second request is refused")
+		handlers.Shop(player, "equip", "FL_TUNGSTEN")
+		check(data.equipped.FLASHLIGHT == "FL_TUNGSTEN" and last("ShopResult").ok, "cosmetic: an owned item equips")
+		handlers.Shop(player, "equip", "FL_MOON")
+		check(data.equipped.FLASHLIGHT == "FL_TUNGSTEN" and last("ShopResult").ok == false, "cosmetic: an item not owned does not equip")
+		handlers.Shop(player, "buy", "FL_SILVER")
+		check(not data.owned.FL_SILVER, "cosmetic: a pass item can't be bought with Echoes")
+		-- the shop hides premium items whose id is not set
+		local shop = Economy:GetShop(player)
+		local listed = {}
+		for _, e in shop.items do
+			listed[e.id] = true
+		end
+		check(not listed.FL_CANDLE and not listed.TI_SUPPORTER, "premium items with no id are not listed in the supply room")
+
+		-- equipment, with Echoes (atomic, level-gated, lobby only)
+		local Equip = requireModule(Server.Services.EquipmentService)
+		Registry.EquipmentService = Equip
+		Registry.PlayerService.GetStatus = function()
+			return status
+		end
+		local gearHandlers = {}
+		Net.on = function(name, fn)
+			gearHandlers[name] = fn
+		end
+		Equip:Init()
+		Net.on = savedOn
+		Net.handle = savedHandle
+		local ind = Equipment.get("FL_INDUSTRIAL")
+		data.xp = 0
+		data.echoes = 1e6
+		gearHandlers.Gear(player, "buy", "FL_INDUSTRIAL")
+		check(not data.gear.owned.FL_INDUSTRIAL and last("ShopResult").ok == false, "equipment: a level lock is enforced by the server")
+		local xpFor = 0
+		while Progression.fromTotal(xpFor) < (ind.level or 1) do
+			xpFor += 50
+		end
+		data.xp = xpFor
+		data.echoes = ind.price
+		gearHandlers.Gear(player, "buy", "FL_INDUSTRIAL")
+		gearHandlers.Gear(player, "buy", "FL_INDUSTRIAL")
+		check(data.gear.owned.FL_INDUSTRIAL and data.echoes == 0, "equipment: bought once, charged once")
+		check(data.gear.flashlight == "FL_INDUSTRIAL", "equipment: a new flashlight is equipped straight away")
+		gearHandlers.Gear(player, "equip", "FL_STARTER")
+		check(data.gear.flashlight == "FL_STARTER" and last("ShopResult").ok, "equipment: equipping is the server's")
+		status = "ALIVE"
+		data.echoes = 1e6
+		gearHandlers.Gear(player, "buy", "GLOWSTICKS")
+		check(not data.gear.owned.GLOWSTICKS and last("ShopResult").ok == false, "equipment: nothing is sold during a night")
+		status = "LOBBY"
+
+		-- premium (Robux): only configured items, receipts granted once
+		local prompts = {}
+		env.setService("MarketplaceService", {
+			PromptProductPurchase = function(_, _, id)
+				table.insert(prompts, id)
+			end,
+			PromptGamePassPurchase = function(_, _, id)
+				table.insert(prompts, id)
+			end,
+			GetProductInfo = function()
+				return { PriceInRobux = 75 }
+			end,
+		})
+		env.setService("Players", { GetPlayerByUserId = function(_, id)
+			return if id == player.UserId then player else nil
+		end })
+		local Mon = requireModule(Server.Services.MonetizationService)
+		env.setService("MarketplaceService", nil)
+		env.setService("Players", nil)
+		Registry.EconomyService.OwnsPass = function()
+			return false
+		end
+		local catalog = Mon:GetCatalog(player)
+		local allPending = true
+		for _, e in catalog.items do
+			if e.configured or e.price ~= nil then
+				allPending = false
+			end
+		end
+		check(allPending, "premium: with no ids set every item is PENDING SETUP, with no price")
+		Mon:Prompt(player, nil, "SKIN_CANDLE")
+		check(#prompts == 0 and last("PremiumResult").ok == false, "premium: an item with no id never opens a purchase")
+		local Decision = roblox.Enum.ProductPurchaseDecision
+		local candle = Monetization.get("SKIN_CANDLE")
+		local support = Monetization.get("SUPPORT")
+		candle.id = 111
+		support.id = 222
+		local receipt = { PurchaseId = "R-1", PlayerId = player.UserId, ProductId = 111 }
+		check(Mon.ProcessReceipt({ PurchaseId = "R-0", PlayerId = player.UserId, ProductId = 999 }) == Decision.NotProcessedYet, "premium: a receipt for an unknown product is not granted")
+		persistent = false
+		check(Mon.ProcessReceipt(receipt) == Decision.NotProcessedYet and not data.owned.FL_CANDLE, "premium: no grant on a record that can't be saved")
+		persistent = true
+		saveWorks = false
+		check(Mon.ProcessReceipt(receipt) == Decision.NotProcessedYet and not data.owned.FL_CANDLE and data.purchases["R-1"] == nil, "premium: a failed save takes the grant back (Roblox retries)")
+		saveWorks = true
+		check(Mon.ProcessReceipt(receipt) == Decision.PurchaseGranted and data.owned.FL_CANDLE and data.purchases["R-1"] ~= nil, "premium: a saved receipt is granted")
+		local savesBefore = saves
+		check(Mon.ProcessReceipt(receipt) == Decision.PurchaseGranted and saves == savesBefore, "premium: a retried receipt is acknowledged without granting again")
+		check(Mon:Owns(player, candle), "premium: a finish you own is owned")
+		Mon:Prompt(player, nil, "SKIN_CANDLE")
+		check(#prompts == 0 and last("PremiumResult").reason == "You already own this.", "premium: an owned finish can't be bought twice")
+		check(Mon.ProcessReceipt({ PurchaseId = "S-1", PlayerId = player.UserId, ProductId = 222 }) == Decision.PurchaseGranted, "premium: a thank-you is granted")
+		check(Mon.ProcessReceipt({ PurchaseId = "S-2", PlayerId = player.UserId, ProductId = 222 }) == Decision.PurchaseGranted, "premium: and can be bought again")
+		check(data.supporter == 2 and data.owned.TI_SUPPORTER and data.owned.BD_SUPPORTER, "premium: two thank-yous counted, the title and badge given once")
+		status = "ALIVE"
+		Mon:Prompt(player, nil, "SUPPORT")
+		check(#prompts == 0, "premium: no purchase starts during a night")
+		status = "LOBBY"
+		Mon:Prompt(player, nil, "SUPPORT")
+		check(#prompts == 1 and prompts[1] == 222, "premium: in the lobby the configured product opens Roblox's prompt")
+		candle.id = 0
+		support.id = 0
+	end)
+	Net.fire = savedFire
+	-- one receipt handler in the whole game
+	local count = 0
+	for _, d in game:GetDescendants() do
+		if d:IsA("LuaSourceContainer") and string.find(d.Source, "ProcessReceipt =", 1, true) then
+			count += 1
+		end
+	end
+	check(count == 1, "exactly one script sets MarketplaceService.ProcessReceipt (" .. count .. ")")
+end
+
 section("summary")
 print(string.format("%d checks, %d failures", checks, failures))
 process.exit(if failures == 0 then 0 else 1)

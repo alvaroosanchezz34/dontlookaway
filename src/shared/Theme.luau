@@ -23,6 +23,7 @@ Theme.Colors = {
 	Accent = Color3.fromRGB(140, 186, 214), -- the one cold accent: selection, owned, progress
 	Warning = Color3.fromRGB(214, 190, 140), -- a caution, not yet danger
 	Lost = Color3.fromRGB(196, 170, 166), -- the title of an ending nobody walked away from
+	Premium = Color3.fromRGB(214, 186, 120), -- the premium store's own colour (Robux), nowhere else
 	-- paper in the world's hands: notes, documents, the archive
 	Paper = Color3.fromRGB(214, 206, 184),
 	PaperShade = Color3.fromRGB(205, 196, 176),

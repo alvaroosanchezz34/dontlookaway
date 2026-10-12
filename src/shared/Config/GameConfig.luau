@@ -243,11 +243,11 @@ GameConfig.Data = {
 
 -- Monetization: game pass ids are created on the Creator Dashboard. A value of 0
 -- means "not configured" and the matching store entry is hidden automatically.
-GameConfig.GamePasses = {
-	VIP = 0,
-	FlashlightCollection = 0,
-	EmotePack = 0,
-	ExtraLoadouts = 0,
-}
+-- Game pass ids by key, from the premium catalogue (Config/Monetization):
+-- one source of truth. An id of 0 means the pass is not set up yet.
+GameConfig.GamePasses = {}
+for _, pass in require(script.Parent.Monetization).GamePasses do
+	GameConfig.GamePasses[pass.key] = pass.id
+end
 
 return GameConfig

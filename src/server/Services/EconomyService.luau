@@ -4,9 +4,10 @@
 	Nothing sold or earned here affects survival: flashlights share identical stats,
 	trails only show in the lobby, emotes are purely visual.
 
-	Game passes are configured in GameConfig.GamePasses. An id of 0 means the pass
-	is not set up yet; its items are hidden from the shop and no prompt is shown.
-	There are no randomized purchases.
+	Game passes and premium products are configured in Config/Monetization
+	(MonetizationService runs every Robux purchase). An id of 0 means the pass
+	or product is not set up yet; its items are hidden from this shop and no
+	prompt is shown. There are no randomized purchases.
 ]]
 
 local Players = game:GetService("Players")
@@ -18,6 +19,7 @@ local Enums = require(ReplicatedStorage.Shared.Enums)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Cosmetics = require(ReplicatedStorage.Shared.Catalog.Cosmetics)
 local Progression = require(ReplicatedStorage.Shared.Progression)
+local Monetization = require(ReplicatedStorage.Shared.Config.Monetization)
 local Registry = require(script.Parent.Parent.Registry)
 
 local EconomyService = {}
@@ -28,6 +30,10 @@ local lastEmote: { [Player]: number } = {}
 local function passConfigured(key: string): boolean
 	local id = GameConfig.GamePasses[key]
 	return type(id) == "number" and id > 0
+end
+
+local function premiumConfigured(key: string): boolean
+	return Monetization.configured(Monetization.get(key))
 end
 
 local function refreshPasses(player: Player)
@@ -42,6 +48,18 @@ local function refreshPasses(player: Player)
 	end
 	passOwnership[player] = owned
 	player:SetAttribute("VIP", owned.VIP == true)
+end
+
+-- Asks Roblox again which passes this player owns (after a purchase prompt:
+-- the prompt's own "purchased" flag is never trusted on its own).
+function EconomyService:RefreshPasses(player: Player)
+	refreshPasses(player)
+	self:ApplyCosmetics(player)
+	Registry.ProgressionService:Push(player)
+end
+
+function EconomyService:OwnsPass(player: Player, key: string): boolean
+	return (passOwnership[player] or {})[key] == true
 end
 
 function EconomyService:PassList(player: Player)
@@ -96,7 +114,7 @@ function EconomyService:GetShop(player: Player)
 	local data = Registry.DataService:Get(player)
 	local items = {}
 	for _, item in Cosmetics.List do
-		if not item.pass or passConfigured(item.pass) then
+		if (not item.pass or passConfigured(item.pass)) and (not item.premium or premiumConfigured(item.premium)) then
 			local owned = self:IsOwned(player, item.id)
 			local lock = nil
 			if not owned then
@@ -105,6 +123,8 @@ function EconomyService:GetShop(player: Player)
 				elseif item.achievement then
 					lock = "ACHIEVEMENT"
 				elseif item.pass then
+					lock = "PASS"
+				elseif item.premium then
 					lock = "PASS"
 				end
 			end
@@ -151,42 +171,66 @@ function EconomyService:ApplyCosmetics(player: Player)
 	end
 end
 
+-- Every shop request gets one answer (the client's buttons wait for it).
+local function answer(player: Player, action: string, id: string, ok: boolean, reason: string?)
+	Net.fire(player, "ShopResult", { action = action, id = id, ok = ok, reason = reason })
+	if not ok then
+		Registry.AudioService:Play2D({ player }, "UIError")
+	end
+end
+
 local function onShop(player: Player, action: any, id: any)
-	if type(action) ~= "string" or type(id) ~= "string" then
+	if type(action) ~= "string" or type(id) ~= "string" or #id > 64 then
 		return
 	end
 	if action == "buy" then
 		local item = Cosmetics.get(id)
-		if not item or not item.price or EconomyService:IsOwned(player, id) then
+		if not item or not item.price then
+			answer(player, action, id, false, "This can't be bought with Echoes.")
 			return
 		end
-		local data = Registry.DataService:Get(player)
-		if not data or data.echoes < item.price then
-			Net.fire(player, "Notify", { kind = "info", text = "Not enough Echoes." })
-			Registry.AudioService:Play2D({ player }, "UIError")
+		if EconomyService:IsOwned(player, id) then
+			answer(player, action, id, false, "You already own this.")
 			return
 		end
+		-- the check and the charge happen together, inside one update: two
+		-- requests in a row can never buy twice or spend what is not there
+		local result = "missing"
 		Registry.DataService:Update(player, function(d)
-			d.echoes -= item.price
-			d.owned[id] = true
+			if d.owned[id] then
+				result = "owned"
+			elseif d.echoes < item.price then
+				result = "poor"
+			else
+				d.echoes -= item.price
+				d.owned[id] = true
+				result = "bought"
+			end
 		end)
+		if result ~= "bought" then
+			answer(player, action, id, false, if result == "poor" then "Not enough Echoes." elseif result == "owned" then "You already own this." else "Your record isn't ready yet. Try again in a moment.")
+			return
+		end
 		Registry.AudioService:Play2D({ player }, "UIPurchase")
 		Registry.AnalyticsService:Event(player, "CosmeticPurchased", item.price, { id = id })
+		answer(player, action, id, true)
 	elseif action == "equip" then
 		local item = Cosmetics.get(id)
 		if not item or item.category == "EMOTE" or not EconomyService:IsOwned(player, id) then
+			answer(player, action, id, false, "You don't own this yet.")
 			return
 		end
 		Registry.DataService:Update(player, function(d)
 			d.equipped[item.category] = id
 		end)
 		EconomyService:ApplyCosmetics(player)
+		Registry.AudioService:Play2D({ player }, "UIEquip")
+		answer(player, action, id, true)
 	elseif action == "pass" then
-		local passId = GameConfig.GamePasses[id]
-		if type(passId) == "number" and passId > 0 then
-			pcall(function()
-				MarketplaceService:PromptGamePassPurchase(player, passId)
-			end)
+		-- game passes go through the premium store (MonetizationService)
+		local monetization = Registry.MonetizationService
+		if monetization then
+			monetization:Prompt(player, "pass", id)
 		end
 		return
 	else
@@ -232,13 +276,6 @@ function EconomyService:Start()
 		refreshPasses(player)
 		EconomyService:ApplyCosmetics(player)
 		Registry.ProgressionService:Push(player)
-	end)
-	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, _passId, purchased)
-		if purchased then
-			refreshPasses(player)
-			EconomyService:ApplyCosmetics(player)
-			Registry.ProgressionService:Push(player)
-		end
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		passOwnership[player] = nil

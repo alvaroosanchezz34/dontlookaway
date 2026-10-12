@@ -286,6 +286,16 @@ roblox.implementMethod("RemoteFunction", "InvokeServer", function(self)
 		return { items = shopItems, echoes = 1234 }
 	elseif self.Name == "GetGear" then
 		return gearSnapshot
+	elseif self.Name == "GetPremium" then
+		return {
+			canShop = true,
+			items = {
+				{ key = "VIP", kind = "pass", name = "Patron", description = "A pass", grants = { "Patron" }, configured = false, owned = false },
+				{ key = "SKIN_CANDLE", kind = "product", name = "Candlelight Finish", description = "A finish", grants = { "Candlelight" }, configured = true, owned = false, price = 75 },
+				{ key = "SKIN_ASHEN", kind = "product", name = "Ashen Finish", description = "A finish", grants = { "Ashen" }, configured = true, owned = true, price = 75 },
+				{ key = "SUPPORT", kind = "product", name = "Leave a Light On", description = "Thanks", grants = {}, configured = true, owned = false, repeatable = true },
+			},
+		}
 	end
 	return nil
 end)
@@ -373,7 +383,7 @@ fire("Profile", {
 })
 task.wait(1)
 frames(3)
-for _, panel in { "HOWTO", "JOURNAL", "SHOP", "SETTINGS", "CREDITS" } do
+for _, panel in { "HOWTO", "JOURNAL", "SHOP", "PREMIUM", "SETTINGS", "CREDITS" } do
 	local ok, err = pcall(function()
 		Registry.MenuController:OpenPanel(panel)
 	end)
@@ -417,6 +427,102 @@ do
 	end
 	fire("ToolEvent", { kind = "gear", gear = gearSnapshot })
 	check(State.gear == gearSnapshot, "gear snapshot reaches State")
+	-- one vocabulary for every item's state
+	check(ShopPanel.stateOf({ equipped = true, owned = true }, 0) == "EQUIPPED", "state: equipped")
+	check(ShopPanel.stateOf({ owned = true }, 0) == "OWNED", "state: owned")
+	check(ShopPanel.stateOf({ locked = true, level = 9, price = 100 }, 1e6) == "LOCKED", "state: a level lock wins over the price")
+	check(ShopPanel.stateOf({ lock = "ACHIEVEMENT" }, 1e6) == "LOCKED", "state: earned items are locked until earned")
+	check(ShopPanel.stateOf({ price = 100 }, 100) == "AFFORD" and ShopPanel.stateOf({ price = 100 }, 99) == "POOR", "state: affordable or not, by the balance")
+	-- the answers: a purchase confirms, a refusal says why, a confirm asks first
+	local holder = KitM.frame({})
+	ShopPanel.build(holder, {
+		tabs = function(_, _, onSelect)
+			return function(name)
+				onSelect(name)
+			end
+		end,
+		backButton = function() end,
+	}, "EQUIPMENT")
+	frames(1)
+	local function texts()
+		local list = {}
+		for _, d in holder:GetDescendants() do
+			if d:IsA("TextLabel") or d:IsA("TextButton") then
+				table.insert(list, d.Text)
+			end
+		end
+		return table.concat(list, "|")
+	end
+	-- select cards until one offers BUY (an affordable piece)
+	local buy = nil
+	local cards = {}
+	for _, d in holder:GetDescendants() do
+		if d:IsA("TextButton") and d.Text == "" and d.Selectable then
+			table.insert(cards, d)
+		end
+	end
+	for _, card in cards do
+		if buy then
+			break
+		end
+		signalFor(card, "Activated"):Fire()
+		for _, d in holder:GetDescendants() do
+			if d:IsA("TextButton") and string.find(d.Text, "BUY", 1, true) == 1 then
+				buy = d
+			end
+		end
+	end
+	check(buy ~= nil, "an affordable item offers BUY")
+	if buy then
+		signalFor(buy, "Activated"):Fire()
+		check(string.find(texts(), "CONFIRM PURCHASE", 1, true) ~= nil, "buying asks to confirm first")
+		local confirmBtn = nil
+		for _, d in holder:GetDescendants() do
+			if d:IsA("TextButton") and d.Text == "CONFIRM" then
+				confirmBtn = d
+			end
+		end
+		if confirmBtn then
+			signalFor(confirmBtn, "Activated"):Fire()
+		end
+		check(buy.Text == "…", "after confirming, the button waits for the server")
+	end
+	fire("ShopResult", { action = "buy", id = "FL_INDUSTRIAL", ok = false, reason = "Not enough Echoes." })
+	frames(1)
+	check(string.find(texts(), "Not enough Echoes.", 1, true) ~= nil, "a refusal shows its reason")
+	signalFor(holder, "Destroying"):Fire()
+	holder:Destroy()
+	-- the premium store: pending items can't be bought, priced ones can
+	local PremiumPanel = requireModule(clientRoot.UI.PremiumPanel)
+	local ph = KitM.frame({})
+	PremiumPanel.build(ph, { backButton = function() end })
+	frames(1)
+	local seen = {}
+	for _, d in ph:GetDescendants() do
+		if d:IsA("TextLabel") or d:IsA("TextButton") then
+			seen[d.Text] = d
+		end
+	end
+	check(seen["PENDING SETUP"] ~= nil and seen["NOT AVAILABLE YET"] ~= nil, "premium: an item with no id says PENDING SETUP and can't be bought")
+	check(seen["R$ 75"] ~= nil, "premium: a configured item shows its Roblox price in Robux")
+	check(seen["OWNED"] ~= nil, "premium: an owned finish says OWNED")
+	local premiumBuy = seen["BUY"]
+	check(premiumBuy ~= nil and premiumBuy.Active, "premium: a configured item offers BUY")
+	if premiumBuy then
+		signalFor(premiumBuy, "Activated"):Fire()
+		check(premiumBuy.Text == "WAITING FOR ROBLOX…", "premium: the card waits for Roblox and the server")
+	end
+	fire("PremiumResult", { key = "SKIN_CANDLE", ok = false, reason = "Purchase cancelled." })
+	frames(1)
+	local cancelled = false
+	for _, d in ph:GetDescendants() do
+		if d:IsA("TextLabel") and d.Text == "Purchase cancelled." then
+			cancelled = true
+		end
+	end
+	check(cancelled, "premium: a cancelled purchase says so")
+	signalFor(ph, "Destroying"):Fire()
+	ph:Destroy()
 end
 
 section("lobby")
@@ -1130,7 +1236,7 @@ end
 for _, status in { "MENU", "LOBBY", "ALIVE" } do
 	localPlayer:SetAttribute("Status", status)
 	frames(2)
-	for _, panel in { "JOURNAL", "SHOP", "SETTINGS" } do
+	for _, panel in { "JOURNAL", "SHOP", "PREMIUM", "SETTINGS" } do
 		pcall(function()
 			Registry.MenuController:OpenPanel(panel)
 		end)

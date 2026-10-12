@@ -26,6 +26,7 @@ local ORDER = {
 	"InteractionService",
 	"ProgressionService",
 	"EconomyService",
+	"MonetizationService",
 	"EquipmentService",
 	"ChallengeService",
 	"ObjectiveService",

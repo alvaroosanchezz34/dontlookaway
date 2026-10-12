@@ -29,6 +29,7 @@ Net.Events = {
 	ClientFlag = { rate = 2, burst = 6 },
 	Gear = { rate = 3, burst = 6 },
 	Tool = { rate = 6, burst = 10 },
+	Premium = { rate = 1, burst = 3 },
 
 	-- server -> client
 	RoundState = {},
@@ -53,12 +54,15 @@ Net.Events = {
 	ToolState = {},
 	ToolEvent = {},
 	Challenge = {},
+	ShopResult = {}, -- the answer to every shop request: { action, id, ok, reason }
+	PremiumResult = {}, -- a Robux purchase's outcome: { key, ok, reason, granted }
 }
 
 Net.Functions = {
 	GetProfile = { rate = 2, burst = 4 },
 	GetShop = { rate = 2, burst = 4 },
 	GetGear = { rate = 2, burst = 4 },
+	GetPremium = { rate = 1, burst = 3 },
 }
 
 local FOLDER_NAME = "Remotes"

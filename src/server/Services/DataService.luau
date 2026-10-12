@@ -33,8 +33,11 @@ DataService.Loaded = Signal.new() -- (player, data)
 DataService.Changed = Signal.new() -- (player, data)
 
 -- v1: launch. v2: equipment, loadout, upgrades, challenges, gloves & badges.
--- v3: lore archive. v4: softer film grain by default.
-local SCHEMA_VERSION = 4
+-- v3: lore archive. v4: softer film grain by default. v5: premium purchases
+-- (the receipts already granted, so a retried receipt never grants twice).
+local SCHEMA_VERSION = 5
+-- how many granted receipts a profile remembers (Roblox retries within days)
+local MAX_RECEIPTS = 200
 
 local TEMPLATE = {
 	version = SCHEMA_VERSION,
@@ -117,6 +120,9 @@ local TEMPLATE = {
 		nightmareUnlocked = false,
 	},
 	puzzlesSolved = {},
+	-- premium (MonetizationService): [PurchaseId] = os.time() it was granted
+	purchases = {},
+	supporter = 0, -- thank-you purchases (Monetization SUPPORT)
 	lastSeen = 0,
 }
 
@@ -374,6 +380,23 @@ local function validate(data)
 	if type(data.puzzlesSolved) ~= "table" then
 		data.puzzlesSolved = {}
 	end
+	-- receipts: string ids with a time; only the newest MAX_RECEIPTS are kept
+	local receipts = {}
+	if type(data.purchases) == "table" then
+		for id, t in data.purchases do
+			if type(id) == "string" and #id <= 64 and Util.isFinite(t) then
+				table.insert(receipts, { id = id, t = t })
+			end
+		end
+	end
+	table.sort(receipts, function(a, b)
+		return a.t > b.t
+	end)
+	data.purchases = {}
+	for i = 1, math.min(#receipts, MAX_RECEIPTS) do
+		data.purchases[receipts[i].id] = receipts[i].t
+	end
+	data.supporter = math.floor(num(data.supporter, 0, 0, 1e7))
 	return data
 end
 
@@ -441,16 +464,19 @@ local function saveProfile(player: Player, release: boolean)
 	data.stats.timePlayed += math.max(0, now - (profile.lastTimeSync or profile.loadedAt))
 	profile.lastTimeSync = now
 	local snapshot = Util.deepCopy(data)
+	local wrote = false
 	local ok = retry("save " .. profile.key, function()
 		return store:UpdateAsync(profile.key, function(current)
 			current = current or {}
 			local lock = current.lock
 			if type(lock) == "table" and lock.job ~= DataService.JobId then
 				-- the profile was taken over by another server: never overwrite it
+				wrote = false
 				return nil
 			end
 			local out = snapshot
 			out.lock = if release then nil else { job = DataService.JobId, time = os.time() }
+			wrote = true
 			return out
 		end)
 	end)
@@ -460,7 +486,7 @@ local function saveProfile(player: Player, release: boolean)
 			profile.released = true
 		end
 	end
-	return ok
+	return ok, wrote
 end
 
 function DataService:Get(player: Player)
@@ -494,6 +520,25 @@ function DataService:Update(player: Player, fn: (any) -> ())
 	profile.dirty = true
 	DataService.Changed:Fire(player, profile.data)
 	return true
+end
+
+-- Saves now and says whether the data really reached the store: false for a
+-- temporary profile (the store failed when it loaded), a profile another
+-- server took over, or a failed write. A Robux purchase is only acknowledged
+-- once this returns true (MonetizationService).
+function DataService:SaveNow(player: Player): boolean
+	local profile = profiles[player]
+	if not profile or profile.released then
+		return false
+	end
+	local ok, wrote = saveProfile(player, false)
+	return ok == true and wrote == true
+end
+
+-- Is this a real profile that saves (not a temporary one)?
+function DataService:IsPersistent(player: Player): boolean
+	local profile = profiles[player]
+	return profile ~= nil and not profile.released
 end
 
 function DataService:IsMock(): boolean
