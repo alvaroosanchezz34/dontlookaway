@@ -282,12 +282,8 @@ local function chaseStep(ctx, dt: number, pz: number)
 		local goal = HallwayBuilder.toWorld(0, 0, math.min(pz - 1, -1))
 		humanoid:MoveTo(goal)
 		Registry.ObserverService:DistortionDrive({ behavior = "STALKING", state = Enums.ObserverState.Hunting, face = goal - root.Position })
-		-- its steps, louder the closer it is
-		ctx.data.stepAcc += math.abs(obsZ - ctx.data.lastObsZ)
-		if ctx.data.stepAcc >= P.stepEvery then
-			ctx.data.stepAcc = 0
-			Registry.AudioService:PlayAtFor({ ctx.player }, "ObserverStep", root.Position, { volume = 0.45 + 0.55 * math.clamp(1 - gap / 60, 0, 1) })
-		end
+		-- (its steps, breath and the frenzy around them are the client's:
+		-- DistortionController hears it move)
 	end
 	ctx.data.lastObsZ = obsZ
 	-- the breath, then (one reaction time later) the catch

@@ -62,13 +62,14 @@ local function pages(): { { kicker: string, title: string, body: string } }
 			kicker = "CASE FILE 13  ·  PAGE 5",
 			title = "BEFORE YOU GO IN",
 			body = string.format(
-				"Flashlight [%s]   ·   Sprint [%s]   ·   Interact [%s]\nReport [%s]   ·   Ping your team [%s]   ·   Notes [%s]\n\nThe power will not last the night. Your battery will not either.\n\nAnd whatever you see in there:\n\ndon't look away.",
+				"Flashlight [%s]   ·   Sprint [%s]   ·   Interact [%s]\nReport [%s]   ·   Ping your team [%s]   ·   Notes [%s]\nFree the cursor [%s]\n\nThe power will not last the night. Your battery will not either.\n\nAnd whatever you see in there:\n\ndon't look away.",
 				key("Flashlight"),
 				key("Sprint"),
 				key("Interact"),
 				key("Report"),
 				key("Ping"),
-				key("Notes")
+				key("Notes"),
+				key("FreeMouse")
 			),
 		},
 	}
@@ -95,6 +96,7 @@ local function close()
 	if shade then
 		shade:Destroy()
 	end
+	State.holdMouse("briefing", false)
 	State.setUIOpen(false)
 	GuiService.SelectedObject = nil
 end
@@ -107,6 +109,8 @@ function BriefingController:Open()
 	end
 	open = true
 	page = 1
+	-- the cursor is free while it is open, whatever else opens or closes
+	State.holdMouse("briefing", true)
 	State.setUIOpen(true)
 	Kit.frame({ Name = "Shade", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Black, BackgroundTransparency = 0.45, Parent = gui })
 	local c = Kit.frame({ Name = "CaseFile", Size = UDim2.fromOffset(1000, 640), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundColor3 = C.Paper, BackgroundTransparency = 0.02, Parent = gui })

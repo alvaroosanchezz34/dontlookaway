@@ -40,12 +40,15 @@ local player = Players.LocalPlayer
 local token: number? = nil
 local hall: Model? = nil
 local savedYaw, savedPitch = 0, 0
-local lampList: { { model: Model, tube: BasePart, light: PointLight, z: number, dead: boolean, seed: number, flickerUntil: number } } = {}
+local lampList: { { model: Model, tube: BasePart, light: PointLight, z: number, dead: boolean, spot: boolean, seed: number, flickerUntil: number } } = {}
 local drive: RBXScriptConnection? = nil
 -- a total blackout (level 4): only the red emergency tubes, pulsing slowly
 local TUBE_ON = Color3.fromRGB(255, 72, 58)
 local LIGHT_RED = Color3.fromRGB(255, 84, 66)
 local TUBE_OFF = Color3.fromRGB(40, 42, 40)
+-- the one white tube left, over where it waits
+local SPOT = Color3.fromRGB(228, 234, 255)
+local EYES = Color3.fromRGB(255, 238, 228)
 local LIGHT_RANGE = 90 -- lamps further than this stay off (cheap at any quality)
 
 local function reduced(): boolean
@@ -68,6 +71,7 @@ local function collectLamps(h: Model)
 				light = light,
 				z = lamp:GetAttribute("Z") or 0,
 				dead = lamp:GetAttribute("Dead") == true,
+				spot = lamp:GetAttribute("Spot") == true,
 				seed = (lamp:GetAttribute("Index") or 1) * 17.3,
 				flickerUntil = 0,
 			})
@@ -131,11 +135,23 @@ local function paint()
 				end
 			end
 		end
-		lamp.light.Enabled = lit and dist < LIGHT_RANGE
-		lamp.light.Brightness = b
-		lamp.light.Color = LIGHT_RED
-		lamp.tube.Material = if lit then Enum.Material.Neon else Enum.Material.Glass
-		lamp.tube.Color = if lit then TUBE_ON else TUBE_OFF
+		if lamp.spot and lit then
+			-- the last white tube: bright enough to show what stands under it,
+			-- and failing (a buzzing flicker, never a strobe)
+			local f = if calm then 1 else (if math.noise(now * 6, 3.7) < -0.3 then 0.35 else 1)
+			lamp.light.Enabled = dist < LIGHT_RANGE * 1.5
+			lamp.light.Brightness = 2.2 * f
+			lamp.light.Range = 24
+			lamp.light.Color = SPOT
+			lamp.tube.Material = Enum.Material.Neon
+			lamp.tube.Color = SPOT
+		else
+			lamp.light.Enabled = lit and dist < LIGHT_RANGE
+			lamp.light.Brightness = b
+			lamp.light.Color = LIGHT_RED
+			lamp.tube.Material = if lit then Enum.Material.Neon else Enum.Material.Glass
+			lamp.tube.Color = if lit then TUBE_ON else TUBE_OFF
+		end
 	end
 end
 
@@ -159,6 +175,144 @@ local function setGrade(on: boolean)
 	end
 end
 
+------------------------------------------------------------------------------------
+-- It: seen (its eyes), heard (steps, breath), and felt (the frenzy)
+------------------------------------------------------------------------------------
+
+local function observerModel(): Model?
+	for _, o in game:GetService("CollectionService"):GetTagged("Observer") do
+		if o:IsA("Model") and o:IsDescendantOf(Workspace) then
+			return o
+		end
+	end
+	return nil
+end
+
+-- its eyes burn pale in the dark (on this screen only; put back after)
+local eyeSaved: { [BasePart]: { color: Color3, material: any } } = {}
+local function lightEyes(on: boolean)
+	if on then
+		local m = observerModel()
+		if not m then
+			return
+		end
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and (string.find(d.Name, "Eyeball") or d.Name == "Iris") and not eyeSaved[d] then
+				eyeSaved[d] = { color = d.Color, material = d.Material }
+				d.Color = EYES
+				d.Material = Enum.Material.Neon
+			end
+		end
+	else
+		for part, saved in eyeSaved do
+			if part.Parent then
+				part.Color = saved.color
+				part.Material = saved.material
+			end
+		end
+		table.clear(eyeSaved)
+	end
+end
+
+-- the red at the edges of your sight, closing in with it
+local fxGui: ScreenGui? = nil
+local edges: { Frame } = {}
+local function setEdges(on: boolean)
+	if on and not fxGui then
+		local g = Instance.new("ScreenGui")
+		g.Name = "DistortionFX"
+		g.IgnoreGuiInset = true
+		g.ResetOnSpawn = false
+		g.DisplayOrder = 2
+		g.Parent = player:WaitForChild("PlayerGui")
+		fxGui = g
+		table.clear(edges)
+		local specs = {
+			{ 0, UDim2.fromScale(0.22, 1), UDim2.fromScale(0, 0), Vector2.zero },
+			{ 180, UDim2.fromScale(0.22, 1), UDim2.fromScale(1, 0), Vector2.new(1, 0) },
+			{ 90, UDim2.fromScale(1, 0.22), UDim2.fromScale(0, 0), Vector2.zero },
+			{ -90, UDim2.fromScale(1, 0.22), UDim2.fromScale(0, 1), Vector2.new(0, 1) },
+		}
+		for _, spec in specs do
+			local f = Instance.new("Frame")
+			f.BorderSizePixel = 0
+			f.BackgroundColor3 = Color3.fromRGB(110, 0, 0)
+			f.BackgroundTransparency = 1
+			f.Size = spec[2]
+			f.Position = spec[3]
+			f.AnchorPoint = spec[4]
+			local grad = Instance.new("UIGradient")
+			grad.Rotation = spec[1]
+			grad.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) })
+			grad.Parent = f
+			f.Parent = g
+			table.insert(edges, f)
+		end
+	elseif not on and fxGui then
+		fxGui:Destroy()
+		fxGui = nil
+		table.clear(edges)
+	end
+end
+
+local frenzy = { lastPos = nil :: Vector3?, stepAcc = 0, nextBreath = 0, nextWhisper = 0, nextGlitch = 0 }
+
+-- Every frame of the run: its steps as it moves, its breath when near, the
+-- view widening, the red closing in, the sight of it fraying up close.
+local function frenzyStep()
+	local phase = State.distortionPhase
+	local m = observerModel()
+	if not m or (phase ~= "wake" and phase ~= "chase") then
+		for _, f in edges do
+			f.BackgroundTransparency = 1
+		end
+		frenzy.lastPos = nil
+		return
+	end
+	local now = os.clock()
+	local calm = reduced()
+	local cam = Workspace.CurrentCamera.CFrame
+	local at = m:GetPivot().Position
+	local d = (at - cam.Position).Magnitude
+	local k = math.clamp(1 - d / 50, 0, 1)
+	-- its steps: one every few studs it moves, heavier the nearer
+	if frenzy.lastPos then
+		local moved = Vector3.new(at.X - frenzy.lastPos.X, 0, at.Z - frenzy.lastPos.Z).Magnitude
+		frenzy.stepAcc += moved
+		if frenzy.stepAcc >= 3.4 then
+			frenzy.stepAcc = 0
+			Registry.AudioController:Play("ObserverStep", at, { volume = 1.3 + 0.9 * k })
+			if d < 32 then
+				Registry.CameraController:Shake((if calm then 0.01 else 0.035) + (if calm then 0.02 else 0.08) * k)
+			end
+		end
+	end
+	frenzy.lastPos = at
+	-- its breath when it is close
+	if d < 32 and now >= frenzy.nextBreath then
+		frenzy.nextBreath = now + 2.2 + 1.2 * (d / 32)
+		Registry.AudioController:Play("ObserverBreath", at + Vector3.new(0, 7, 0), { volume = 1.2 })
+	end
+	-- something whispering right behind you
+	if d < 22 and now >= frenzy.nextWhisper then
+		frenzy.nextWhisper = now + 6 + math.random() * 4
+		Registry.AudioController:Play("Whisper", cam.Position - cam.LookVector * 4 + Vector3.new(0, 1, 0), { volume = 1 })
+	end
+	-- the sight of it frays up close
+	if d < 11 and not calm and now >= frenzy.nextGlitch then
+		frenzy.nextGlitch = now + 1.3
+		Registry.EffectsController:Glitch(0.25, 0.1)
+	end
+	-- the view widens as you run from it; the red closes in with it (the
+	-- pulse stays under ~1 Hz, and is steady with reduced effects)
+	Registry.CameraController:SetFovEffect(2 + 7 * k)
+	local pulse = if calm then 1 else 0.78 + 0.22 * math.sin(now * (2 + 4 * k))
+	local alpha = (0.1 + 0.5 * k) * pulse
+	for _, f in edges do
+		f.BackgroundTransparency = 1 - alpha
+	end
+end
+
 local function stopDriving()
 	if drive then
 		drive:Disconnect()
@@ -172,6 +326,9 @@ end
 local function restore(fadeIn: boolean)
 	stopDriving()
 	setGrade(false)
+	setEdges(false)
+	lightEyes(false)
+	frenzy.lastPos = nil
 	State.distortion = nil
 	State.distortionPhase = nil
 	Registry.CameraController:SetYawPitch(savedYaw, savedPitch)
@@ -219,8 +376,16 @@ handlers.arrive = function(p)
 		end
 		drive = RunService.RenderStepped:Connect(function()
 			pcall(paint)
+			pcall(frenzyStep)
 		end)
 	end
+	setEdges(true)
+	-- its eyes, once it is there (it is placed just before this cue)
+	task.delay(0.2, function()
+		if State.distortion then
+			lightEyes(true)
+		end
+	end)
 	-- face down the corridor (computed from the direction: the camera has
 	-- not moved yet this frame)
 	if typeof(p.look) == "Vector3" then
@@ -237,10 +402,13 @@ end
 
 handlers.notice = function()
 	State.distortionPhase = "notice"
+	lightEyes(true)
 	local obs = observerPosition()
 	if not obs then
 		return
 	end
+	-- a long, slow breath from the far end
+	Registry.AudioController:Play("ObserverBreath", obs + Vector3.new(0, 7, 0), { volume = 1.4 })
 	for _, lamp in lampList do
 		if (lamp.tube.Position - obs).Magnitude < 26 then
 			lamp.flickerUntil = os.clock() + 0.6
@@ -250,7 +418,18 @@ end
 
 handlers.wake = function()
 	State.distortionPhase = "wake"
-	Registry.CameraController:Shake(if reduced() then 0.05 else 0.14)
+	Registry.CameraController:Shake(if reduced() then 0.08 else 0.3)
+	local obs = observerPosition()
+	if obs then
+		-- it screams; the last white tube bursts over it
+		Registry.AudioController:Play("ObserverScreech", obs + Vector3.new(0, 7, 0), { volume = 1.6 })
+		for _, lamp in lampList do
+			if lamp.spot then
+				Registry.AudioController:Play("BulbPop", lamp.tube.Position, { volume = 1.3 })
+				Registry.EffectsController:Handle("Sparks", { at = lamp.tube.Position })
+			end
+		end
+	end
 end
 
 handlers.chase = function()

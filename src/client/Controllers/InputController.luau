@@ -34,6 +34,8 @@ local BINDINGS = {
 	Journal = { Enum.KeyCode.J },
 	Emote = { Enum.KeyCode.B, Enum.KeyCode.ButtonR3 },
 	Admin = { Enum.KeyCode.F8 },
+	-- frees the cursor (or locks it again) to click something on screen
+	FreeMouse = { Enum.KeyCode.LeftAlt, Enum.KeyCode.RightAlt },
 	SpectateNext = { Enum.KeyCode.D, Enum.KeyCode.Right, Enum.KeyCode.ButtonR1 },
 	SpectatePrev = { Enum.KeyCode.A, Enum.KeyCode.Left, Enum.KeyCode.ButtonL1 },
 	Back = { Enum.KeyCode.ButtonB },
@@ -51,7 +53,7 @@ InputController.Bindings = BINDINGS
 
 -- Label shown in prompts for each action, per device.
 local LABELS = {
-	Keyboard = { Interact = "E", Flashlight = "F", Report = "RMB", Sprint = "SHIFT", Ping = "G", UseItem = "R", DropItem = "X", Notes = "TAB", Pause = "P", Journal = "J", Emote = "B", CycleTool = "V", UseTool = "T", Tools = "5-9" },
+	Keyboard = { Interact = "E", Flashlight = "F", Report = "RMB", Sprint = "SHIFT", Ping = "G", UseItem = "R", DropItem = "X", Notes = "TAB", Pause = "P", Journal = "J", Emote = "B", CycleTool = "V", UseTool = "T", Tools = "5-9", FreeMouse = "ALT" },
 	Gamepad = { Interact = "X", Flashlight = "Y", Report = "LT", Sprint = "L3", Ping = "RB", UseItem = "D-UP", DropItem = "D-DOWN", Notes = "VIEW", Pause = "MENU", Journal = "VIEW", Emote = "R3", CycleTool = "LB", UseTool = "RT", Tools = "LB" },
 	Touch = { Interact = "TAP", Flashlight = "LIGHT", Report = "HOLD EYE", Sprint = "RUN", Ping = "PING", UseItem = "USE", DropItem = "DROP", Notes = "NOTES", Pause = "MENU", Journal = "JOURNAL", Emote = "EMOTE", CycleTool = "TOOL", UseTool = "USE TOOL", Tools = "TOOL" },
 }

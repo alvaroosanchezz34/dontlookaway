@@ -41,7 +41,7 @@ HallwayBuilder.WIDTH = 8
 HallwayBuilder.HEIGHT = 10
 -- where the player arrives and where it waits (local z)
 HallwayBuilder.SPAWN_Z = -330
-HallwayBuilder.OBSERVER_Z = -455
+HallwayBuilder.OBSERVER_Z = -430
 -- crossing this (local z, toward the door) is reaching the way out
 HallwayBuilder.EXIT_Z = -4
 
@@ -137,6 +137,11 @@ function HallwayBuilder.build(): Model
 		lamp:SetAttribute("Index", i + 1)
 		lamp:SetAttribute("Z", zc)
 		lamp:SetAttribute("Dead", dead)
+		-- the one white tube that still works, right over where it waits:
+		-- its silhouette reads from the far end
+		if math.abs(zc - HallwayBuilder.OBSERVER_Z) < S / 2 then
+			lamp:SetAttribute("Spot", true)
+		end
 		part(lamp, "Housing", Vector3.new(2.2, 0.3, 4.6), at(0, H - 0.15, zc), HOUSING, Enum.Material.Metal)
 		local tube = part(lamp, "Tube", Vector3.new(0.5, 0.12, 4.2), at(0, H - 0.36, zc), TUBE, Enum.Material.Neon)
 		local light = Instance.new("PointLight")

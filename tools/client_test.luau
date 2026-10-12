@@ -477,11 +477,19 @@ do
 	hall:SetAttribute("DarkFrom", -1e6)
 	frames(2)
 	for _, lamp in D:Lamps() do
-		if lamp.light.Enabled and lamp.light.Color.R < lamp.light.Color.G * 2 then
+		if lamp.light.Enabled and not lamp.spot and lamp.light.Color.R < lamp.light.Color.G * 2 then
 			redLit = false
 		end
 	end
+	local spots = 0
+	for _, lamp in D:Lamps() do
+		if lamp.spot then
+			spots += 1
+		end
+	end
+	check(spots == 1, "one white tube is left, over where it waits (" .. spots .. ")")
 	check(redLit, "the corridor is in a total blackout: only red emergency light")
+	check(playerGui:FindFirstChild("DistortionFX") ~= nil, "the red closes in at the edges of sight")
 	check(game:GetService("Lighting"):FindFirstChild("DistortionGrade") ~= nil, "the picture takes the blackout's red grade")
 	for _, cue in { "notice", "wake", "chase" } do
 		local ok, err = pcall(fire, "Distortion", { cue = cue, id = "ImpossibleHallway", token = 7 })
@@ -504,7 +512,7 @@ do
 	check(State.distortion == nil and not Registry.HUDController:IsQuiet(), "after the return nothing of it is left on screen")
 	check(math.abs(yaw1 - yaw0) < 1e-6 and math.abs(pitch1 - pitch0) < 1e-6, "the view faces where it faced before")
 	check(#D:Lamps() == 0, "the corridor's lamps are no longer driven")
-	check(game:GetService("Lighting"):FindFirstChild("DistortionGrade") == nil, "and its grade is gone")
+	check(game:GetService("Lighting"):FindFirstChild("DistortionGrade") == nil and playerGui:FindFirstChild("DistortionFX") == nil, "and its grade and red edges are gone")
 	-- the watchdog: no return cue, but the server cleared it
 	fire("Distortion", { cue = "break", id = "ImpossibleHallway", token = 8 })
 	localPlayer:SetAttribute("Distortion", "ImpossibleHallway")
@@ -524,7 +532,9 @@ do
 	local B = Registry.BriefingController
 	check(B ~= nil, "the briefing controller runs")
 	B:Open()
-	check(B:IsOpen() and State.uiOpen, "it opens and frees the mouse")
+	check(B:IsOpen() and State.mouseFree() and State.isMouseHeld("briefing"), "it opens and frees the mouse")
+	State.setUIOpen(false)
+	check(State.mouseFree(), "the cursor stays free even if another panel closes meanwhile")
 	local briefGui = playerGui:FindFirstChild("Briefing")
 	local function buttonText(t)
 		for _, d in briefGui:GetDescendants() do
@@ -556,7 +566,17 @@ do
 	if enter then
 		signalFor(enter, "Activated"):Fire()
 	end
-	check(not B:IsOpen() and not State.uiOpen, "and closes, giving the mouse back")
+	check(not B:IsOpen() and not State.mouseFree(), "and closes, giving the mouse back")
+	-- Alt frees the cursor, Alt again looks again
+	local function press(action)
+		for _, h in { Registry.InputController.Action } do
+			h:Fire(action, true)
+		end
+	end
+	press("FreeMouse")
+	check(State.isMouseHeld("manual") and State.mouseFree(), "Alt frees the cursor")
+	press("FreeMouse")
+	check(not State.mouseFree(), "Alt again locks it")
 	B:Open()
 	localPlayer:SetAttribute("Status", "DEAD")
 	frames(2)

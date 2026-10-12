@@ -109,7 +109,7 @@ local function gameplayActive(): boolean
 end
 
 local function updateMouseLock()
-	local lock = gameplayActive() and not State.uiOpen and State.inputType ~= "Touch"
+	local lock = gameplayActive() and not State.mouseFree() and State.inputType ~= "Touch"
 	if lock and State.status == "LOBBY" and State.inputType == "Keyboard" then
 		-- in the Field Office the cursor stays free for the lobby panel; hold RMB to look
 		lock = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
@@ -158,7 +158,7 @@ local function hideCharacter(character: Model)
 end
 
 local function applyLookInput(dt: number)
-	if frozen or State.uiOpen or State.scareDark then
+	if frozen or State.mouseFree() or State.scareDark then
 		touchDelta = Vector2.zero
 		return
 	end
@@ -340,6 +340,26 @@ end
 
 function CameraController:Start()
 	RunService:BindToRenderStep("DLA_Camera", Enum.RenderPriority.Camera.Value + 1, step)
+	-- Alt frees the cursor to click something on screen; Alt again looks again
+	Registry.InputController.Action:Connect(function(action, began)
+		if action ~= "FreeMouse" or not began then
+			return
+		end
+		if State.status ~= "ALIVE" and State.status ~= "LOBBY" then
+			return
+		end
+		local on = not State.isMouseHeld("manual")
+		State.holdMouse("manual", on)
+		local hud = Registry.HUDController
+		if hud and hud.Hint then
+			local key = Registry.InputController:Label("FreeMouse")
+			hud:Hint(if on then "Cursor free. Press [" .. key .. "] to look around again." else "Looking around.", 2.5)
+		end
+	end)
+	-- a new state (death, the lobby, the menu) starts with the view locked again
+	State.StatusChanged:Connect(function()
+		State.holdMouse("manual", false)
+	end)
 end
 
 return CameraController
