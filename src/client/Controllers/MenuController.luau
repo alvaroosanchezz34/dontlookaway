@@ -32,6 +32,7 @@ local pauseMenu: Frame
 local profileLabel: TextLabel
 local title: TextLabel
 local currentPanel: Frame? = nil
+local playButton: TextButton
 local currentPanelName: string? = nil
 local settingsDirty = false
 local lastSettingsSend = 0
@@ -77,8 +78,8 @@ local function closePanel()
 	if State.status ~= "MENU" then
 		State.setUIOpen(pauseMenu.Visible)
 	end
-	if mainMenu.Visible then
-		GuiService.SelectedObject = mainMenu:FindFirstChild("Buttons") and mainMenu.Buttons:FindFirstChildWhichIsA("GuiButton")
+	if mainMenu.Visible and State.inputType == "Gamepad" then
+		GuiService.SelectedObject = playButton
 	end
 end
 
@@ -432,41 +433,72 @@ end
 -- Main & pause menus
 ------------------------------------------------------------------------------------
 
+-- A menu entry: a button with a thin bar on its left edge that grows on
+-- hover and selection (mouse, keyboard and gamepad read the same).
+local function menuButton(parent: Instance, text: string, style: string, order: number, onClick: () -> ()): TextButton
+	local b = Kit.button({ Text = text, Size = UDim2.fromOffset(320, 50), TextSize = 18, Style = style, LayoutOrder = order, TextXAlignment = Enum.TextXAlignment.Left, Parent = parent }, onClick)
+	Kit.padding(b, 0, 24)
+	local bar = Kit.frame({ Size = UDim2.new(0, 3, 0, 0), AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, -24, 0.5, 0), BackgroundColor3 = if style == "primary" then C.Black else C.Text, Parent = b })
+	local function grow(on: boolean)
+		Kit.tween(bar, 0.16, { Size = UDim2.new(0, 3, if on then 0.6 else 0, 0) })
+	end
+	b.MouseEnter:Connect(function()
+		grow(true)
+	end)
+	b.MouseLeave:Connect(function()
+		grow(false)
+	end)
+	b.SelectionGained:Connect(function()
+		grow(true)
+	end)
+	b.SelectionLost:Connect(function()
+		grow(false)
+	end)
+	return b
+end
+
+local menuNote: TextLabel
+local mapLabel: TextLabel
+local playPending = false
+
 local function buildMain()
 	mainMenu = Kit.frame({ Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = menuGui })
-	local shade = Kit.frame({ Size = UDim2.fromScale(0.55, 1), BackgroundColor3 = Color3.new(), Parent = mainMenu })
-	-- dark enough behind the title to read it, light enough to see the room
-	Kit.new("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1) }), Parent = shade })
-	title = Kit.text({ Text = GameConfig.GameName, Size = UDim2.fromOffset(900, 96), Position = UDim2.fromOffset(110, 170), FontFace = Kit.F.Title, TextSize = 84, Parent = mainMenu })
-	Kit.text({ Text = GameConfig.Tagline, Size = UDim2.fromOffset(900, 30), Position = UDim2.fromOffset(114, 266), FontFace = Kit.F.Light, TextSize = 22, TextColor3 = C.TextDim, Parent = mainMenu })
-	local buttons = Kit.frame({ Name = "Buttons", Size = UDim2.fromOffset(320, 420), Position = UDim2.fromOffset(110, 360), BackgroundTransparency = 1, Parent = mainMenu })
-	Kit.list(buttons, 10)
+	-- darkness on the left for the words, the building visible on the right
+	local shade = Kit.frame({ Size = UDim2.fromScale(0.6, 1), BackgroundColor3 = Color3.new(), Parent = mainMenu })
+	Kit.new("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(0.55, 0.6), NumberSequenceKeypoint.new(1, 1) }), Parent = shade })
+	local floor = Kit.frame({ Size = UDim2.new(1, 0, 0, 220), AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.new(), Parent = mainMenu })
+	Kit.new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0.35) }), Parent = floor })
+	Kit.text({ Text = "ASHGROVE OBSERVATION PROJECT  ·  NIGHT SHIFT", Size = UDim2.fromOffset(900, 20), Position = UDim2.fromOffset(112, 150), FontFace = Kit.F.Mono, TextSize = 15, TextColor3 = C.Muted, Parent = mainMenu })
+	title = Kit.text({ Text = GameConfig.GameName, Size = UDim2.fromOffset(1000, 100), Position = UDim2.fromOffset(108, 172), FontFace = Kit.F.Title, TextSize = 92, Parent = mainMenu })
+	Kit.frame({ Size = UDim2.fromOffset(120, 2), Position = UDim2.fromOffset(112, 280), BackgroundColor3 = C.Line, Parent = mainMenu })
+	Kit.text({ Text = GameConfig.Tagline, Size = UDim2.fromOffset(900, 30), Position = UDim2.fromOffset(112, 292), FontFace = Kit.F.Light, TextSize = 22, TextColor3 = C.TextDim, Parent = mainMenu })
+	local buttons = Kit.frame({ Name = "Buttons", Size = UDim2.fromOffset(340, 470), Position = UDim2.fromOffset(110, 370), BackgroundTransparency = 1, Parent = mainMenu })
+	Kit.list(buttons, 8)
+	playButton = menuButton(buttons, "PLAY", "primary", 1, function()
+		MenuController:Play()
+	end)
 	local entries = {
-		{ "PLAY", "primary", function()
-			MenuController:Play()
-		end },
-		{ "HOW TO PLAY", "ghost", function()
-			MenuController:OpenPanel("HOWTO")
-		end },
-		{ "JOURNAL", "ghost", function()
-			MenuController:OpenPanel("JOURNAL")
-		end },
-		{ "SHOP", "ghost", function()
-			MenuController:OpenPanel("SHOP")
-		end },
-		{ "SETTINGS", "ghost", function()
-			MenuController:OpenPanel("SETTINGS")
-		end },
-		{ "CREDITS", "ghost", function()
-			MenuController:OpenPanel("CREDITS")
-		end },
+		{ "SUPPLY ROOM", "SHOP" },
+		{ "PREMIUM STORE", "PREMIUM" },
+		{ "JOURNAL", "JOURNAL" },
+		{ "HOW TO PLAY", "HOWTO" },
+		{ "SETTINGS", "SETTINGS" },
+		{ "CREDITS", "CREDITS" },
 	}
 	for i, e in entries do
-		local b = Kit.button({ Text = e[1], Size = UDim2.fromOffset(300, 52), TextSize = 19, Style = e[2], LayoutOrder = i, TextXAlignment = Enum.TextXAlignment.Left, Parent = buttons }, e[3])
-		Kit.padding(b, 0, 22)
+		menuButton(buttons, e[1], "ghost", i + 1, function()
+			MenuController:OpenPanel(e[2])
+		end)
 	end
-	profileLabel = Kit.text({ Text = "", Size = UDim2.fromOffset(500, 24), Position = UDim2.new(1, -540, 0, 40), TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Mono, TextSize = 16, TextColor3 = C.TextDim, Parent = mainMenu })
-	Kit.text({ Text = string.format("v%s   ·   1-%d PLAYERS   ·   %s", GameConfig.Version, GameConfig.MaxPlayers, GameConfig.BuildingName), Size = UDim2.fromOffset(900, 20), Position = UDim2.new(0, 110, 1, -60), FontFace = Kit.F.Light, TextSize = 14, TextColor3 = C.Muted, Parent = mainMenu })
+	-- a line under the buttons for what went wrong (PLAY that got no answer)
+	menuNote = Kit.text({ Text = "", Size = UDim2.fromOffset(520, 24), Position = UDim2.fromOffset(112, 846), FontFace = Kit.F.Body, TextSize = 16, TextColor3 = C.Warning, Parent = mainMenu })
+	local chip = Kit.frame({ Size = UDim2.fromOffset(0, 34), AutomaticSize = Enum.AutomaticSize.X, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -60, 0, 40), BackgroundColor3 = C.Black, BackgroundTransparency = 0.35, Parent = mainMenu })
+	Kit.corner(chip, 4)
+	Kit.stroke(chip, C.Line, 1, 0.4)
+	Kit.padding(chip, 0, 14)
+	profileLabel = Kit.text({ Text = "", Size = UDim2.fromOffset(0, 34), AutomaticSize = Enum.AutomaticSize.X, TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Mono, TextSize = 15, TextColor3 = C.TextDim, TextWrapped = false, Parent = chip })
+	Kit.text({ Text = string.format("v%s   ·   1-%d PLAYERS   ·   %s", GameConfig.Version, GameConfig.MaxPlayers, GameConfig.BuildingName), Size = UDim2.fromOffset(900, 20), Position = UDim2.new(0, 112, 1, -60), FontFace = Kit.F.Light, TextSize = 14, TextColor3 = C.Muted, Parent = mainMenu })
+	mapLabel = Kit.text({ Text = "", Size = UDim2.fromOffset(600, 20), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -60, 1, -60), TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Mono, TextSize = 13, TextColor3 = C.Muted, Parent = mainMenu })
 end
 
 local function buildPause()
@@ -517,18 +549,44 @@ function MenuController:SetPaused(on: boolean)
 	end
 end
 
+-- PLAY: the button waits for the server to put you in the Field Office
+-- (the status really changes), never a fixed delay; no answer in time and
+-- the menu comes back with a line saying so.
+local PLAY_TIMEOUT = 12
+
 function MenuController:Play()
-	if State.status ~= "MENU" then
+	if State.status ~= "MENU" or playPending then
 		return
 	end
+	playPending = true
+	menuNote.Text = ""
+	playButton.Text = "ENTERING…"
+	playButton.Active = false
 	Kit.sound("TitleHit")
 	Registry.EffectsController:Fade(1, 0.6)
 	task.delay(0.7, function()
 		Net.event("Lobby"):FireServer("play")
-		task.delay(1.2, function()
-			Registry.EffectsController:Fade(0, 1.2)
-		end)
 	end)
+	local started = os.clock()
+	task.spawn(function()
+		while State.status == "MENU" and os.clock() - started < PLAY_TIMEOUT do
+			task.wait(0.1)
+		end
+		playPending = false
+		playButton.Text = "PLAY"
+		playButton.Active = true
+		if State.status == "MENU" then
+			Registry.EffectsController:Fade(0, 0.6)
+			menuNote.Text = "The Field Office didn't answer. Try again."
+			Kit.sound("UIError")
+		else
+			Registry.EffectsController:Fade(0, 1.2)
+		end
+	end)
+end
+
+function MenuController:IsPlayPending(): boolean
+	return playPending
 end
 
 local function warningIfNeeded()
@@ -580,8 +638,16 @@ function MenuController:Start()
 		mainMenu.Visible = inMenu
 		if inMenu then
 			pauseMenu.Visible = false
+			if State.inputType == "Gamepad" and not currentPanel then
+				GuiService.SelectedObject = playButton
+			end
 		end
 	end
+	local function mapState()
+		mapLabel.Text = if Workspace:GetAttribute("MapReady") == true then "" else "the building is being prepared…"
+	end
+	Workspace:GetAttributeChangedSignal("MapReady"):Connect(mapState)
+	mapState()
 	State.StatusChanged:Connect(function()
 		refresh()
 		if State.status ~= "LOBBY" and State.status ~= "ALIVE" and pauseMenu.Visible then
@@ -595,7 +661,7 @@ function MenuController:Start()
 	State.ProfileChanged:Connect(function()
 		local p = State.profile
 		if p then
-			profileLabel.Text = string.format("LEVEL %d   ·   %s ECHOES", p.level or 1, Util.formatNumber(p.echoes or 0))
+			profileLabel.Text = string.format("LEVEL %d   ·   ◈ %s ECHOES", p.level or 1, Util.formatNumber(p.echoes or 0))
 		end
 	end)
 	-- first profile: show the warning once settings are known

@@ -11,6 +11,12 @@
         "$path": "src/marketing/shared"
       }
     },
+    "ReplicatedFirst": {
+      "$className": "ReplicatedFirst",
+      "Boot": {
+        "$path": "src/first"
+      }
+    },
     "ServerScriptService": {
       "$className": "ServerScriptService",
       "Server": {

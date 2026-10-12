@@ -15,6 +15,17 @@ local NetController = {}
 local player = Players.LocalPlayer
 local settingsLoaded = false
 
+-- tells the loading screen (ReplicatedFirst/Boot) that a phase is done
+local function boot(id: string, status: string, note: string?)
+	local holder = game:GetService("ReplicatedFirst"):FindFirstChild("Boot")
+	local module = holder and holder:FindFirstChild("BootState")
+	if module then
+		pcall(function()
+			require(module).set(id, status, note)
+		end)
+	end
+end
+
 local function setStatus(status: string)
 	if State.status ~= status then
 		State.status = status
@@ -23,6 +34,10 @@ local function setStatus(status: string)
 end
 
 function NetController:Start()
+	boot("records", "active")
+	State.ProfileChanged:Once(function()
+		boot("records", "done")
+	end)
 	Net.event("RoundState").OnClientEvent:Connect(function(p)
 		if type(p) ~= "table" then
 			return

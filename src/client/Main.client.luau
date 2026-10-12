@@ -5,9 +5,27 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local StarterGui = game:GetService("StarterGui")
 
 local Registry = require(script.Parent.Registry)
+
+-- the loading screen's record of what is really ready (ReplicatedFirst/Boot)
+local BootState = nil
+do
+	local boot = ReplicatedFirst:WaitForChild("Boot", 10)
+	local module = boot and boot:FindFirstChild("BootState")
+	if module then
+		BootState = require(module)
+	end
+end
+-- the controllers start once, never twice
+if BootState and not BootState.claim("client") then
+	return
+end
+if BootState then
+	BootState.set("systems", "active")
+end
 
 -- The game draws its own HUD; hide default core UI that would break immersion.
 local function disableCore()
@@ -91,13 +109,21 @@ for _, c in controllers do
 	end
 end
 
+local startFailures = 0
 for _, c in controllers do
 	if c.Start then
 		task.spawn(function()
 			local ok, err = pcall(c.Start, c)
 			if not ok then
+				startFailures += 1
 				warn(string.format("[Client] %s.Start failed: %s", c.Name, tostring(err)))
 			end
 		end)
 	end
+end
+
+-- every controller ran Init and was started (a Start that yields keeps
+-- running in its own thread; a failure is reported, never hidden)
+if BootState then
+	BootState.set("systems", "done", if startFailures > 0 then string.format("%d system(s) failed to start", startFailures) else nil)
 end

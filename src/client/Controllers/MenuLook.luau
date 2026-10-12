@@ -14,6 +14,10 @@
 	    a battery emergency lamp glowing amber on the basement wall. They exist
 	    only while the menu is open.
 
+	  * a presence, barely: now and then (never on a schedule you could
+	    learn) a dark figure stands far down the shot for a few seconds, so
+	    faint you are not sure it was there. Never with reduced effects.
+
 	Nothing is replicated and nothing the server owns is changed for good.
 ]]
 
@@ -177,6 +181,72 @@ local function enter()
 	buildBulbs()
 end
 
+-- the presence: far down the view, on the floor, fading in and out
+local random = Random.new()
+local nextPresenceAt = os.clock() + random:NextNumber(25, 50)
+
+local function presence()
+	local camera = Workspace.CurrentCamera
+	if not camera or not folder then
+		return
+	end
+	local cf = camera.CFrame
+	local flat = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+	if flat.Magnitude < 0.3 then
+		return
+	end
+	flat = flat.Unit
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { folder :: Instance }
+	local want = random:NextNumber(26, 40)
+	local hit = Workspace:Raycast(cf.Position, flat * want, params)
+	local dist = if hit then hit.Distance - 3 else want
+	if dist < 20 then
+		return
+	end
+	local spot = cf.Position + flat * dist + Vector3.new(-flat.Z, 0, flat.X) * random:NextNumber(-3, 3)
+	local ground = Workspace:Raycast(spot + Vector3.new(0, 2, 0), Vector3.new(0, -14, 0), params)
+	if not ground then
+		return
+	end
+	local base = ground.Position
+	local face = CFrame.lookAt(base, Vector3.new(cf.Position.X, base.Y, cf.Position.Z))
+	local parts = {}
+	for _, spec in { { Vector3.new(1.3, 5.4, 0.6), 2.7 }, { Vector3.new(0.8, 1.1, 0.7), 5.95 } } do
+		local p = Instance.new("Part")
+		p.Name = "MenuPresence"
+		p.Size = spec[1]
+		p.CFrame = face * CFrame.new(0, spec[2], 0)
+		p.Color = Color3.fromRGB(8, 8, 9)
+		p.Material = Enum.Material.Fabric
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Transparency = 1
+		p.Parent = folder
+		table.insert(parts, p)
+	end
+	local TweenService = game:GetService("TweenService")
+	for _, p in parts do
+		TweenService:Create(p, TweenInfo.new(1.6, Enum.EasingStyle.Sine), { Transparency = 0.2 }):Play()
+	end
+	task.delay(1.6 + random:NextNumber(1.8, 3), function()
+		for _, p in parts do
+			if p.Parent then
+				TweenService:Create(p, TweenInfo.new(1.8, Enum.EasingStyle.Sine), { Transparency = 1 }):Play()
+			end
+		end
+		task.delay(2, function()
+			for _, p in parts do
+				p:Destroy()
+			end
+		end)
+	end)
+end
+
 local function leave()
 	if not active then
 		return
@@ -229,6 +299,12 @@ function MenuLook:Start()
 			return
 		end
 		local t = os.clock()
+		if t >= nextPresenceAt then
+			nextPresenceAt = t + random:NextNumber(45, 110)
+			if not State.settings.reducedEffects then
+				pcall(presence)
+			end
+		end
 		for _, b in bulbs do
 			-- a bare bulb on its cord: a slow sway, a light that breathes
 			local swing = CFrame.Angles(math.sin(t * 0.7 + b.phase) * 0.06, 0, math.cos(t * 0.53 + b.phase) * 0.05)

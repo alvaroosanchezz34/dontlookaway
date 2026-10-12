@@ -391,6 +391,55 @@ for _, panel in { "HOWTO", "JOURNAL", "SHOP", "PREMIUM", "SETTINGS", "CREDITS" }
 	frames(2)
 end
 
+section("loading: real phases, no fake progress, never stuck")
+do
+	local bootFolder = game:GetService("ReplicatedFirst"):FindFirstChild("Boot")
+	check(bootFolder ~= nil and bootFolder:FindFirstChild("BootState") ~= nil and bootFolder:FindFirstChild("Loading") ~= nil, "the loading screen and its state live in ReplicatedFirst")
+	local Boot = requireModule(bootFolder.BootState)
+	check(Boot.get("records") == "done", "the record phase is reported done once the profile arrived (NetController)")
+	Boot.reset()
+	check(not Boot.ready(), "nothing is ready at the start")
+	check(Boot.claim("client") and not Boot.claim("client"), "the client can only be claimed once (no double start)")
+	Boot.set("world", "done")
+	Boot.set("world", "active")
+	check(Boot.get("world") == "done", "a finished phase never goes back to active")
+	for _, phase in Boot.PHASES do
+		Boot.set(phase.id, if phase.id == "assets" then "skipped" else "done")
+	end
+	check(Boot.ready(), "ready once every phase finished (a skipped one included)")
+	Boot.set("nonsense", "done")
+	check(Boot.get("nonsense") == nil, "unknown phases are ignored")
+	for id, t in Boot.TIMEOUT do
+		check(t > 0 and t <= 60, "phase " .. id .. " has a time limit (" .. t .. " s)")
+	end
+	local src = bootFolder.Loading.Source
+	check(string.find(src, "PreloadAsync", 1, true) ~= nil, "assets are really preloaded")
+	check(string.find(src, "%%", 1, true) == nil, "no percentage anywhere on the loading screen")
+	check(string.find(src, "RemoveDefaultLoadingScreen", 1, true) ~= nil, "the default screen is replaced")
+	check(string.find(src, "TeleportService", 1, true) ~= nil and string.find(src, "RETRY", 1, true) ~= nil, "a server that never answers gets a RETRY that rejoins")
+	check(string.find(src, "while not (BootState.ready() and BootState.get(\"systems\") == \"done\") do", 1, true) ~= nil, "the screen leaves on real conditions, not a timer")
+	check(string.find(src, "task.wait(3)", 1, true) == nil and string.find(src, "task.wait(5)\n\tgui", 1, true) == nil, "no fixed-time exit")
+	local main = clientRoot:FindFirstChild("Main")
+	check(main ~= nil and string.find(main.Source, "BootState.claim(\"client\")", 1, true) ~= nil, "Main claims the client before starting controllers")
+	check(main ~= nil and string.find(main.Source, "BootState.set(\"systems\", \"done\"", 1, true) ~= nil, "Main reports the systems once they started")
+end
+
+section("menu: PLAY waits for the server")
+do
+	localPlayer:SetAttribute("Status", "MENU")
+	frames(2)
+	Registry.MenuController:Play()
+	check(Registry.MenuController:IsPlayPending(), "PLAY waits for an answer")
+	Registry.MenuController:Play()
+	localPlayer:SetAttribute("Status", "LOBBY")
+	frames(2)
+	task.wait(0.3)
+	frames(2)
+	check(not Registry.MenuController:IsPlayPending(), "once the server puts you in the Field Office, PLAY is done")
+	localPlayer:SetAttribute("Status", "MENU")
+	frames(2)
+end
+
 section("supply room")
 fire("Challenge", { daily = { { id = "D_ANOMALY_3", text = "Find 3 anomalies", goal = 3, progress = 1, done = false, echoes = 60, xp = 80 } }, weekly = { { id = "W_SURVIVE_5", text = "Survive 5", goal = 5, progress = 5, done = true, echoes = 500, xp = 700 } }, dailyResetsIn = 4000, weeklyResetsIn = 300000, dailiesDone = 2 })
 check(State.challenges ~= nil, "challenge snapshot reaches State")
