@@ -212,10 +212,16 @@ end
 handlers.Intro = function()
 	State.notes = {}
 	task.spawn(function()
+		-- after the case file, if it is still open
+		local waited = 0
+		while Registry.BriefingController and Registry.BriefingController:IsOpen() and waited < 90 do
+			task.wait(0.25)
+			waited += 0.25
+		end
 		task.wait(1.2)
-		EffectsController:Title("THE BUILDING CHANGES", "WHEN YOU STOP LOOKING.", 3.6)
-		task.wait(5.4)
-		EffectsController:Title("LEARN THE BUILDING", "Look around while the lights still work.", 3.6, Kit.F.Heading)
+		EffectsController:Title("THE BUILDING CHANGES", "WHEN YOU STOP LOOKING.", 5.2)
+		task.wait(7)
+		EffectsController:Title("LEARN THE BUILDING", "Look around while the lights still work.", 5, Kit.F.Heading)
 	end)
 end
 

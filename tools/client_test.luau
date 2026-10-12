@@ -473,10 +473,27 @@ do
 		end
 	end
 	check(not anyLit, "the dark takes every lamp it reaches")
+	local redLit = true
+	hall:SetAttribute("DarkFrom", -1e6)
+	frames(2)
+	for _, lamp in D:Lamps() do
+		if lamp.light.Enabled and lamp.light.Color.R < lamp.light.Color.G * 2 then
+			redLit = false
+		end
+	end
+	check(redLit, "the corridor is in a total blackout: only red emergency light")
+	check(game:GetService("Lighting"):FindFirstChild("DistortionGrade") ~= nil, "the picture takes the blackout's red grade")
 	for _, cue in { "notice", "wake", "chase" } do
 		local ok, err = pcall(fire, "Distortion", { cue = cue, id = "ImpossibleHallway", token = 7 })
 		check(ok, "cue " .. cue .. ": " .. tostring(err))
 		frames(1)
+		task.wait(0.4)
+		local music = Registry.MusicController:GetState()
+		if cue == "notice" then
+			check(music == "DREAD", "while it watches the music is dread (" .. tostring(music) .. ")")
+		elseif cue == "chase" then
+			check(music == "RUN", "when it comes the music runs (" .. tostring(music) .. ")")
+		end
 	end
 	fire("Distortion", { cue = "taken", id = "ImpossibleHallway", token = 99 })
 	check(State.distortion == "ImpossibleHallway", "a cue from another run is ignored")
@@ -487,6 +504,7 @@ do
 	check(State.distortion == nil and not Registry.HUDController:IsQuiet(), "after the return nothing of it is left on screen")
 	check(math.abs(yaw1 - yaw0) < 1e-6 and math.abs(pitch1 - pitch0) < 1e-6, "the view faces where it faced before")
 	check(#D:Lamps() == 0, "the corridor's lamps are no longer driven")
+	check(game:GetService("Lighting"):FindFirstChild("DistortionGrade") == nil, "and its grade is gone")
 	-- the watchdog: no return cue, but the server cleared it
 	fire("Distortion", { cue = "break", id = "ImpossibleHallway", token = 8 })
 	localPlayer:SetAttribute("Distortion", "ImpossibleHallway")
@@ -495,6 +513,54 @@ do
 	frames(1)
 	check(State.distortion == nil and not Registry.HUDController:IsQuiet(), "a lost return still puts everything back")
 	hall:Destroy()
+	localPlayer:SetAttribute("Status", "MENU")
+	frames(2)
+end
+
+section("briefing: the case file at the start of a night")
+do
+	localPlayer:SetAttribute("Status", "ALIVE")
+	frames(2)
+	local B = Registry.BriefingController
+	check(B ~= nil, "the briefing controller runs")
+	B:Open()
+	check(B:IsOpen() and State.uiOpen, "it opens and frees the mouse")
+	local briefGui = playerGui:FindFirstChild("Briefing")
+	local function buttonText(t)
+		for _, d in briefGui:GetDescendants() do
+			if d:IsA("TextButton") and d.Text == t then
+				return d
+			end
+		end
+		return nil
+	end
+	local function hasText(fragment)
+		for _, d in briefGui:GetDescendants() do
+			if d:IsA("TextLabel") and string.find(d.Text, fragment, 1, true) then
+				return true
+			end
+		end
+		return false
+	end
+	check(hasText("ASHGROVE OBSERVATION PROJECT"), "page 1 is the project")
+	for i = 1, 4 do
+		local nextButton = buttonText("NEXT")
+		check(nextButton ~= nil, "page " .. i .. " has NEXT")
+		if nextButton then
+			signalFor(nextButton, "Activated"):Fire()
+		end
+	end
+	check(hasText("THE RULES") or hasText("BEFORE YOU GO IN"), "the pages explain the rules")
+	local enter = buttonText("ENTER THE BUILDING")
+	check(enter ~= nil, "the last page sends you in")
+	if enter then
+		signalFor(enter, "Activated"):Fire()
+	end
+	check(not B:IsOpen() and not State.uiOpen, "and closes, giving the mouse back")
+	B:Open()
+	localPlayer:SetAttribute("Status", "DEAD")
+	frames(2)
+	check(not B:IsOpen(), "being taken closes it")
 	localPlayer:SetAttribute("Status", "MENU")
 	frames(2)
 end

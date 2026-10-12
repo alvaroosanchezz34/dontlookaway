@@ -520,6 +520,12 @@ local function buildPause()
 		{ "SETTINGS", "ghost", function()
 			MenuController:OpenPanel("SETTINGS")
 		end },
+		{ "CASE FILE", "ghost", function()
+			MenuController:SetPaused(false)
+			if Registry.BriefingController then
+				Registry.BriefingController:Open()
+			end
+		end },
 		{ "BACK TO MENU", "ghost", function()
 			if State.status == "LOBBY" then
 				MenuController:SetPaused(false)
@@ -673,6 +679,12 @@ function MenuController:Start()
 			return
 		end
 		if action == "Pause" then
+			local briefing = Registry.BriefingController
+			if briefing and briefing:IsOpen() then
+				-- Esc closes the case file first
+				briefing:Close()
+				return
+			end
 			if currentPanel then
 				closePanel()
 			elseif State.status == "LOBBY" or State.status == "ALIVE" then

@@ -50,6 +50,12 @@ local LINE = Color3.fromRGB(58, 58, 62)
 local GOOD = Color3.fromRGB(190, 206, 190)
 local WARN = Color3.fromRGB(214, 190, 140)
 
+-- once everything is ready the title stays a little longer, and the screen
+-- is never shown for less than this in all
+local HOLD_AFTER_READY = 2.5
+local MIN_SHOW = 6
+local shownAt = os.clock()
+
 local TIPS = {
 	"Not every room is the same.",
 	"If something changed, it changed while nobody was looking.",
@@ -81,36 +87,47 @@ end
 
 local gui = new("ScreenGui", { Name = "Loading", DisplayOrder = 100, IgnoreGuiInset = true, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = player:WaitForChild("PlayerGui") })
 local root = new("CanvasGroup", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = BLACK, BackgroundTransparency = 0, Parent = gui })
--- authored for 1080p, scaled for phones and TVs
-local scale = new("UIScale", { Parent = root })
+-- the black covers the whole screen at any size; what is drawn on it lives on
+-- a 1920x1080 stage, centred and scaled to fit (phones, ultrawide, TVs)
+local stage = new("Frame", { Name = "Stage", Size = UDim2.fromOffset(1920, 1080), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1, Parent = root })
+local scale = new("UIScale", { Parent = stage })
 local function rescale()
 	local camera = Workspace.CurrentCamera
 	if camera then
 		local v = camera.ViewportSize
-		scale.Scale = math.clamp(math.min(v.X / 1920, v.Y / 1080) * (if v.Y < 600 then 1.25 else 1), 0.5, 1.5)
+		if v.X > 1 and v.Y > 1 then
+			scale.Scale = math.min(v.X / 1920, v.Y / 1080)
+		end
 	end
 end
 rescale()
 if Workspace.CurrentCamera then
 	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 end
+task.spawn(function()
+	-- the camera's size is only known a moment after the client starts
+	for _ = 1, 20 do
+		task.wait(0.25)
+		rescale()
+	end
+end)
 
 -- a door left ajar in the dark: a thin slit of light behind the title,
 -- breathing very slowly
-local slit = new("Frame", { Size = UDim2.new(0, 4, 0.62, 0), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.44), BackgroundColor3 = Color3.fromRGB(92, 88, 80), BackgroundTransparency = 0.55, Parent = root })
+local slit = new("Frame", { Size = UDim2.new(0, 4, 0.62, 0), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.44), BackgroundColor3 = Color3.fromRGB(92, 88, 80), BackgroundTransparency = 0.55, Parent = stage })
 new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.35, 0.2), NumberSequenceKeypoint.new(0.8, 0.5), NumberSequenceKeypoint.new(1, 1) }), Parent = slit })
-local spill = new("Frame", { Size = UDim2.new(0, 220, 0.4, 0), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.6), BackgroundColor3 = Color3.fromRGB(60, 58, 54), BackgroundTransparency = 0.8, Parent = root })
+local spill = new("Frame", { Size = UDim2.new(0, 220, 0.4, 0), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.6), BackgroundColor3 = Color3.fromRGB(60, 58, 54), BackgroundTransparency = 0.8, Parent = stage })
 new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1) }), Parent = spill })
 
-local title = new("TextLabel", { Text = "DON'T LOOK AWAY", Size = UDim2.new(1, 0, 0, 80), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.4), BackgroundTransparency = 1, FontFace = Font.fromEnum(Enum.Font.GothamBlack), TextSize = 68, TextColor3 = BONE, TextTransparency = 1, Parent = root })
-local overline = new("TextLabel", { Text = "ASHGROVE  ·  NIGHT SHIFT", Size = UDim2.new(1, 0, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.4, -58), BackgroundTransparency = 1, FontFace = Font.fromEnum(Enum.Font.Code), TextSize = 15, TextColor3 = MUTED, TextTransparency = 1, Parent = root })
+local title = new("TextLabel", { Text = "DON'T LOOK AWAY", Size = UDim2.new(1, 0, 0, 80), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.4), BackgroundTransparency = 1, FontFace = Font.fromEnum(Enum.Font.GothamBlack), TextSize = 68, TextColor3 = BONE, TextTransparency = 1, Parent = stage })
+local overline = new("TextLabel", { Text = "ASHGROVE  ·  NIGHT SHIFT", Size = UDim2.new(1, 0, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.4, -58), BackgroundTransparency = 1, FontFace = Font.fromEnum(Enum.Font.Code), TextSize = 15, TextColor3 = MUTED, TextTransparency = 1, Parent = stage })
 
 -- the sweep: no percentage, because the real total is unknown
-local track = new("Frame", { Size = UDim2.fromOffset(320, 2), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.4, 62), BackgroundColor3 = LINE, BackgroundTransparency = 0.3, ClipsDescendants = true, Parent = root })
+local track = new("Frame", { Size = UDim2.fromOffset(320, 2), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.4, 62), BackgroundColor3 = LINE, BackgroundTransparency = 0.3, ClipsDescendants = true, Parent = stage })
 local sweep = new("Frame", { Size = UDim2.new(0.25, 0, 1, 0), BackgroundColor3 = BONE, BackgroundTransparency = 0.2, Parent = track })
 
 -- what is being prepared, line by line
-local list = new("Frame", { Size = UDim2.fromOffset(460, 150), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.4, 86), BackgroundTransparency = 1, Parent = root })
+local list = new("Frame", { Size = UDim2.fromOffset(460, 150), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.4, 86), BackgroundTransparency = 1, Parent = stage })
 new("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
 local lines: { [string]: TextLabel } = {}
 for i, phase in BootState.PHASES do
@@ -118,11 +135,11 @@ for i, phase in BootState.PHASES do
 end
 
 -- tips, apart from the phases and marked as such
-new("TextLabel", { Text = "NOTE", Size = UDim2.new(1, 0, 0, 18), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -110), BackgroundTransparency = 1, FontFace = Font.fromEnum(Enum.Font.Code), TextSize = 13, TextColor3 = MUTED, Parent = root })
-local tip = new("TextLabel", { Text = "", Size = UDim2.new(1, -80, 0, 28), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -78), BackgroundTransparency = 1, FontFace = Font.fromEnum(Enum.Font.SpecialElite), TextSize = 21, TextColor3 = DIM, TextTransparency = 1, Parent = root })
+new("TextLabel", { Text = "NOTE", Size = UDim2.new(1, 0, 0, 18), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -110), BackgroundTransparency = 1, FontFace = Font.fromEnum(Enum.Font.Code), TextSize = 13, TextColor3 = MUTED, Parent = stage })
+local tip = new("TextLabel", { Text = "", Size = UDim2.new(1, -80, 0, 28), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -78), BackgroundTransparency = 1, FontFace = Font.fromEnum(Enum.Font.SpecialElite), TextSize = 21, TextColor3 = DIM, TextTransparency = 1, Parent = stage })
 
 -- when something is wrong: what, and what you can do
-local problem = new("Frame", { Size = UDim2.fromOffset(620, 110), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.4, 250), BackgroundTransparency = 1, Visible = false, Parent = root })
+local problem = new("Frame", { Size = UDim2.fromOffset(620, 110), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.4, 250), BackgroundTransparency = 1, Visible = false, Parent = stage })
 local problemText = new("TextLabel", { Text = "", Size = UDim2.new(1, 0, 0, 44), BackgroundTransparency = 1, FontFace = Font.fromEnum(Enum.Font.GothamMedium), TextSize = 17, TextColor3 = WARN, TextWrapped = true, Parent = problem })
 local retry = new("TextButton", { Text = "RETRY", Size = UDim2.fromOffset(200, 44), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 56), AutoButtonColor = true, BackgroundColor3 = BONE, TextColor3 = BLACK, FontFace = Font.fromEnum(Enum.Font.GothamBold), TextSize = 16, Selectable = true, Parent = problem })
 new("UICorner", { CornerRadius = UDim.new(0, 4), Parent = retry })
@@ -314,8 +331,10 @@ task.spawn(function()
 		task.wait(0.1)
 	end
 	paint()
-	task.wait(0.4)
-	local fade = TweenService:Create(root, TweenInfo.new(1.1, Enum.EasingStyle.Sine), { GroupTransparency = 1 })
+	-- a moment with the title on screen before it goes, never less than
+	-- MIN_SHOW in all (the work itself decides when it is ready)
+	task.wait(math.max(HOLD_AFTER_READY, MIN_SHOW - (os.clock() - shownAt)))
+	local fade = TweenService:Create(root, TweenInfo.new(1.8, Enum.EasingStyle.Sine), { GroupTransparency = 1 })
 	fade:Play()
 	fade.Completed:Wait()
 	alive = false

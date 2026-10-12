@@ -12,7 +12,8 @@
 	Shape (local space: the corridor runs along -Z from the exit door at
 	z = 0 to a blank wall at z = -LENGTH, floor top at y = 0):
 	  * SEGMENTS of SEGMENT studs, WIDTH wide and HEIGHT high
-	  * a fluorescent fixture in the middle of every segment (a few dead)
+	  * a fixture in the middle of every segment (a few dead): the corridor
+	    is in a total blackout, lit only by red emergency tubes
 	  * doors on alternating sides, every one numbered alike, a few not quite
 	  * a darker lower wall band and baseboards: the repetition you count by
 	  * at z = 0 the way out: a doorway into black under an EXIT sign
@@ -51,7 +52,9 @@ local CEILING = Color3.fromRGB(168, 168, 160)
 local TRIM = Color3.fromRGB(38, 32, 26)
 local DOOR = Color3.fromRGB(62, 50, 38)
 local FRAME = Color3.fromRGB(54, 52, 48)
-local TUBE = Color3.fromRGB(222, 236, 212)
+-- the corridor is in a total blackout (level 4): only the red emergency
+-- tubes are lit
+local TUBE = Color3.fromRGB(255, 72, 58)
 local HOUSING = Color3.fromRGB(64, 66, 62)
 local STAIN = Color3.fromRGB(96, 100, 86)
 
@@ -138,7 +141,7 @@ function HallwayBuilder.build(): Model
 		local tube = part(lamp, "Tube", Vector3.new(0.5, 0.12, 4.2), at(0, H - 0.36, zc), TUBE, Enum.Material.Neon)
 		local light = Instance.new("PointLight")
 		light.Name = "Light"
-		light.Color = TUBE
+		light.Color = Color3.fromRGB(255, 84, 66)
 		light.Range = 18
 		light.Brightness = 0.9
 		light.Shadows = false

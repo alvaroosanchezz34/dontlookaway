@@ -248,8 +248,9 @@ local MIX = {
 	outside = { AmbientRain = 1, Wind = 0.9, AmbientDrone = 0.25 },
 	building = { AmbientDrone = 0.8, AmbientAir = 0.7, AmbientHum = 0.5, AmbientRain = 0.18, Ventilation = 0.7, EmergencyAlarm = 1 },
 	basement = { AmbientDrone = 1, AmbientAir = 0.4, AmbientHum = 0.25, Ventilation = 0.4, EmergencyAlarm = 0.7 },
-	-- a distortion: the fluorescent hum and a low drone, nothing else
-	void = { AmbientHum = 1.1, AmbientDrone = 0.35 },
+	-- a distortion: a building in total blackout, somewhere else: the
+	-- emergency alarm far off, a low drone, a little hum
+	void = { AmbientHum = 0.35, AmbientDrone = 0.8, EmergencyAlarm = 0.55 },
 }
 
 -- beds that only exist while the building has power
@@ -282,7 +283,7 @@ local function updateBeds(dt: number)
 			target *= 0.1 + 0.9 * restore
 		end
 		if key == "EmergencyAlarm" then
-			target *= if inRound and (blackout >= 3 or workspace:GetAttribute("Escape") == true) then 1 else 0
+			target *= if z == "void" or (inRound and (blackout >= 3 or workspace:GetAttribute("Escape") == true)) then 1 else 0
 		elseif key == "AmbientDrone" and inRound and (not power or blackout >= 2) then
 			target *= 1.25
 		end

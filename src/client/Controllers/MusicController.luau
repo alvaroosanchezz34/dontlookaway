@@ -4,7 +4,9 @@
 	composed at runtime from a few instruments (bell, low tone, pulse, pads,
 	strings) on a minor pentatonic scale, so the score is copyright free and
 	never repeats. States: MENU, EXPLORATION, TENSION, CHASE, ESCAPE, DEATH,
-	RESULTS. Long stretches of silence are part of the composition.
+	RESULTS, and inside a distortion DREAD (it watches: a slow pulse that
+	quickens) and RUN (it comes: a driving pulse that climbs). Long stretches
+	of silence are part of the composition.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -65,6 +67,8 @@ local PAD_MIX = {
 	TENSION = { MusicPad = 0.45, MusicChasePad = 0.15 },
 	CHASE = { MusicPad = 0.2, MusicChasePad = 0.85 },
 	ESCAPE = { MusicPad = 0.4, MusicChasePad = 1 },
+	DREAD = { MusicPad = 0.55, MusicChasePad = 0.35 },
+	RUN = { MusicPad = 0.25, MusicChasePad = 1 },
 	DEATH = { MusicPad = 0, MusicChasePad = 0 },
 	RESULTS = { MusicPad = 0.6, MusicChasePad = 0 },
 }
@@ -101,6 +105,11 @@ local function decide(): string
 		return forced
 	end
 	forced = nil
+	-- inside a distortion: tension while it watches, the chase once it comes
+	if State.distortion and State.status == "ALIVE" then
+		local phase = State.distortionPhase
+		return if phase == "chase" or phase == "taken" or phase == "wake" then "RUN" else "DREAD"
+	end
 	local round = State.round.state
 	if State.status == "MENU" then
 		return "MENU"
@@ -181,6 +190,34 @@ local function compose(): number
 			note("MusicBell", SCALE[random:NextInteger(3, #SCALE)], 0.6)
 		end
 		return math.max(0.32, 0.55 - t / 400)
+	elseif s == "DREAD" then
+		-- it watches: a slow pulse that quickens the longer it does
+		local t = os.clock() - enteredAt
+		note("MusicPulse", -14, 0.7)
+		if random:NextNumber() < 0.4 then
+			note("MusicString", -5 + random:NextInteger(0, 1), 0.6)
+		end
+		if random:NextNumber() < 0.3 then
+			note("MusicLow", -12, 0.7)
+		end
+		return math.max(0.8, 1.7 - t / 12)
+	elseif s == "RUN" then
+		-- it comes: a driving double pulse that climbs as the run goes on
+		local t = os.clock() - enteredAt
+		local pitch = -12 + math.min(4, math.floor(t / 7))
+		note("MusicPulse", pitch, 1)
+		task.delay(0.18, function()
+			if current == "RUN" then
+				note("MusicPulse", pitch, 0.6)
+			end
+		end)
+		if random:NextNumber() < 0.3 then
+			note("MusicLow", pitch, 0.8)
+		end
+		if random:NextNumber() < 0.15 then
+			note("MusicString", pitch + 7, 0.7)
+		end
+		return math.max(0.36, 0.62 - t / 70)
 	elseif s == "RESULTS" then
 		note("MusicBell", SCALE[random:NextInteger(1, #SCALE)], 0.6)
 		return random:NextNumber(3, 5.5)

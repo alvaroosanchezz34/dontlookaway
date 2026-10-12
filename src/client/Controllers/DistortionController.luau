@@ -42,7 +42,9 @@ local hall: Model? = nil
 local savedYaw, savedPitch = 0, 0
 local lampList: { { model: Model, tube: BasePart, light: PointLight, z: number, dead: boolean, seed: number, flickerUntil: number } } = {}
 local drive: RBXScriptConnection? = nil
-local TUBE_ON = Color3.fromRGB(222, 236, 212)
+-- a total blackout (level 4): only the red emergency tubes, pulsing slowly
+local TUBE_ON = Color3.fromRGB(255, 72, 58)
+local LIGHT_RED = Color3.fromRGB(255, 84, 66)
 local TUBE_OFF = Color3.fromRGB(40, 42, 40)
 local LIGHT_RANGE = 90 -- lamps further than this stay off (cheap at any quality)
 
@@ -100,7 +102,10 @@ local function paint()
 		local lit = not lamp.dead and lamp.z > darkFrom
 		local b = 0.9
 		if lit then
-			-- a fluorescent tube is never perfectly still
+			-- the emergency pulse of a total blackout (under 1 Hz with reduced
+			-- effects, never a flash)
+			b *= 0.68 + 0.32 * math.sin(now * (if calm then 0.8 else 2.2) + lamp.seed)
+			-- and never perfectly still
 			if not calm then
 				b *= 0.95 + 0.05 * math.noise(now * 3, lamp.seed)
 				if math.noise(now * 0.7, lamp.seed + 9) > 0.62 then
@@ -128,8 +133,29 @@ local function paint()
 		end
 		lamp.light.Enabled = lit and dist < LIGHT_RANGE
 		lamp.light.Brightness = b
+		lamp.light.Color = LIGHT_RED
 		lamp.tube.Material = if lit then Enum.Material.Neon else Enum.Material.Glass
 		lamp.tube.Color = if lit then TUBE_ON else TUBE_OFF
+	end
+end
+
+-- the picture of a total blackout: darker and tinted by the red light
+local grade: ColorCorrectionEffect? = nil
+local function setGrade(on: boolean)
+	if on then
+		if not grade or not grade.Parent then
+			local g = Instance.new("ColorCorrectionEffect")
+			g.Name = "DistortionGrade"
+			g.Brightness = -0.03
+			g.Contrast = 0.06
+			g.Saturation = -0.25
+			g.TintColor = Color3.fromRGB(255, 212, 206)
+			g.Parent = game:GetService("Lighting")
+			grade = g
+		end
+	elseif grade then
+		grade:Destroy()
+		grade = nil
 	end
 end
 
@@ -145,7 +171,9 @@ end
 -- Everything back as it was before the break.
 local function restore(fadeIn: boolean)
 	stopDriving()
+	setGrade(false)
 	State.distortion = nil
+	State.distortionPhase = nil
 	Registry.CameraController:SetYawPitch(savedYaw, savedPitch)
 	Registry.CameraController:SetFovEffect(0)
 	if Registry.HUDController.SetQuiet then
@@ -177,6 +205,8 @@ end
 
 handlers.arrive = function(p)
 	State.distortion = p.id
+	State.distortionPhase = "arrive"
+	setGrade(true)
 	local h = p.hall
 	if typeof(h) ~= "Instance" then
 		h = Workspace:WaitForChild("ImpossibleHallway", 3)
@@ -206,6 +236,7 @@ handlers.arrive = function(p)
 end
 
 handlers.notice = function()
+	State.distortionPhase = "notice"
 	local obs = observerPosition()
 	if not obs then
 		return
@@ -218,14 +249,17 @@ handlers.notice = function()
 end
 
 handlers.wake = function()
+	State.distortionPhase = "wake"
 	Registry.CameraController:Shake(if reduced() then 0.05 else 0.14)
 end
 
 handlers.chase = function()
+	State.distortionPhase = "chase"
 	Registry.CameraController:SetFovEffect(2)
 end
 
 handlers.taken = function()
+	State.distortionPhase = "taken"
 	Registry.CameraController:Shake(if reduced() then 0.1 else 0.5)
 	if not reduced() then
 		Registry.EffectsController:Glitch(0.8, 0.4)
