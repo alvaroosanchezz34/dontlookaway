@@ -171,7 +171,7 @@ Leyenda de las tablas de encuadre:
 | 0,3 | Habitación vacía. | «ASHGROVE · SECURITY FOOTAGE · 1987» |
 | 2,8 | Salto de cinta (estática 0,18 s) a 06:02:51: la silla ahora **mira a la cámara**. | — |
 | 5,9 | Salto a 06:39:12: alguien en la esquina del fondo, de cara a la pared. | — |
-| 9,0 | Salto a 07:11:40: en el centro, de cara a la cámara; la lámpara baja al 45 %. | — |
+| 9,0 | Salto a 07:11:40: en el centro, de cara a la cámara; la lámpara baja al 70 %. | — |
 | 12,0 | Salto a **07:11:41** (un segundo después): justo bajo la lente, ojos encendidos. | — |
 | 13,3 | Señal perdida. | — |
 | 14,0 | — | «THE RECORDING ENDS HERE.» |
@@ -193,7 +193,7 @@ Leyenda de las tablas de encuadre:
 | Tiempo | Imagen | Texto |
 |---|---|---|
 | 0,2 | Plano tranquilo. | «nothing happens in this video.» |
-| 3,40–3,45 | **0,05 s**: el Observer a unos 8 studs, de cara a la lente, ojos encendidos; la lámpara cae al 30 %. | — |
+| 3,40–3,45 | **0,05 s**: el Observer a unos 8 studs, de cara a la lente, ojos encendidos; la lámpara cae al 60 %. | — |
 | 6,2 | — | «THERE IS ONE FRAME IN THIS VIDEO» |
 | 7,4 | — | «THAT SHOULD NOT EXIST.» (más una inhalación detrás) |
 | 9,8–10,0 | Negro. | «GO BACK.» |
@@ -274,6 +274,29 @@ Sirve para juzgar encuadre, escala y luz. Cada imagen lleva el sello «PREVIS (B
 CAMPAIGN_PREVIS=build/previs lune run tools/client_test.luau build/test.rbxlx
 /home/user/.venv-blender/bin/python tools/blender/campaign_previs.py build/previs 32
 ```
+
+### Resultados del previs
+
+Hojas de fotogramas clave (540×960 cada uno, 20 muestras):
+
+- V1: ![](img/campaign/previs_V1_ItHasntMoved.jpg)
+- V2: ![](img/campaign/previs_V2_TheHallwayNeverEnds.jpg)
+- V4: ![](img/campaign/previs_V4_SecurityFootage.jpg)
+- V7: ![](img/campaign/previs_V7_ThisFrameShouldNotExist.jpg)
+- V10: ![](img/campaign/previs_V10_ItHasSeenYou.jpg)
+
+**Lo que el previs encontró y se corrigió:**
+- **V10.** El Observer estaba colocado **de espaldas** a la cámara: los ojos no se veían. El test de encuadre no lo detectaba porque solo proyectaba los ojos.
+  - Corregido: ahora mira a la lente.
+  - El test comprueba además que la figura **mira a la cámara** cuando se exigen los ojos. Lo confirmó señalando, correctamente, el plano de V4 en el que mira a la pared a propósito.
+- **V4 y V7.** La habitación salía casi negra.
+  - V4: lámpara al 100 % y exposición +0,6; la bajada de lámpara a 9 s pasa de 45 % a 70 %.
+  - V7: lámpara al 100 % y exposición +0,5; durante el fotograma la lámpara cae al 60 %.
+
+**Lo que el previs no puede confirmar:**
+- El set de la puerta (V10) sale muy oscuro en Blender: solo se ven los ojos y la pantalla de la lámpara.
+- La conversión de SpotLight a Cycles no está calibrada como la de PointLight, así que **la luz de V10 hay que juzgarla en Studio**.
+- Si se ve demasiado oscuro, sube `lamp` en `Shots.doorway(set, { door = 0.92, lamp = 0.55 })`.
 
 ---
 

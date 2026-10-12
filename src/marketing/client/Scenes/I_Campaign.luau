@@ -196,7 +196,7 @@ return {
 						{ at = t + 0.18, action = "Static", alpha = 0, duration = 0.08, sound = false },
 					}
 				end
-				return Shots.join(Shots.room(set, { lamp = 0.8 }), Shots.cctv(cam, "CAM_04  ROOM B-13"), {
+				return Shots.join(Shots.room(set, { lamp = 1, exposure = 0.6 }), Shots.cctv(cam, "CAM_04  ROOM B-13"), {
 					{ at = 0, action = "CCTV", on = true, label = "CAM_04  ROOM B-13", start = T0 },
 					{ at = 0, action = "AdoptObject", name = "chair", model = set.chair },
 					{ at = 0.3, action = "ShowText", id = "a", text = "ASHGROVE · SECURITY FOOTAGE · 1987", style = "cctv", position = "lower", size = 0.026, fadeIn = 0.2, duration = 2.2 },
@@ -209,7 +209,7 @@ return {
 				}, skip(9.0, T0 + 3 * 3600 + 54 * 60 + 36), {
 					-- in the middle of the room, facing the camera
 					{ at = 9.05, action = "PlaceObject", name = "it", to = facing(set.at(0.5, 0, -1.5), cam.Position) },
-					{ at = 9.05, action = "DimKey", name = "lamp", ratio = 0.45, duration = 0 },
+					{ at = 9.05, action = "DimKey", name = "lamp", ratio = 0.7, duration = 0 },
 				}, skip(12.0, T0 + 3 * 3600 + 54 * 60 + 37), {
 					-- one second later: right under the lens, looking up into it
 					{ at = 12.05, action = "PlaceObject", name = "it", to = facing(set.at(8.3, 0, 8.0), cam.Position) },
@@ -241,13 +241,13 @@ return {
 				-- about 8 studs ahead, a little left of the lens, facing it: close
 				-- enough to fill the frame, far enough for its eyes to be in it
 				local closeAt = facing(set.at(0.8, 0, -3.0), cam.Position)
-				return Shots.join(Shots.room(set, { camera = cam, preset = "HANDHELD", lamp = 0.85, grain = true, fade = 0.3, ambience = "AmbientHum", volume = 0.9 }), {
+				return Shots.join(Shots.room(set, { camera = cam, preset = "HANDHELD", lamp = 1, exposure = 0.5, grain = true, fade = 0.3, ambience = "AmbientHum", volume = 0.9 }), {
 					{ at = 0.2, action = "MoveCamera", to = cam * CFrame.new(0, 0.1, -2.5), duration = 9, ease = "creep" },
 					{ at = 0.2, action = "ShowText", id = "a", text = "nothing happens in this video.", style = "whisper", position = "upper", size = 0.032, fadeIn = 0.3, duration = 2.4 },
 					{ at = 3.4, action = "SpawnEffect", kind = "entity", name = "it", cframe = closeAt, ash = false, eyes = true },
-					{ at = 3.4, action = "DimKey", name = "lamp", ratio = 0.3, duration = 0 },
+					{ at = 3.4, action = "DimKey", name = "lamp", ratio = 0.6, duration = 0 },
 					{ at = 3.45, action = "DestroyEffect", name = "it" },
-					{ at = 3.45, action = "DimKey", name = "lamp", ratio = 0.85, duration = 0 },
+					{ at = 3.45, action = "DimKey", name = "lamp", ratio = 1, duration = 0 },
 					{ at = 6.2, action = "ShowText", id = "b", text = "THERE IS ONE FRAME IN THIS VIDEO", style = "title", position = "upper", size = 0.034, fadeIn = 0.2, duration = 3.4 },
 					{ at = 7.4, action = "ShowText", id = "c", text = "THAT SHOULD NOT EXIST.", style = "warning", position = "lower", size = 0.036, fadeIn = 0.2, duration = 2.2 },
 					{ at = 7.4, action = "PlaySound", sound = "ObserverInhale", position = Shots.behind(cam, 2), volume = 0.4 },
@@ -278,7 +278,7 @@ return {
 					{ at = 0, action = "SetCamera", cframe = set.camera(20, 5.8), preset = "CINEMATIC", fov = 40 },
 					{ at = 0, action = "MoveCamera", to = set.camera(8.5, 6.6), duration = 10.5, ease = "creep" },
 					-- it is there from the first frame, in the black
-					{ at = 0, action = "SpawnEffect", kind = "entity", name = "it", cframe = o * CFrame.new(0, 0, -2.6), ash = false },
+					{ at = 0, action = "SpawnEffect", kind = "entity", name = "it", cframe = facing((o * CFrame.new(0, 0, -2.6)).Position, (o * CFrame.new(0, 0, 20)).Position), ash = false },
 					{ at = 4.2, action = "EyesGlow", name = "it", on = true },
 					{ at = 4.2, action = "PlaySound", sound = "ObserverInhale", position = set.eyeAt, volume = 0.6 },
 					{ at = 4.6, action = "ShowText", id = "a", text = "IT WAS THERE ALL ALONG.", style = "whisper", position = "lower", size = 0.03, fadeIn = 0.4, duration = 2.4 },

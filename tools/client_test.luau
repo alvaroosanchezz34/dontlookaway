@@ -1869,7 +1869,11 @@ do
 			end
 		end
 		local frac = if top > bottom then (math.min(top, 1) - math.max(bottom, -1)) / 2 else 0
-		return frac, eyes > 0 and eyesIn == eyes, eyes, eyeAt
+		-- eyes only count when it faces the lens (from behind, its head hides them)
+		local pivot = m:GetPivot()
+		local toCam = (workspace.CurrentCamera.CFrame.Position - pivot.Position) * Vector3.new(1, 0, 1)
+		local facesLens = toCam.Magnitude > 0 and pivot.LookVector:Dot(toCam.Unit) > 0.5
+		return frac, eyes > 0 and eyesIn == eyes and facesLens, eyes, eyeAt .. (if facesLens then "" else " (FACING AWAY)")
 	end
 	local function playTo(name: string, untilClock: number, dt: number?)
 		while MC.IsPlaying() and MC.GetState().clock < untilClock - 1e-6 do
