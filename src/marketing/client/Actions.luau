@@ -37,7 +37,7 @@ local Runtime = require(script.Parent.Runtime)
 local Actions = {}
 
 local registry: { [string]: (any, { [string]: any }) -> () } = {}
-local random = Random.new()
+local random = require(script.Parent.Utilities.Rng)
 
 function Actions.register(name: string, fn: (any, { [string]: any }) -> ())
 	registry[name] = fn
@@ -433,6 +433,11 @@ Actions.register("AdoptObject", function(_tl, e)
 	if e.model then
 		Figures.adopt(e.name, e.model)
 	end
+end)
+
+-- An entity's eyes burn pale (on = true) or go dark again (on = false).
+Actions.register("EyesGlow", function(_tl, e)
+	Figures.eyes(e.name, e.on ~= false)
 end)
 
 Actions.register("DestroyEffect", function(_tl, e)

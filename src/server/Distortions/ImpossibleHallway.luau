@@ -40,7 +40,7 @@ local Enums = require(ReplicatedStorage.Shared.Enums)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Util = require(ReplicatedStorage.Shared.Util.Util)
 local Registry = require(script.Parent.Parent.Registry)
-local HallwayBuilder = require(script.Parent.HallwayBuilder)
+local HallwayBuilder = require(ReplicatedStorage.Shared.HallwayBuilder)
 
 local ImpossibleHallway = {}
 

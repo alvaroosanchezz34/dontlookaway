@@ -43,7 +43,7 @@ type Title = { holder: Frame, letters: { TextLabel }, chars: { string }, opacity
 local titles: { [string]: Title } = {}
 local images: { [string]: { label: ImageLabel, opts: { [string]: any }, born: number, opacity: number } } = {}
 local surfaces: { [string]: { part: BasePart, label: TextLabel } } = {}
-local random = Random.new()
+local random = require(script.Parent.Parent.Utilities.Rng)
 
 function Titles.reset()
 	table.clear(titles)

@@ -21,8 +21,11 @@ export type Figure = { model: Model, kind: string, feet: CFrame, phase: number, 
 
 local figures: { [string]: Figure } = {}
 
+local eyeSaved: { [BasePart]: { color: Color3, material: any } } = {}
+
 function Figures.reset()
 	table.clear(figures)
+	table.clear(eyeSaved)
 end
 
 function Figures.get(name: string): Figure?
@@ -233,7 +236,33 @@ function Figures.entity(name: string, feet: CFrame, opts: { [string]: any }?): F
 	m.Parent = Runtime.folder()
 	local f: Figure = { model = m, kind = "entity", feet = feet, phase = 0, parts = {}, offset = feet:ToObjectSpace(m:GetPivot()) }
 	figures[name] = f
+	-- the real rig (ObserverRig): eyeballs and irises burn pale when asked,
+	-- as they do in the impossible hallway
+	if opts.eyes then
+		Figures.eyes(name, true)
+	end
 	return f
+end
+
+-- An entity's eyes burn pale (on) or go back to the rig's own (off).
+function Figures.eyes(name: string, on: boolean)
+	local f = figures[name]
+	if not f or f.kind ~= "entity" then
+		return
+	end
+	for _, d in f.model:GetDescendants() do
+		if d:IsA("BasePart") and (string.find(d.Name, "Eyeball") or d.Name == "Iris") then
+			if on then
+				eyeSaved[d] = eyeSaved[d] or { color = d.Color, material = d.Material }
+				d.Color = Color3.fromRGB(255, 238, 228)
+				d.Material = Enum.Material.Neon
+			elseif eyeSaved[d] then
+				d.Color = eyeSaved[d].color
+				d.Material = eyeSaved[d].material
+				eyeSaved[d] = nil
+			end
+		end
+	end
 end
 
 --[[

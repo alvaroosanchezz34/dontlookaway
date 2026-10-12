@@ -50,7 +50,7 @@ local GLYPHS: { [string]: any } = {
 type Surface = { part: BasePart, gui: SurfaceGui, canvas: Frame, size: Vector2 }
 
 local surfaces: { [string]: Surface } = {}
-local random = Random.new()
+local random = require(script.Parent.Parent.Utilities.Rng)
 
 function Scratch.reset()
 	table.clear(surfaces)

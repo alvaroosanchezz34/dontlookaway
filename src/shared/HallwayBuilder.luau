@@ -1,7 +1,9 @@
 --[[
 	HallwayBuilder
 	The impossible hallway's geometry, built once per server and kept out of
-	the world (ServerStorage) until a distortion needs it.
+	the world (ServerStorage) until a distortion needs it. Shared so that
+	Marketing Studio can build its own local copy (build(origin)) for the
+	campaign shots: the same corridor the players see, not a look-alike.
 
 	Where: far outside everything (ORIGIN), never near the building, the
 	lobby or the courtyard, and fully closed (floor, ceiling, walls, both
@@ -100,10 +102,11 @@ local function doorNumber(i: number): string
 	return odd[i] or "B-13"
 end
 
--- Builds the corridor (not parented). Returns the model.
-function HallwayBuilder.build(): Model
+-- Builds the corridor (not parented) at `origin` (default ORIGIN; the
+-- helpers below always speak ORIGIN). Returns the model.
+function HallwayBuilder.build(origin: CFrame?): Model
 	local S, N, W, H = HallwayBuilder.SEGMENT, HallwayBuilder.SEGMENTS, HallwayBuilder.WIDTH, HallwayBuilder.HEIGHT
-	local O = HallwayBuilder.ORIGIN
+	local O = origin or HallwayBuilder.ORIGIN
 	local model = Instance.new("Model")
 	model.Name = "ImpossibleHallway"
 	local structure = Instance.new("Folder")

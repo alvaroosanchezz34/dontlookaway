@@ -13,6 +13,8 @@
 	custom textures apply when they are configured.
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Runtime = require(script.Parent.Parent.Runtime)
 
 local Sets = {}
@@ -350,6 +352,99 @@ function Sets.cctvCamera(cf: CFrame): Model
 	m.PrimaryPart = mount
 	m.Parent = Runtime.folder()
 	return m
+end
+
+--[[
+	Sets.hallway(): the impossible hallway itself (Shared/HallwayBuilder), a
+	local copy built here for the campaign, lit the way the distortion lights
+	it (DistortionController): a total blackout, red emergency tubes, a few
+	dead, and the one white tube still working over where it waits.
+	Nothing pulses here: the light is the same in every take (flicker it
+	from the timeline with FlickerLights on an adopted lamp).
+
+	Local space as HallwayBuilder: the corridor runs along -Z from the EXIT
+	door (z = 0) to a blank wall (z = -LENGTH), floor top at y = 0.
+	  set.at(x, y, z)          a world point
+	  set.feet(z, towardZ, x?) a standing CFrame on the floor, facing along the corridor
+	  set.view(z, lookZ, y?, lookY?, x?) a camera looking down the corridor
+	  set.lamp(i)              { bulb, light } of lamp i (1 = by the exit), for AdoptLight
+	  set.lampIndex(z)         the lamp over a local z
+	  set.power(on, spot?)     every tube off / back on (spot = false: the white one stays dark)
+]]
+local TUBE_ON = Color3.fromRGB(255, 72, 58)
+local TUBE_OFF = Color3.fromRGB(40, 42, 40)
+local LIGHT_RED = Color3.fromRGB(255, 84, 66)
+local SPOT = Color3.fromRGB(228, 234, 255)
+
+function Sets.hallway(origin: CFrame?)
+	local Hall = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HallwayBuilder")) :: any
+	local o = origin or (Sets.Origin * CFrame.new(-220, 0, 300))
+	local m: Model = Hall.build(o)
+	m.Name = "Set_Hallway"
+	local lamps = {}
+	local folder = m:FindFirstChild("Lamps")
+	if folder then
+		for _, lamp in folder:GetChildren() do
+			local tube = lamp:FindFirstChild("Tube") :: BasePart?
+			local light = tube and tube:FindFirstChild("Light") :: PointLight?
+			local index = lamp:GetAttribute("Index")
+			if tube and light and type(index) == "number" then
+				local dead = lamp:GetAttribute("Dead") == true
+				if lamp:GetAttribute("Spot") == true then
+					light.Enabled = true
+					light.Brightness = 2.2
+					light.Range = 24
+					light.Color = SPOT
+					tube.Material = Enum.Material.Neon
+					tube.Color = SPOT
+				else
+					-- a fixed, uneven emergency level per tube (never two alike)
+					light.Enabled = not dead
+					light.Brightness = 0.9 * (0.72 + 0.28 * math.sin(index * 1.7))
+					light.Color = LIGHT_RED
+					tube.Material = if dead then Enum.Material.Glass else Enum.Material.Neon
+					tube.Color = if dead then TUBE_OFF else TUBE_ON
+				end
+				lamps[index] = { bulb = tube, light = light, z = lamp:GetAttribute("Z"), dead = dead, spot = lamp:GetAttribute("Spot") == true, on = light.Enabled, color = tube.Color, material = tube.Material }
+			end
+		end
+	end
+	m.Parent = Runtime.folder()
+	local function at(x: number, y: number, z: number): Vector3
+		return (o * CFrame.new(x, y, z)).Position
+	end
+	return {
+		model = m,
+		origin = o,
+		at = at,
+		SEGMENT = Hall.SEGMENT,
+		LENGTH = Hall.LENGTH,
+		WIDTH = Hall.WIDTH,
+		HEIGHT = Hall.HEIGHT,
+		SPOT_Z = Hall.OBSERVER_Z,
+		feet = function(z: number, towardZ: number, x: number?): CFrame
+			return CFrame.lookAt(at(x or 0, 0, z), at(x or 0, 0, towardZ))
+		end,
+		view = function(z: number, lookZ: number, y: number?, lookY: number?, x: number?): CFrame
+			return CFrame.lookAt(at(x or 0, y or 5.4, z), at(x or 0, lookY or y or 5.4, lookZ))
+		end,
+		lamp = function(i: number)
+			return lamps[i]
+		end,
+		-- the power: false = every tube dark (eyes and the EXIT sign still glow),
+		-- true = back to how the set was lit; `spot` = false leaves the white tube dark
+		power = function(on: boolean, spot: boolean?)
+			for _, l in lamps do
+				local lit = on and l.on and not (l.spot and spot == false)
+				l.light.Enabled = lit
+				l.bulb.Material = if lit then l.material else Enum.Material.Glass
+				l.bulb.Color = if lit then l.color else TUBE_OFF
+			end
+		end,
+		lampIndex = function(z: number): number
+			return math.clamp(math.floor(-z / Hall.SEGMENT) + 1, 1, Hall.SEGMENTS)
+		end,
+	}
 end
 
 return Sets

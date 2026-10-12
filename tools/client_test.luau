@@ -442,7 +442,7 @@ end
 
 section("distortion: the corridor's cues, and everything put back")
 do
-	local Hall = requireModule(game:GetService("ServerScriptService").Server.Distortions.HallwayBuilder)
+	local Hall = requireModule(game:GetService("ReplicatedStorage").Shared.HallwayBuilder)
 	local hall = Hall.build()
 	hall.Parent = workspace
 	localPlayer:SetAttribute("Status", "ALIVE")
@@ -1794,6 +1794,169 @@ do
 	check(#Actions.names() >= 40, "action vocabulary (" .. #Actions.names() .. ")")
 	building:Destroy()
 	Panel.unmount()
+end
+
+section("marketing campaign")
+do
+	local mRoot = game:GetService("StarterPlayer").StarterPlayerScripts:FindFirstChild("Marketing")
+	local MC = requireModule(mRoot.MarketingController)
+	local Runtime = requireModule(mRoot.Runtime)
+	local Screen = requireModule(mRoot.Effects.Screen)
+	local Rng = requireModule(mRoot.Utilities.Rng)
+	MC.SetOption("HoldAtEnd", 0)
+	MC.SetFormat("AUTO")
+	MC.SetCameraStyle("AUTO")
+	local CAMPAIGN = {
+		"Scene_Campaign01_ItHasntMoved",
+		"Scene_Campaign02_TheHallwayNeverEnds",
+		"Scene_Campaign03_SecurityFootage",
+		"Scene_Campaign04_ThisFrameShouldNotExist",
+		"Scene_Campaign05_ItHasSeenYou",
+	}
+	-- the seeded random source repeats
+	Rng.seed(7)
+	local a1, a2 = Rng:NextNumber(), Rng:NextInteger(1, 100)
+	Rng.seed(7)
+	check(Rng:NextNumber() == a1 and Rng:NextInteger(1, 100) == a2, "campaign: Rng repeats from a seed")
+	check(Rng.hash("Scene_X") == Rng.hash("Scene_X") and Rng.hash("Scene_X") ~= Rng.hash("Scene_Y"), "campaign: scene-name seeds are stable and distinct")
+
+	local runtime = function(): Instance?
+		return workspace:FindFirstChild("MarketingRuntime")
+	end
+	local function entity(): Model?
+		local rt = runtime()
+		local m = rt and rt:FindFirstChild("Entity_it")
+		return if m and m:IsA("Model") then m else nil
+	end
+	-- where a world point lands in the 9:16 frame (vertical FOV kept): -1..1 both ways
+	local function project(p: Vector3): (number, number, boolean)
+		local cam = workspace.CurrentCamera
+		local v = cam.CFrame:PointToObjectSpace(p)
+		local t = math.tan(math.rad(cam.FieldOfView) / 2)
+		if v.Z >= -0.05 then
+			return 0, 0, false
+		end
+		return v.X / (-v.Z * t * (9 / 16)), v.Y / (-v.Z * t), true
+	end
+	-- the Observer on screen: its height as a fraction of the frame, eyes in frame?
+	local function framing(): (number, boolean, number, string)
+		local m = entity()
+		if not m then
+			return 0, false, 0, ""
+		end
+		local top, bottom = -math.huge, math.huge
+		local eyes, eyesIn = 0, 0
+		local eyeAt = ""
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") then
+				local c = d.CFrame.Position
+				local h = d.Size.Y / 2
+				for _, y in { h, -h } do
+					local _, sy, front = project(c + Vector3.new(0, y, 0))
+					if front then
+						top = math.max(top, sy)
+						bottom = math.min(bottom, sy)
+					end
+				end
+				if string.find(d.Name, "Eyeball") then
+					eyes += 1
+					local sx, sy, front = project(c)
+					eyeAt = string.format("%s(%.2f, %.2f; y %.2f above the feet)", eyeAt, sx, sy, c.Y - m:GetPivot().Position.Y)
+					if front and math.abs(sx) <= 0.95 and math.abs(sy) <= 0.95 then
+						eyesIn += 1
+					end
+				end
+			end
+		end
+		local frac = if top > bottom then (math.min(top, 1) - math.max(bottom, -1)) / 2 else 0
+		return frac, eyes > 0 and eyesIn == eyes, eyes, eyeAt
+	end
+	local function playTo(name: string, untilClock: number, dt: number?)
+		while MC.IsPlaying() and MC.GetState().clock < untilClock - 1e-6 do
+			renderFns.MarketingStudio(dt or 1 / 30)
+		end
+	end
+	local measured = {}
+	for _, name in CAMPAIGN do
+		local def = MC.GetScene(name)
+		check(def ~= nil, "campaign scene registered: " .. name)
+		if def then
+			check(def.Format == "SOCIAL_VERTICAL" and type(def.Seed) == "number" and def.Duration >= 8 and def.Duration <= 25 and def.Isolated == true, "campaign scene spec (9:16, seeded, 8-25 s, isolated): " .. name)
+			MC.PlayScene(name)
+			check(Screen.getFormat() == "SOCIAL_VERTICAL", "campaign: the scene's own format is used: " .. name)
+			MC.StopScene()
+		end
+	end
+	-- key frames: { scene, clock, min height fraction, max, eyes must be in frame }
+	local KEYS = {
+		{ "Scene_Campaign01_ItHasntMoved", 3.5, 0.06, 0.35, false, "far, under the white tube" },
+		{ "Scene_Campaign01_ItHasntMoved", 6.5, 0.08, 0.45, false, "one lamp closer" },
+		{ "Scene_Campaign01_ItHasntMoved", 9.5, 0.12, 0.6, false, "closer" },
+		{ "Scene_Campaign01_ItHasntMoved", 11.5, 0.2, 1, false, "close" },
+		{ "Scene_Campaign01_ItHasntMoved", 13.0, 0.3, 1, true, "the eyes in the dark" },
+		{ "Scene_Campaign02_TheHallwayNeverEnds", 13.6, 0.3, 1, true, "turned round" },
+		{ "Scene_Campaign03_SecurityFootage", 7.0, 0.08, 0.6, false, "in the far corner" },
+		{ "Scene_Campaign03_SecurityFootage", 10.5, 0.15, 0.8, false, "mid-room" },
+		{ "Scene_Campaign03_SecurityFootage", 12.6, 0.3, 1, true, "under the lens" },
+		{ "Scene_Campaign04_ThisFrameShouldNotExist", 3.42, 0.5, 1, true, "the frame" },
+		{ "Scene_Campaign05_ItHasSeenYou", 5.0, 0.15, 0.8, true, "eyes light up" },
+		{ "Scene_Campaign05_ItHasSeenYou", 10.4, 0.2, 1, true, "after the push-in" },
+	}
+	for _, k in KEYS do
+		MC.PlayScene(k[1])
+		playTo(k[1], k[2], 1 / 60)
+		local frac, eyesOk, eyes, eyeAt = framing()
+		table.insert(measured, string.format("%s @%.2fs (%s): height %.2f of frame, eyes %s %s", k[1], k[2], k[6], frac, if eyes == 0 then "none" elseif eyesOk then "in frame" else "OUT", eyeAt))
+		check(frac >= k[3] and frac <= k[4], string.format("campaign framing %s @%.2f %s: %.2f in [%.2f, %.2f]", k[1], k[2], k[6], frac, k[3], k[4]))
+		if k[5] then
+			check(eyesOk, string.format("campaign framing %s @%.2f: both eyes in the 9:16 frame", k[1], k[2]))
+		end
+		MC.StopScene()
+	end
+	for _, line in measured do
+		print("  " .. line)
+	end
+	-- V7: the frame exists for 0.05 s: at least one frame of a 30 fps recording, three at 60
+	for _, fps in { 30, 60 } do
+		MC.PlayScene("Scene_Campaign04_ThisFrameShouldNotExist")
+		local frames = 0
+		while MC.IsPlaying() and MC.GetState().clock < 5 do
+			renderFns.MarketingStudio(1 / fps)
+			if entity() then
+				frames += 1
+			end
+		end
+		MC.StopScene()
+		check(frames >= 1 and frames <= math.ceil(0.05 * fps) + 1, string.format("campaign: the one frame lasts %d frame(s) at %d fps", frames, fps))
+		print(string.format("  V7 frame visible for %d frame(s) at %d fps", frames, fps))
+	end
+	-- determinism: two takes, same camera and same figure at the same times
+	for _, name in CAMPAIGN do
+		local takes = {}
+		for take = 1, 2 do
+			local samples = {}
+			MC.PlayScene(name)
+			local n = 0
+			while MC.IsPlaying() do
+				renderFns.MarketingStudio(1 / 30)
+				n += 1
+				if n % 15 == 0 then
+					local m = entity()
+					table.insert(samples, tostring(workspace.CurrentCamera.CFrame) .. "|" .. (if m then tostring(m:GetPivot()) else "-"))
+				end
+			end
+			takes[take] = samples
+		end
+		local same = #takes[1] == #takes[2] and #takes[1] > 0
+		for i = 1, #takes[1] do
+			if takes[1][i] ~= takes[2][i] then
+				same = false
+			end
+		end
+		check(same, "campaign: two takes are identical (camera + figure): " .. name)
+		check(Runtime.isClean(), "campaign: clean after " .. name)
+	end
+	MC.SetFormat("SOCIAL_VERTICAL")
 end
 
 section("summary")

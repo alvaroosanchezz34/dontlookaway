@@ -22,7 +22,7 @@ local format = "SOCIAL_VERTICAL"
 local nodes: { [string]: any } = {}
 local grade: ColorCorrectionEffect? = nil
 local blur: BlurEffect? = nil
-local random = Random.new()
+local random = require(script.Parent.Parent.Utilities.Rng)
 local staticAlpha = 0
 
 Screen.Grades = {

@@ -1792,7 +1792,7 @@ end
 
 section("distortions: the impossible hallway, built, paced and always undone")
 do
-	local Hall = requireModule(Server.Distortions.HallwayBuilder)
+	local Hall = requireModule(game:GetService("ReplicatedStorage").Shared.HallwayBuilder)
 	local IH = requireModule(Server.Distortions.ImpossibleHallway)
 	local Catalog = requireModule(RS.Shared.Catalog.Distortions)
 	local GameConfig = requireModule(RS.Shared.Config.GameConfig)

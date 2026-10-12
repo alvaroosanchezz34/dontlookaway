@@ -39,6 +39,7 @@ local Figures = require(script.Parent.Effects.Figures)
 local Audio = require(script.Parent.Audio.MarketingAudio)
 local Titles = require(script.Parent.Text.Titles)
 local Locations = require(script.Parent.Utilities.Locations)
+local Rng = require(script.Parent.Utilities.Rng)
 
 local MarketingController = {}
 
@@ -51,6 +52,8 @@ local finishedAt: number? = nil
 local bound = false
 local options = table.clone(Config.Defaults)
 local formatName = Config.DefaultFormat
+-- a scene's own Format applies until the panel picks one (then the panel's wins)
+local formatChosen = false
 local cameraStyle = Config.DefaultCamera
 
 MarketingController.Changed = Signal.new() -- (state)
@@ -155,8 +158,10 @@ function MarketingController.GetOption(key: string): any
 	return options[key]
 end
 
+-- "AUTO" gives the choice back to each scene (its own Format, else the default).
 function MarketingController.SetFormat(name: string)
-	formatName = name
+	formatChosen = name ~= "AUTO"
+	formatName = if formatChosen then name else Config.DefaultFormat
 	Screen.setFormat(name)
 	fire()
 end
@@ -356,6 +361,8 @@ function MarketingController.PlayScene(name: string): (boolean, string?)
 	end
 	MarketingController.CleanupMarketingScene()
 	Locations.reset()
+	-- every take draws the same random numbers (glitches, flicker, grain)
+	Rng.seed(if type(def.Seed) == "number" then def.Seed else Rng.hash(name))
 	-- build the scene against the current world
 	local ok, events = pcall(def.Build, Locations, Config)
 	if not ok or type(events) ~= "table" then
@@ -364,6 +371,9 @@ function MarketingController.PlayScene(name: string): (boolean, string?)
 		return false, tostring(events)
 	end
 	-- format: the scene's own unless the panel chose one
+	if not formatChosen then
+		formatName = if type(def.Format) == "string" then def.Format else Config.DefaultFormat
+	end
 	Screen.begin()
 	Screen.setFormat(formatName)
 	CameraRig.begin()
