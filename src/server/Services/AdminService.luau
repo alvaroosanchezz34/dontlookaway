@@ -355,7 +355,7 @@ COMMANDS.blackout = function(_admin, level)
 		return "blackout ended"
 	end
 	Registry.LightingService:Blackout(level, 30)
-	return "blackout level " .. level .. " for 30s"
+	return string.format("blackout level %d for 30s (onset style %s, phase %s)", level, tostring(workspace:GetAttribute("BlackoutStyle")), tostring(workspace:GetAttribute("BlackoutPhase")))
 end
 
 COMMANDS.killSelf = function(admin)

@@ -514,32 +514,41 @@ function EffectsController:Init()
 	blur.Parent = Lighting
 end
 
--- Power failures: a hard dip as the lights die (only on the big ones, and only
--- for a heartbeat), a jolt, sparks overhead. Eyes then adjust (LightController).
+-- Power failures (Blackout 4): no black frame, no flash. The light itself
+-- fails over the onset (LightingRules) and BlackoutFX sags the grade with it;
+-- here the body's reaction: a jolt on the big ones, the eyes adjusting (the
+-- view narrows a little and opens again), sparks overhead, and one line.
 local function onBlackout(p)
 	if State.status ~= "ALIVE" then
 		return
 	end
 	local level = p.level or 1
+	local onset = if type(p.onset) == "number" then p.onset else 0
 	if level >= 3 then
-		EffectsController:Fade(if reduced() then 0.45 else 0.8, 0.05)
-		task.delay(0.18, function()
-			EffectsController:Fade(0, 0.9)
+		task.delay(onset * 0.5, function()
+			if State.status ~= "ALIVE" then
+				return
+			end
+			Registry.CameraController:Shake(if reduced() then 0.08 else 0.2)
+			Registry.CameraController:SetFovEffect(-3)
+			task.delay(1.2, function()
+				Registry.CameraController:SetFovEffect(0)
+			end)
+			local camera = Workspace.CurrentCamera
+			particleBurst(camera.CFrame.Position + camera.CFrame.LookVector * 6 + Vector3.new(0, 6, 0), Color3.fromRGB(255, 210, 140), 12, 10, 0.1)
 		end)
-		Registry.CameraController:Shake(0.25)
-		Registry.CameraController:SetFovEffect(-4)
-		task.delay(0.6, function()
-			Registry.CameraController:SetFovEffect(0)
+		task.delay(onset, function()
+			if State.status ~= "ALIVE" then
+				return
+			end
+			if level >= 4 then
+				Registry.HUDController:Hint("Total blackout. Stay close. Keep your light on.", 4)
+			else
+				Registry.HUDController:Hint("The power is failing.", 3)
+			end
 		end)
-		local camera = Workspace.CurrentCamera
-		particleBurst(camera.CFrame.Position + camera.CFrame.LookVector * 6 + Vector3.new(0, 6, 0), Color3.fromRGB(255, 210, 140), 18, 12, 0.1)
-		if level >= 4 then
-			Registry.HUDController:Hint("Total blackout. Stay close. Keep your light on.", 4)
-		else
-			Registry.HUDController:Hint("The power is failing.", 3)
-		end
 	elseif level == 2 then
-		Registry.CameraController:Shake(0.1)
+		Registry.CameraController:Shake(0.08)
 	end
 end
 

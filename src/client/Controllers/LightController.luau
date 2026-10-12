@@ -176,17 +176,17 @@ local function blackoutLevel(): number
 	return if type(b) == "number" then b else 0
 end
 
-local function evaluate(info: Info, camPos: Vector3, now: number)
+local function evaluate(info: Info, camPos: Vector3, now: number, world: any)
 	local m = info.model
 	-- lit, how bright, what colour: the rules the server also reads (LightingRules)
 	local flickerNow = now < info.flickerUntil or (roomFlicker[m:GetAttribute("Room") or ""] or 0) > now
-	local world = LightingRules.world(Workspace)
 	local reduced = State.settings.reducedEffects == true
 	local lit, brightness, color = LightingRules.evaluate(LightingRules.fixture(m, info.seed), world, now, { flicker = flickerNow, reduced = reduced })
 	local baseBrightness = m:GetAttribute("BaseBrightness") or 1
 	local pivot = m:GetPivot().Position
 	local here = (pivot - camPos).Magnitude
-	if lit and world.power and not world.escape then
+	-- the level's own patterns wait for the onset to finish (LightingRules)
+	if lit and world.power and not world.escape and world.phase ~= "ONSET" then
 		if world.level == 3 and not reduced then
 			-- a wave of light runs down toward you (its crests move inward)
 			local wave = 0.5 + 0.5 * math.sin(now * 2.4 + here * 0.18)
@@ -487,6 +487,8 @@ function LightController:Start()
 				observerAt = o:GetPivot().Position
 			end
 		end
+		-- the building's state once per frame (the phases read the server's clock)
+		local world = LightingRules.world(Workspace)
 		farAcc += dt
 		local doFar = farAcc > 0.35
 		if doFar then
@@ -504,7 +506,7 @@ function LightController:Start()
 			else
 				local near = (model:GetPivot().Position - camPos).Magnitude < 60
 				if near or info.bucket == bucket then
-					evaluate(info, camPos, now)
+					evaluate(info, camPos, now, world)
 				end
 			end
 		end

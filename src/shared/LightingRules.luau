@@ -9,7 +9,9 @@
 	Pure: no instances are changed here, only read.
 
 	World (workspace attributes)
-	  Power, Blackout (0-4), BlackoutZone, BlackoutSeed, Escape
+	  Power, Blackout (0-4), BlackoutZone, BlackoutSeed, Escape, and the
+	  blackout's phase (BlackoutPhase, BlackoutPhaseAt, BlackoutSpan,
+	  BlackoutStyle, BlackoutFrom: see the phases below)
 	Fixture (model attributes)
 	  Mode (on | flicker | dead), Circuit (MAIN | EMERGENCY), ForceOn,
 	  Override ("off"), Tint, BaseColor, BaseBrightness, Seed, Room
@@ -58,7 +60,42 @@ function LightingRules.heartbeat(t: number): number
 	return math.exp(-((p - 0.08) / 0.04) ^ 2) + 0.6 * math.exp(-((p - 0.3) / 0.05) ^ 2)
 end
 
-export type World = { power: boolean, level: number, zone: string, seed: number, escape: boolean }
+--[[
+	Blackout phases (Blackout 4): how the light fails and how it comes back.
+	World attributes, written by LightingService:
+	  BlackoutPhase   "ONSET" | "HOLD" | "RESTORE" | nil
+	  BlackoutPhaseAt server time the phase began (workspace:GetServerTimeNow)
+	  BlackoutSpan    the phase's length in seconds (ONSET, RESTORE)
+	  BlackoutStyle   which onset this one is (1-4, never twice in a row)
+	  BlackoutFrom    the level a RESTORE comes back from
+	ONSET: the lamps go from full light to the level's behaviour, in one of
+	four ways, so a blackout never announces itself the same way twice:
+	  1 BROWNOUT  every lamp sags together, deep, and settles into the level
+	  2 CASCADE   lamp by lamp, each at its own moment, a short stutter each
+	  3 SURGE     a small swell (never a flash) then a hard sag and a stutter
+	  4 STUTTER   lamps stutter on their own, less and less, then settle
+	RESTORE: the level is over (the game reads full light) but the lamps come
+	back one by one at their own moment, each striking like a tube that
+	catches (two or three blinks), so the building wakes rather than pops.
+	Reduced effects: no blinking at all, only smooth changes.
+	Never brighter than ONSET_PEAK times the lamp's own brightness.
+	The server's steady reading ignores the phases.
+]]
+LightingRules.ONSET_STYLES = { "BROWNOUT", "CASCADE", "SURGE", "STUTTER" }
+LightingRules.ONSET_PEAK = 1.25
+
+export type World = {
+	power: boolean,
+	level: number,
+	zone: string,
+	seed: number,
+	escape: boolean,
+	phase: string?,
+	phaseT: number?,
+	span: number?,
+	style: number?,
+	from: number?,
+}
 export type Fixture = {
 	seed: number,
 	floor: string,
@@ -76,17 +113,136 @@ function LightingRules.hashFrac(a: number, b: number): number
 	return (h % 1000) / 1000
 end
 
-function LightingRules.world(ws: Instance): World
+-- Server time, the clock the phases are stamped with (both sides read the
+-- same one). Falls back to os.clock where the engine has none (tests).
+function LightingRules.serverNow(ws: Instance): number
+	local ok, t = pcall(function()
+		return (ws :: any):GetServerTimeNow()
+	end)
+	return if ok and type(t) == "number" then t else os.clock()
+end
+
+function LightingRules.world(ws: Instance, serverNow: number?): World
 	local level = ws:GetAttribute("Blackout")
 	local zone = ws:GetAttribute("BlackoutZone")
 	local seed = ws:GetAttribute("BlackoutSeed")
-	return {
+	local phase = ws:GetAttribute("BlackoutPhase")
+	local w: World = {
 		power = ws:GetAttribute("Power") == true,
 		level = if type(level) == "number" then level else 0,
 		zone = if type(zone) == "string" then zone else "",
 		seed = if type(seed) == "number" then seed else 0,
 		escape = ws:GetAttribute("Escape") == true,
 	}
+	if phase == "ONSET" or phase == "HOLD" or phase == "RESTORE" then
+		local at = ws:GetAttribute("BlackoutPhaseAt")
+		local span = ws:GetAttribute("BlackoutSpan")
+		local style = ws:GetAttribute("BlackoutStyle")
+		local from = ws:GetAttribute("BlackoutFrom")
+		w.phase = phase
+		w.phaseT = if type(at) == "number" then (serverNow or LightingRules.serverNow(ws)) - at else 0
+		w.span = if type(span) == "number" and span > 0 then span else 1
+		w.style = if type(style) == "number" then style else 1
+		w.from = if type(from) == "number" then from else 0
+	end
+	return w
+end
+
+local function smooth(x: number): number
+	x = math.clamp(x, 0, 1)
+	return x * x * (3 - 2 * x)
+end
+
+-- A lamp's own blink while it fails or catches: on / dim / off from noise.
+-- Reduced effects never blink (returns 1).
+local function blink(now: number, seed: number, rate: number, reduced: boolean): number
+	if reduced then
+		return 1
+	end
+	local n = math.noise(now * rate, seed * 0.29 + 3.1)
+	if n < -0.12 then
+		return 0
+	elseif n < 0.08 then
+		return 0.35
+	end
+	return 1
+end
+
+--[[
+	The light of a working main-circuit lamp during a blackout phase, from its
+	full brightness (`full`) and what the level gives it now (`settled`).
+	Returns the brightness to use. Pure; exported for the tests.
+]]
+function LightingRules.phaseBrightness(w: World, f: Fixture, full: number, settled: number, now: number, reduced: boolean): number
+	local phase = w.phase
+	if phase ~= "ONSET" and phase ~= "RESTORE" then
+		return settled
+	end
+	local t = w.phaseT or 0
+	local span = w.span or 1
+	local u = t / span
+	if u >= 1 or u < 0 then
+		return settled
+	end
+	local frac = LightingRules.hashFrac(f.seed, (w.style or 1) * 31 + 7)
+	local out
+	if phase == "RESTORE" then
+		-- each lamp comes back at its own moment, dim until then
+		local dim = full * (LightingRules.LEVEL_MEAN[w.from or 0] or 1)
+		local back = 0.08 + frac * 0.72
+		if u < back then
+			out = dim
+		elseif u < back + 0.12 then
+			-- the strike: a tube catching (a smooth rise with reduced effects)
+			local k = (u - back) / 0.12
+			out = if reduced then dim + (full - dim) * smooth(k) else full * blink(now, f.seed, 14, false) * (0.7 + 0.3 * k)
+		else
+			out = full
+		end
+		return math.min(out, full * LightingRules.ONSET_PEAK)
+	end
+	-- ONSET: from full light to the level's behaviour
+	local style = w.style or 1
+	local mix = smooth(u)
+	local base = full + (settled - full) * mix
+	if style == 1 then
+		-- BROWNOUT: all together, a deep sag halfway, with a slow wobble
+		local sag = 1 - 0.6 * math.sin(math.pi * math.clamp(u * 1.15, 0, 1)) ^ 2
+		out = base * sag * (if reduced then 1 else 0.92 + 0.08 * math.sin(now * 5.5))
+	elseif style == 2 then
+		-- CASCADE: steady, then its own short stutter, then the level
+		local at = frac * 0.7
+		if u < at then
+			out = full
+		elseif u < at + 0.22 then
+			out = full * 0.6 * blink(now, f.seed, 11, reduced)
+		else
+			out = settled
+		end
+	elseif style == 3 then
+		-- SURGE: a small swell, then the sag and a stutter
+		if u < 0.14 then
+			out = full * (1 + (LightingRules.ONSET_PEAK - 1) * math.sin(math.pi * u / 0.14))
+		elseif u < 0.55 then
+			out = base * 0.45 * blink(now, f.seed, 9, reduced)
+		else
+			out = base
+		end
+	else
+		-- STUTTER: lamps stutter on their own, fewer and fewer
+		local chance = (1 - u) * 0.8
+		out = if frac < chance then base * blink(now, f.seed, 10, reduced) else base
+	end
+	return math.clamp(out, 0, full * LightingRules.ONSET_PEAK)
+end
+
+-- How far a RESTORE has come (0..1), 1 when no restore is running: what the
+-- building's hum and fans follow (AudioController).
+function LightingRules.restoreProgress(w: World): number
+	if w.phase ~= "RESTORE" then
+		return 1
+	end
+	return math.clamp((w.phaseT or 0) / (w.span or 1), 0, 1)
 end
 
 -- seed: the fixture's own (LightController keeps a random one for fixtures
@@ -133,6 +289,10 @@ function LightingRules.evaluate(f: Fixture, w: World, now: number, opts: { stead
 			-- averages ~0.124, so the mean stays LEVEL_MEAN (under 2 pulses/s)
 			brightness *= 0.75 + 2 * LightingRules.heartbeat(now)
 		end
+	end
+	-- how the light fails and comes back (the blackout's phases)
+	if lit and mainOn and not steady and not f.emergency and w.phase then
+		brightness = LightingRules.phaseBrightness(w, f, base, brightness, now, reduced)
 	end
 	if lit and mainOn and level == 2 and not f.tint then
 		color = color:Lerp(LightingRules.SICKLY, 0.5)

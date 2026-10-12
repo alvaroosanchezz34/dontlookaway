@@ -471,7 +471,7 @@ local function returnToLobby()
 	Registry.InventoryService:ClearPickups()
 	Registry.EquipmentService:EndRound()
 	workspace:SetAttribute("Escape", false)
-	Registry.LightingService:EndBlackout(true)
+	Registry.LightingService:EndBlackout(true, true)
 	Registry.LightingService:SetPower(false, true)
 	task.wait(GameConfig.Round.ReturningDuration)
 	participants = {}
@@ -521,7 +521,7 @@ function RoundService:_startRound(players: { Player }, chosenDifficulty: string)
 		return false
 	end
 	-- the building still has power when you arrive; it fails later (HorrorDirector)
-	Registry.LightingService:EndBlackout(true)
+	Registry.LightingService:EndBlackout(true, true)
 	Registry.LightingService:SetPower(true, true)
 	Registry.LightingService:ApplyPreset("OUTSIDE", 1)
 	Registry.AnomalyService:BeginRound(seed)

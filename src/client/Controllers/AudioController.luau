@@ -24,6 +24,7 @@ local RunService = game:GetService("RunService")
 local Net = require(ReplicatedStorage.Shared.Net)
 local SoundFactory = require(ReplicatedStorage.Shared.SoundFactory)
 local AudioLibrary = require(ReplicatedStorage.Shared.Config.AudioLibrary)
+local LightingRules = require(ReplicatedStorage.Shared.LightingRules)
 local State = require(script.Parent.Parent.State)
 local Registry = require(script.Parent.Parent.Registry)
 
@@ -260,6 +261,8 @@ local function updateBeds(dt: number)
 	local blackout = workspace:GetAttribute("Blackout")
 	blackout = if type(blackout) == "number" then blackout else 0
 	local observer = State.observerDistance
+	-- after a blackout the hum and the fans come back with the lamps
+	local restore = LightingRules.restoreProgress(LightingRules.world(workspace))
 	for key, sound in beds do
 		local target = mix[key] or 0
 		if inMenu then
@@ -269,6 +272,8 @@ local function updateBeds(dt: number)
 			target *= 0.05
 		elseif inRound and POWERED_BEDS[key] and blackout >= 1 then
 			target *= 0.5
+		elseif inRound and POWERED_BEDS[key] and restore < 1 then
+			target *= 0.1 + 0.9 * restore
 		end
 		if key == "EmergencyAlarm" then
 			target *= if inRound and (blackout >= 3 or workspace:GetAttribute("Escape") == true) then 1 else 0

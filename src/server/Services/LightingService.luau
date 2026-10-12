@@ -364,11 +364,55 @@ local function setBlackout(level: number, zone: string?)
 end
 
 --[[
+	Blackout 4: a blackout has phases the clients paint (LightingRules):
+	ONSET (the light fails, one of four ways), HOLD (the level), RESTORE (the
+	lamps come back one by one). The game's own reading (IsDark, the
+	Observer, the director) follows the level alone: it changes at the start
+	of the ONSET and at the start of the RESTORE, never in between.
+]]
+-- how long the light takes to fail, and to come back, per level
+LightingService.OnsetTime = { 1.6, 2.4, 2.8, 3.4 }
+LightingService.RestoreTime = { 2.5, 4, 5, 6 }
+
+local lastStyle = 0
+local phaseToken = 0
+
+local function setPhase(phase: string?, span: number?, extra: { [string]: any }?)
+	phaseToken += 1
+	workspace:SetAttribute("BlackoutPhase", phase)
+	workspace:SetAttribute("BlackoutPhaseAt", if phase then LightingRules.serverNow(workspace) else nil)
+	workspace:SetAttribute("BlackoutSpan", span)
+	workspace:SetAttribute("BlackoutStyle", extra and extra.style or nil)
+	workspace:SetAttribute("BlackoutFrom", extra and extra.from or nil)
+	-- a timed phase ends on its own, unless something replaced it meanwhile
+	if phase and span and span > 0 then
+		local token = phaseToken
+		task.delay(span, function()
+			if token ~= phaseToken then
+				return
+			end
+			if phase == "ONSET" and blackoutLevel > 0 then
+				setPhase("HOLD")
+			elseif phase == "RESTORE" then
+				setPhase(nil)
+			end
+		end)
+	end
+end
+
+function LightingService:GetBlackoutPhase(): string?
+	local phase = workspace:GetAttribute("BlackoutPhase")
+	return if type(phase) == "string" then phase else nil
+end
+
+--[[
 	Starts a temporary blackout. Returns false if a stronger one is running.
 	opts.zone: floor id for level 2 (defaults to a random floor)
 	opts.silent: no announcement sounds
+	opts.instant: no onset (the level at once)
+	opts.style: force an onset style (1-4; tests, admin)
 ]]
-function LightingService:Blackout(level: number, duration: number, opts: { [string]: any }?): boolean
+function LightingService:Blackout(level: number, duration: number, opts: { [string]: any }?)
 	opts = opts or {}
 	level = math.clamp(math.floor(level), 1, 4)
 	if blackoutLevel > level then
@@ -381,13 +425,30 @@ function LightingService:Blackout(level: number, duration: number, opts: { [stri
 		local floors = { "G", "U", "B" }
 		zone = floors[math.random(1, #floors)]
 	end
+	-- never the same onset twice in a row
+	local style = opts.style
+	if type(style) ~= "number" then
+		style = math.random(1, #LightingRules.ONSET_STYLES - 1)
+		if style >= lastStyle then
+			style += 1
+		end
+	end
+	style = math.clamp(math.floor(style), 1, #LightingRules.ONSET_STYLES)
+	lastStyle = style
+	local onset = if opts.instant or not self:IsPowered() then 0 else self.OnsetTime[level]
+	if onset > 0 then
+		setPhase("ONSET", onset, { style = style })
+	else
+		setPhase("HOLD")
+	end
 	setBlackout(level, zone)
 	blackoutEndsAt = os.clock() + duration
 	if not opts.silent and Registry.AudioService then
 		Registry.AudioService:Play2DAll(if level >= 3 then "PowerDown" else "ElectricSurge", { volume = 0.6 + level * 0.1 })
 	end
-	Net.fireAll("Director", { cue = "blackout", level = level, duration = duration, zone = zone })
-	self:ApplyPreset(self:InteriorPreset(), if level >= 3 then 0.6 else 1.5)
+	Net.fireAll("Director", { cue = "blackout", level = level, duration = duration, zone = zone, onset = onset, style = style })
+	-- the grade follows the light down over the onset
+	self:ApplyPreset(self:InteriorPreset(), math.max(if level >= 3 then 0.6 else 1.5, onset))
 	task.delay(duration, function()
 		if token ~= blackoutToken then
 			return
@@ -397,20 +458,34 @@ function LightingService:Blackout(level: number, duration: number, opts: { [stri
 	return true
 end
 
-function LightingService:EndBlackout(silent: boolean?)
+--[[
+	Ends the blackout. The level is gone at once (the game reads full light);
+	with power the lamps then come back one by one (RESTORE).
+	silent: no sound. instant: no restore either (a round ending, a reset).
+]]
+function LightingService:EndBlackout(silent: boolean?, instant: boolean?)
 	if blackoutLevel == 0 then
+		if instant and workspace:GetAttribute("BlackoutPhase") ~= nil then
+			setPhase(nil)
+		end
 		return
 	end
 	blackoutToken += 1
 	local was = blackoutLevel
+	local restore = if instant or not self:IsPowered() then 0 else self.RestoreTime[was] or 3
+	if restore > 0 then
+		setPhase("RESTORE", restore, { from = was })
+	else
+		setPhase(nil)
+	end
 	setBlackout(0, nil)
 	blackoutEndsAt = 0
 	if not silent and Registry.AudioService and was >= 2 and self:IsPowered() then
 		Registry.AudioService:Play2DAll("PowerOn", { volume = 0.35 })
 	end
-	Net.fireAll("Director", { cue = "blackoutEnd", level = was })
+	Net.fireAll("Director", { cue = "blackoutEnd", level = was, restore = restore })
 	if Registry.RoundService and Registry.RoundService:IsRunning() then
-		self:ApplyPreset(self:InteriorPreset(), 2)
+		self:ApplyPreset(self:InteriorPreset(), math.max(2, restore))
 	end
 end
 
@@ -460,6 +535,7 @@ function LightingService:Init()
 	sky.Parent = Lighting
 	workspace:SetAttribute("Power", false)
 	setBlackout(0, nil)
+	setPhase(nil)
 	self:ApplyPreset("LOBBY", 0)
 end
 

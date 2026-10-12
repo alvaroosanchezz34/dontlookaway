@@ -18,6 +18,15 @@
 	All of it is paranoia, not anomalies: local to this player, never
 	reported, never counted, gone within seconds. With reduced effects there
 	are no one-frame figures and the heartbeat is slower.
+
+	Blackout 4: the phases (LightingRules). ONSET: the picture sags with the
+	light (a local grade, never black) and the nearest lamps buzz and click
+	as they fail. HOLD: the building lives in the dark (sounds somewhere else:
+	pipes, knocks, steps on another floor, a door far away, dust falling).
+	RESTORE: relays clack somewhere in the building and the lamps near you
+	strike one by one as the grade lifts. When The Observer itself is near
+	(proximity NEAR or closer) no figure and no false eyes appear: the real
+	thing is not to be confused with paranoia.
 ]]
 
 local Players = game:GetService("Players")
@@ -40,8 +49,15 @@ local lastBeat = -1
 local FIGURE_COLOR = Color3.fromRGB(8, 8, 9)
 local EYE_COLOR = Color3.fromRGB(235, 238, 240)
 
+local LightingRules = require(ReplicatedStorage.Shared.LightingRules)
+
 local function camera(): Camera
 	return Workspace.CurrentCamera
+end
+
+-- The real Observer close by: paranoia stands aside.
+local function presenceNear(): boolean
+	return State.prox ~= "FAR" and State.prox ~= "AWARE"
 end
 
 local function level(): number
@@ -229,6 +245,9 @@ local function event(lv: number, reduced: boolean)
 			end
 		end
 	elseif lv == 2 then
+		if presenceNear() then
+			return
+		end
 		local door = Registry.DoorController and Registry.DoorController:NearestClosed(camera().CFrame.Position, 26)
 		if random:NextNumber() < 0.5 and door and Registry.DoorController:Creak(door) then
 			-- a door nearby eases open on its own, creaking
@@ -240,7 +259,7 @@ local function event(lv: number, reduced: boolean)
 			end
 		end
 	elseif lv == 3 then
-		if random:NextNumber() < 0.4 then
+		if random:NextNumber() < 0.4 or presenceNear() then
 			local cf = camera().CFrame
 			sound("Whisper", cf.Position - cf.LookVector * 5 + Vector3.new(0, 2, 0))
 		elseif not reduced then
@@ -250,9 +269,134 @@ local function event(lv: number, reduced: boolean)
 				figure(at, 1 / 50)
 			end
 		end
-	elseif lv >= 4 then
+	elseif lv >= 4 and not presenceNear() then
 		eyes()
 	end
+end
+
+------------------------------------------------------------------------------------
+-- Blackout 4: the phases
+------------------------------------------------------------------------------------
+
+-- the picture sags with the light: a local grade over the server's, never
+-- black (the light itself does the dark)
+local sag: ColorCorrectionEffect? = nil
+local sagTween: Tween? = nil
+local SAG = { ONSET = { Brightness = -0.045, Contrast = 0.06, Saturation = -0.08 }, HOLD = { Brightness = -0.02, Contrast = 0.03, Saturation = -0.05 } }
+
+local function setSag(goal: { [string]: number }?, seconds: number)
+	local TweenService = game:GetService("TweenService")
+	if not goal and (not sag or not sag.Parent) then
+		return
+	end
+	if not sag or not sag.Parent then
+		local cc = Instance.new("ColorCorrectionEffect")
+		cc.Name = "BlackoutSag"
+		cc.Parent = game:GetService("Lighting")
+		sag = cc
+	end
+	if sagTween then
+		sagTween:Cancel()
+	end
+	local target = goal or { Brightness = 0, Contrast = 0, Saturation = 0 }
+	local t = TweenService:Create(sag :: ColorCorrectionEffect, TweenInfo.new(math.max(0.05, seconds), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), target)
+	sagTween = t
+	t:Play()
+	if not goal then
+		local token = t
+		t.Completed:Connect(function()
+			if sagTween == token and sag then
+				sag:Destroy()
+				sag = nil
+				sagTween = nil
+			end
+		end)
+	end
+end
+
+local function nearestLamps(maxDist: number, count: number): { Vector3 }
+	local lamps = Registry.LightController:LitLamps(maxDist)
+	local from = camera().CFrame.Position
+	table.sort(lamps, function(a, b)
+		return (a - from).Magnitude < (b - from).Magnitude
+	end)
+	local list = {}
+	for i = 1, math.min(count, #lamps) do
+		list[i] = lamps[i]
+	end
+	return list
+end
+
+local phaseToken = 0
+
+local function onPhase()
+	phaseToken += 1
+	local token = phaseToken
+	local phase = Workspace:GetAttribute("BlackoutPhase")
+	local span = Workspace:GetAttribute("BlackoutSpan")
+	span = if type(span) == "number" then span else 1
+	if State.status ~= "ALIVE" then
+		setSag(nil, 0.3)
+		return
+	end
+	if phase == "ONSET" then
+		setSag(SAG.ONSET, span * 0.8)
+		-- the nearest lamps buzz and click as they go, each at its moment
+		for i, at in nearestLamps(32, 3) do
+			task.delay((i - 1) * span * 0.25 + random:NextNumber(0, 0.2), function()
+				if token == phaseToken then
+					sound(if i == 1 then "ElectricBuzz" else "LightFlicker", at)
+				end
+			end)
+		end
+	elseif phase == "HOLD" then
+		setSag(SAG.HOLD, 1.5)
+	elseif phase == "RESTORE" then
+		setSag(nil, span)
+		-- relays clack somewhere in the building, then the lamps near you
+		-- strike one by one
+		local cf = camera().CFrame
+		sound("BreakerFlip", cf.Position + Vector3.new(random:NextNumber(-40, 40), random:NextNumber(-10, 6), random:NextNumber(-40, 40)))
+		for _, at in nearestLamps(36, 4) do
+			task.delay(random:NextNumber(0.1, 0.85) * span, function()
+				if token == phaseToken then
+					sound("LightFlicker", at)
+				end
+			end)
+		end
+	else
+		setSag(nil, 0.6)
+	end
+end
+
+-- The building in the dark, somewhere else: sounds and dust, by level.
+local LIFE = {
+	[1] = { "BuildingSettle", "DistantPipe" },
+	[2] = { "DistantKnock", "WoodCreak", "dust" },
+	[3] = { "DistantFootsteps", "DoorSlam", "dust" },
+	[4] = { "DistantFootsteps", "ElevatorGroan", "DistantKnock" },
+}
+local nextLifeAt = 0
+
+local function life(lv: number)
+	local options = LIFE[math.clamp(lv, 1, 4)]
+	local pick = options[random:NextInteger(1, #options)]
+	local cf = camera().CFrame
+	if pick == "dust" then
+		-- dust sifting from the ceiling a few steps away
+		local flat = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+		if flat.Magnitude > 0.1 then
+			local at = cf.Position + flat.Unit * random:NextNumber(4, 9) + Vector3.new(random:NextNumber(-3, 3), 4.5, random:NextNumber(-3, 3))
+			Registry.EffectsController:Handle("DustBurst", { at = at })
+			sound("WoodCreak", at)
+		end
+		return
+	end
+	local angle = random:NextNumber(0, math.pi * 2)
+	local dist = random:NextNumber(26, 50)
+	-- steps are on another floor, or behind a wall: never beside you
+	local dy = if pick == "DistantFootsteps" then (if random:NextNumber() < 0.5 then 12 else -12) else random:NextNumber(-4, 8)
+	sound(pick, cf.Position + Vector3.new(math.cos(angle) * dist, dy, math.sin(angle) * dist))
 end
 
 -- The eyes' rig (built on first use; tests look at it).
@@ -264,6 +408,15 @@ function BlackoutFX:Level(): number
 	return level()
 end
 
+-- The local sag over the grade (tests: it must be gone after a blackout).
+function BlackoutFX:Sag(): ColorCorrectionEffect?
+	return sag
+end
+
+function BlackoutFX:RestoreProgress(): number
+	return LightingRules.restoreProgress(LightingRules.world(Workspace))
+end
+
 function BlackoutFX:Start()
 	RunService.Heartbeat:Connect(function()
 		local lv = level()
@@ -271,6 +424,12 @@ function BlackoutFX:Start()
 			return
 		end
 		local now = os.clock()
+		if now >= nextLifeAt then
+			nextLifeAt = now + random:NextNumber(9, 20)
+			if Workspace:GetAttribute("BlackoutPhase") == "HOLD" then
+				pcall(life, lv)
+			end
+		end
 		local reduced = State.settings.reducedEffects == true
 		-- the heartbeat you hear, in time with the lamps (LightingRules.heartbeat)
 		if lv >= 3 then
@@ -284,6 +443,17 @@ function BlackoutFX:Start()
 		if now >= nextEventAt then
 			nextEventAt = now + random:NextNumber(5, 10) / math.max(1, lv * 0.6)
 			pcall(event, lv, reduced)
+		end
+	end)
+	Workspace:GetAttributeChangedSignal("BlackoutPhase"):Connect(onPhase)
+	-- leaving the round (death, results, the lobby) takes the sag with it
+	State.StatusChanged:Connect(function()
+		if State.status ~= "ALIVE" then
+			phaseToken += 1
+			setSag(nil, 0.3)
+			if folder then
+				folder:ClearAllChildren()
+			end
 		end
 	end)
 	-- a blackout's end takes everything with it

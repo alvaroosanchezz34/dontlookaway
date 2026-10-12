@@ -1447,6 +1447,141 @@ do
 	rig:Destroy()
 end
 
+section("blackout 4: the light fails and comes back, never the same way")
+do
+	local LightingRules = requireModule(RS.Shared.LightingRules)
+	local f = { seed = 77, floor = "G", mode = "on", emergency = false, forceOn = false, off = false, tint = nil, base = roblox.Color3.new(1, 1, 1), baseBrightness = 1 }
+	local peak = LightingRules.ONSET_PEAK
+	check(peak <= 1.3, "an onset never swells past 1.3 times a lamp's light (no flash)")
+	local curves = {}
+	for style = 1, #LightingRules.ONSET_STYLES do
+		local over, zeroReduced, sum = false, false, 0
+		for lamp = 1, 30 do
+			local g = table.clone(f)
+			g.seed = lamp * 53
+			for i = 0, 99 do
+				local w = { power = true, level = 3, zone = "", seed = 7, escape = false, phase = "ONSET", phaseT = i * 0.03, span = 3, style = style, from = 0 }
+				local settled = LightingRules.LEVEL_MEAN[3]
+				local b = LightingRules.phaseBrightness(w, g, 1, settled, i * 0.03, false)
+				local br = LightingRules.phaseBrightness(w, g, 1, settled, i * 0.03, true)
+				if b > peak + 1e-6 or br > peak + 1e-6 then
+					over = true
+				end
+				if br <= 0 then
+					zeroReduced = true
+				end
+				sum += b
+			end
+		end
+		check(not over, "onset " .. LightingRules.ONSET_STYLES[style] .. " stays under the peak")
+		check(not zeroReduced, "onset " .. LightingRules.ONSET_STYLES[style] .. " never blinks out with reduced effects")
+		curves[style] = sum
+	end
+	local distinct = 0
+	for a = 1, #curves do
+		for b = a + 1, #curves do
+			if math.abs(curves[a] - curves[b]) > 1 then
+				distinct += 1
+			end
+		end
+	end
+	check(distinct >= 4, "the four onsets are different curves (" .. distinct .. " pairs differ)")
+	-- the restore: dim at first, every lamp back by the end, never brighter
+	local allBack, startDim, over = true, true, false
+	for lamp = 1, 40 do
+		local g = table.clone(f)
+		g.seed = lamp * 41
+		local function at(u, reduced)
+			local w = { power = true, level = 0, zone = "", seed = 7, escape = false, phase = "RESTORE", phaseT = u * 5, span = 5, style = 2, from = 4 }
+			return LightingRules.phaseBrightness(w, g, 1, 1, u * 5, reduced)
+		end
+		if math.abs(at(0.95, false) - 1) > 1e-6 then
+			allBack = false
+		end
+		if math.abs(at(0.02, false) - LightingRules.LEVEL_MEAN[4]) > 1e-6 then
+			startDim = false
+		end
+		for i = 0, 50 do
+			if at(i / 50, false) > 1 + 1e-6 or at(i / 50, true) > 1 + 1e-6 then
+				over = true
+			end
+		end
+	end
+	check(allBack, "every lamp is back before the restore ends")
+	check(startDim, "a restore starts at the level it comes back from")
+	check(not over, "a lamp catching never outshines itself")
+	check(LightingRules.restoreProgress({ power = true, level = 0, zone = "", seed = 0, escape = false }) == 1, "no restore running reads as fully restored")
+	-- the steady reading (the server's) ignores the phases
+	local wOnset = { power = true, level = 2, zone = "", seed = 7, escape = false, phase = "ONSET", phaseT = 1, span = 3, style = 3, from = 0 }
+	local _, steady = LightingRules.evaluate(f, wOnset, 1, { steady = true })
+	check(math.abs(steady - LightingRules.LEVEL_MEAN[2]) < 1e-6, "the server reads the level during the onset")
+	-- emergency lamps keep their own behaviour during the phases
+	local em = table.clone(f)
+	em.emergency = true
+	local _, b1 = LightingRules.evaluate(em, wOnset, 1, {})
+	local wHold = table.clone(wOnset)
+	wHold.phase = nil
+	local _, b2 = LightingRules.evaluate(em, wHold, 1, {})
+	check(math.abs(b1 - b2) < 1e-6, "the emergency lamps are not part of the onset")
+
+	-- the lifecycle: ONSET -> (HOLD) -> RESTORE -> nothing; a reset is instant
+	withRegistry({
+		AudioService = { Play2DAll = noop },
+		RoundService = { IsRunning = function()
+			return true
+		end },
+	}, function()
+		local Lighting = requireModule(Server.Services.LightingService)
+		-- the grade's tweens are the engine's; the phases are what is tested
+		local applyPreset = Lighting.ApplyPreset
+		Lighting.ApplyPreset = noop
+		workspace:SetAttribute("Power", true)
+		local styles = {}
+		local last = nil
+		local repeated = false
+		for i = 1, 24 do
+			Lighting:EndBlackout(true, true)
+			Lighting:Blackout(1 + (i % 4), 30)
+			local style = workspace:GetAttribute("BlackoutStyle")
+			if style == last then
+				repeated = true
+			end
+			last = style
+			styles[style] = true
+		end
+		check(not repeated, "never the same onset twice in a row")
+		check(styles[1] and styles[2] and styles[3] and styles[4], "every onset style is used")
+		Lighting:EndBlackout(true, true)
+		check(Lighting:Blackout(3, 30) and workspace:GetAttribute("BlackoutPhase") == "ONSET", "a blackout with power begins with its onset")
+		check(workspace:GetAttribute("Blackout") == 3 and Lighting:GetBlackout() == 3, "the game reads the level from the start")
+		check(type(workspace:GetAttribute("BlackoutPhaseAt")) == "number" and workspace:GetAttribute("BlackoutSpan") == Lighting.OnsetTime[3], "the onset is stamped with the server's clock")
+		Lighting:EndBlackout()
+		check(workspace:GetAttribute("Blackout") == 0 and Lighting:GetBlackout() == 0, "the level ends at once")
+		check(workspace:GetAttribute("BlackoutPhase") == "RESTORE" and workspace:GetAttribute("BlackoutFrom") == 3, "then the lamps come back from level 3")
+		Lighting:EndBlackout(true, true)
+		check(workspace:GetAttribute("BlackoutPhase") == nil, "a reset clears a running restore (no lamp left dim)")
+		-- without power there is nothing to restore
+		Lighting:Blackout(4, 30)
+		workspace:SetAttribute("Power", false)
+		Lighting:EndBlackout()
+		check(workspace:GetAttribute("BlackoutPhase") == nil and workspace:GetAttribute("Blackout") == 0, "without power a blackout ends with no restore")
+		workspace:SetAttribute("Power", true)
+		Lighting:Blackout(2, 30, { instant = true })
+		check(workspace:GetAttribute("BlackoutPhase") == "HOLD", "an instant blackout has no onset")
+		Lighting:EndBlackout(true, true)
+		Lighting.ApplyPreset = applyPreset
+	end)
+	local fx = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.BlackoutFX.Source
+	check(string.find(fx, "presenceNear()", 1, true) ~= nil, "no false figure or eyes while the real Observer is near")
+	local effects = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.EffectsController.Source
+	local onBlackout = string.match(effects, "local function onBlackout%(p%)(.-)\nend\n")
+	check(onBlackout ~= nil and string.find(onBlackout, ":Fade(", 1, true) == nil, "a blackout no longer flashes the screen black")
+	for _, name in { "HorrorDirector", "RoundService" } do
+		local src = Server.Services[name].Source
+		check(string.find(src, "EndBlackout(true)", 1, true) == nil, name .. ": every reset ends a blackout instantly")
+	end
+end
+
 section("summary")
 print(string.format("%d checks, %d failures", checks, failures))
 process.exit(if failures == 0 then 0 else 1)

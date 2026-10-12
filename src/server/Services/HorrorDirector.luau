@@ -524,7 +524,7 @@ function HorrorDirector:TriggerOutage()
 		if not running then
 			return
 		end
-		Registry.LightingService:EndBlackout(true)
+		Registry.LightingService:EndBlackout(true, true)
 		Registry.PuzzleService:BurnOut()
 		Registry.LightingService:SetPower(false)
 		Registry.AudioService:Play2DAll("PowerDown", { volume = 0.9 })
@@ -936,7 +936,7 @@ end
 
 function HorrorDirector:EndRound()
 	running = false
-	Registry.LightingService:EndBlackout(true)
+	Registry.LightingService:EndBlackout(true, true)
 	phase = Phase.Calm
 	story = Story.Arrival
 	workspace:SetAttribute("TensionPhase", Phase.Calm)
