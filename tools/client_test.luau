@@ -1876,6 +1876,73 @@ do
 			renderFns.MarketingStudio(dt or 1 / 30)
 		end
 	end
+	-- CAMPAIGN_PREVIS=<dir>: each key frame's real state (set, figure, lights,
+	-- camera, grade) as JSON for tools/blender/render_room.py (previs only)
+	local previsDir = process.env.CAMPAIGN_PREVIS
+	local function exportFrame(path: string)
+		local fs = require("@lune/fs")
+		local serde = require("@lune/serde")
+		local ObserverRig = requireModule(RS.Shared.ObserverRig)
+		local MeshMeta = requireModule(RS.Shared.Config.ObserverMeshMeta)
+		local function c3(c)
+			return { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) }
+		end
+		local function v3(v)
+			return { v.X, v.Y, v.Z }
+		end
+		local parts, lights, meshes = {}, {}, {}
+		local rt = runtime()
+		for _, d in (if rt then rt:GetDescendants() else {}) do
+			if d:IsA("BasePart") then
+				local cf = d.CFrame
+				local inEntity = d.Parent and d.Parent.Name == "Entity_it"
+				local meshName = inEntity and ObserverRig.SegmentMesh[d.Name]
+				if meshName and MeshMeta[meshName] then
+					local mcf = cf * CFrame.new(MeshMeta[meshName].offset)
+					table.insert(meshes, { file = "assets/observer/" .. meshName .. ".obj", maps = "assets/observer/" .. meshName .. "/" .. meshName, bboxCentre = true, color = c3(d.Color), pos = v3(mcf.Position), rx = v3(mcf.RightVector), ry = v3(mcf.UpVector), rz = v3(-mcf.LookVector) })
+				elseif inEntity and ObserverRig.MeshDetails[d.Name] then
+					-- covered by the smooth mesh
+				elseif d.Transparency < 0.95 then
+					local shape = "box"
+					if d:IsA("Part") and d.Shape == roblox.Enum.PartType.Ball then
+						shape = "ball"
+					end
+					table.insert(parts, { name = d.Name, pos = v3(cf.Position), rx = v3(cf.RightVector), ry = v3(cf.UpVector), rz = v3(-cf.LookVector), size = v3(d.Size), shape = shape, color = c3(d.Color), material = d.Material.Name, variant = "", transparency = d.Transparency, reflectance = 0 })
+				end
+			elseif d:IsA("Light") and d.Enabled and d.Brightness > 0 and d.Parent and d.Parent:IsA("BasePart") then
+				local cf = (d.Parent :: BasePart).CFrame
+				local face = if d:IsA("SpotLight") or d:IsA("SurfaceLight") then (d :: any).Face else nil
+				local dir = cf.LookVector
+				if face == roblox.Enum.NormalId.Back then
+					dir = -cf.LookVector
+				elseif face == roblox.Enum.NormalId.Top then
+					dir = cf.UpVector
+				elseif face == roblox.Enum.NormalId.Bottom then
+					dir = -cf.UpVector
+				elseif face == roblox.Enum.NormalId.Right then
+					dir = cf.RightVector
+				elseif face == roblox.Enum.NormalId.Left then
+					dir = -cf.RightVector
+				end
+				table.insert(lights, { class = d.ClassName, pos = v3(cf.Position), dir = v3(dir), brightness = d.Brightness, range = d.Range, angle = if d:IsA("PointLight") then 180 else (d :: any).Angle, color = c3(d.Color), shadows = d.Shadows, tag = "on", powered = false, mode = "on", circuit = "NONE" })
+			end
+		end
+		local Lighting = game:GetService("Lighting")
+		local cam = workspace.CurrentCamera
+		local g = Screen.gradeValues()
+		fs.writeFile(path, serde.encode("json", {
+			room = path,
+			seed = 0,
+			min = { 0, 0, 0 },
+			max = { 1, 1, 1 },
+			parts = parts,
+			lights = lights,
+			meshes = meshes,
+			presets = { SHOT = { ambient = c3(Lighting.Ambient), exposure = Lighting.ExposureCompensation } },
+			camera = { eye = v3(cam.CFrame.Position), target = v3(cam.CFrame.Position + cam.CFrame.LookVector * 10), fov = cam.FieldOfView },
+			grade = { brightness = g.Brightness, contrast = g.Contrast, saturation = g.Saturation, tint = c3(g.TintColor) },
+		}))
+	end
 	local measured = {}
 	for _, name in CAMPAIGN do
 		local def = MC.GetScene(name)
@@ -1889,16 +1956,22 @@ do
 	end
 	-- key frames: { scene, clock, min height fraction, max, eyes must be in frame }
 	local KEYS = {
+		{ "Scene_Campaign01_ItHasntMoved", 1.0, 0.06, 0.35, false, "first second" },
 		{ "Scene_Campaign01_ItHasntMoved", 3.5, 0.06, 0.35, false, "far, under the white tube" },
 		{ "Scene_Campaign01_ItHasntMoved", 6.5, 0.08, 0.45, false, "one lamp closer" },
 		{ "Scene_Campaign01_ItHasntMoved", 9.5, 0.12, 0.6, false, "closer" },
 		{ "Scene_Campaign01_ItHasntMoved", 11.5, 0.2, 1, false, "close" },
 		{ "Scene_Campaign01_ItHasntMoved", 13.0, 0.3, 1, true, "the eyes in the dark" },
+		{ "Scene_Campaign02_TheHallwayNeverEnds", 1.0, 0, 0, false, "first second (no figure)" },
+		{ "Scene_Campaign02_TheHallwayNeverEnds", 2.4, 0, 0, false, "passing B-13" },
 		{ "Scene_Campaign02_TheHallwayNeverEnds", 13.6, 0.3, 1, true, "turned round" },
+		{ "Scene_Campaign03_SecurityFootage", 1.0, 0, 0, false, "first second (empty room)" },
 		{ "Scene_Campaign03_SecurityFootage", 7.0, 0.08, 0.6, false, "in the far corner" },
 		{ "Scene_Campaign03_SecurityFootage", 10.5, 0.15, 0.8, false, "mid-room" },
 		{ "Scene_Campaign03_SecurityFootage", 12.6, 0.3, 1, true, "under the lens" },
+		{ "Scene_Campaign04_ThisFrameShouldNotExist", 1.0, 0, 0, false, "first second (nothing)" },
 		{ "Scene_Campaign04_ThisFrameShouldNotExist", 3.42, 0.5, 1, true, "the frame" },
+		{ "Scene_Campaign05_ItHasSeenYou", 1.0, 0.15, 0.8, false, "first second (it is already there)" },
 		{ "Scene_Campaign05_ItHasSeenYou", 5.0, 0.15, 0.8, true, "eyes light up" },
 		{ "Scene_Campaign05_ItHasSeenYou", 10.4, 0.2, 1, true, "after the push-in" },
 	}
@@ -1906,6 +1979,9 @@ do
 		MC.PlayScene(k[1])
 		playTo(k[1], k[2], 1 / 60)
 		local frac, eyesOk, eyes, eyeAt = framing()
+		if previsDir then
+			exportFrame(string.format("%s/%s_%05.2f.json", previsDir, k[1], k[2]))
+		end
 		table.insert(measured, string.format("%s @%.2fs (%s): height %.2f of frame, eyes %s %s", k[1], k[2], k[6], frac, if eyes == 0 then "none" elseif eyesOk then "in frame" else "OUT", eyeAt))
 		check(frac >= k[3] and frac <= k[4], string.format("campaign framing %s @%.2f %s: %.2f in [%.2f, %.2f]", k[1], k[2], k[6], frac, k[3], k[4]))
 		if k[5] then

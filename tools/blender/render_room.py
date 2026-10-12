@@ -5,6 +5,7 @@ context. NOT Roblox's renderer: an approximation built to resemble it.
 
     lune run tools/light_study.luau build/test.rbxlx G_r 8919 build/light_G_r.json
     /home/user/.venv-blender/bin/python tools/blender/render_room.py build/light_G_r.json out.png [parts|meshes] [NORMAL|EMERGENCY|BLACKOUT]
+    (RENDER_RES=540x960 renders a vertical frame, RENDER_SAMPLES the sample count)
 
 How it approximates Roblox (Future lighting):
   * every part is a box / cylinder / ball in Roblox coordinates (Y up)
@@ -392,12 +393,14 @@ def main():
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
-    scene.cycles.samples = 48
+    scene.cycles.samples = int(os.environ.get("RENDER_SAMPLES", "48"))
     scene.cycles.use_denoising = True
     scene.cycles.diffuse_bounces = 0  # Roblox has no bounce light
     scene.cycles.glossy_bounces = 1
     scene.cycles.transmission_bounces = 2
-    scene.render.resolution_x, scene.render.resolution_y = 960, 540
+    # RENDER_RES=540x960 for a vertical (9:16) frame; Roblox's vertical FOV is kept
+    res = os.environ.get("RENDER_RES", "960x540").lower().split("x")
+    scene.render.resolution_x, scene.render.resolution_y = int(res[0]), int(res[1])
     scene.view_settings.view_transform = "AgX"
     presets = data["presets"]
     preset = presets.get(state) or presets[{"NORMAL": "POWERED", "EMERGENCY": "DARK"}.get(state, state)]

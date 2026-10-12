@@ -265,7 +265,7 @@ python3 tools/gen_eye.py
 python3 tools/gen_title.py
 ```
 
-## 12. Catálogo de escenas (56)
+## 12. Catálogo de escenas (61: 56 + las 5 de campaña, §14)
 
 En el panel (F7, F6 o 🎬) las escenas salen **agrupadas por categoría**, con su duración. Al elegir una se muestra su descripción, y el buscador filtra por nombre, categoría o palabras de la descripción.
 
@@ -359,3 +359,22 @@ luces clave/contra colocadas respecto a la cámara y al sujeto. Todo pasa por
 plano para el que se colocan (si no se da, el plano actual). `fov = false` no toca el objetivo.
 `Scene_LookBook` enseña los 8 seguidos y rotulados para comparar.
 
+
+## 14. Campaña de lanzamiento (I · CAMPAIGN)
+
+Cinco vídeos verticales listos para grabar, en `client/Scenes/I_Campaign.luau`. Guion, ranking y pasos de grabación en [`docs/CAMPAIGN_VIDEOS.md`](../../docs/CAMPAIGN_VIDEOS.md).
+
+| Escena | Vídeo |
+|---|---|
+| `Scene_Campaign01_ItHasntMoved` | V1 · NO SE HA MOVIDO |
+| `Scene_Campaign02_TheHallwayNeverEnds` | V2 · EL PASILLO NO TERMINA |
+| `Scene_Campaign03_SecurityFootage` | V4 · LA GRABACIÓN DE SEGURIDAD |
+| `Scene_Campaign04_ThisFrameShouldNotExist` | V7 · ESTE FOTOGRAMA NO DEBERÍA EXISTIR |
+| `Scene_Campaign05_ItHasSeenYou` | V10 · THE OBSERVER TE HA VISTO |
+
+Novedades de la herramienta que estas escenas usan (y cualquiera puede usar):
+
+- **Tomas idénticas.** Todo lo aleatorio (glitch, parpadeo, grano, texto rayado) sale de `Utilities/Rng.luau`, resembrado en cada PLAY con `Seed` (o el nombre de la escena).
+- **`Format` por escena.** Se respeta mientras no elijas otro en el panel; `MC.SetFormat("AUTO")` devuelve la elección a la escena.
+- **`Sets.hallway()`.** El pasillo imposible real (`Shared/HallwayBuilder`), en Apagón 4, con `set.power(on)` para cortar la luz.
+- **`EyesGlow { name, on }`.** Los ojos del Observer real se encienden.
