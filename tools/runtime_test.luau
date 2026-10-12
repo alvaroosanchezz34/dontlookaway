@@ -302,7 +302,9 @@ do
 	-- near-monochrome grade (docs/LIGHTING_MONOCHROME.md)
 	local spread = (math.max(normal.Ambient.R, normal.Ambient.G, normal.Ambient.B) - math.min(normal.Ambient.R, normal.Ambient.G, normal.Ambient.B)) * 255
 	check(amb <= 24 and spread <= 3, "NORMAL's ambient is a dim neutral grey (max channel " .. math.floor(amb + 0.5) .. ")")
-	check(normal.cc.Contrast >= 0.1 and normal.cc.Saturation <= -0.4, "NORMAL grade is contrasted and desaturated (contrast " .. normal.cc.Contrast .. ", saturation " .. normal.cc.Saturation .. ")")
+	-- a soft contrast (v3): the pools and the stretch between them stay close,
+	-- the dark comes from the exposure
+	check(normal.cc.Contrast >= 0.05 and normal.cc.Contrast <= 0.12 and normal.cc.Saturation <= -0.4, "NORMAL grade is soft and desaturated (contrast " .. normal.cc.Contrast .. ", saturation " .. normal.cc.Saturation .. ")")
 	-- ColorCorrection pivots contrast round mid grey: black on screen is
 	-- 0.5 - (1 + contrast) / 2 + brightness. Inside, it is a deep grey, never 0
 	for _, name in { "NORMAL", "EMERGENCY", "BREATH", "HEARTBEAT", "BLACKOUT", "CINEMATIC", "ESCAPE" } do
