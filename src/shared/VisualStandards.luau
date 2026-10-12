@@ -89,23 +89,24 @@ end
 --     it to nothing (pendant), or up against the ceiling (troffer);
 --   * the fill is a long, weak point light: it has no edge at all and carries
 --     the penumbra onto the floor around the pool and the walls next to it.
--- The ceiling is ~13 studs up and fixtures are 16 apart: halfway between two
--- of them the floor gets 15-30% of the light under one, so the stretch between
--- pools stays dark without a cut.
+-- The ceiling is ~13 studs up and fixtures are 16 apart. The main light is
+-- kept modest and the fill carries more of the fixture, so the floor halfway
+-- between two lamps gets about a third of the light under one: a softer pool,
+-- a stretch between pools that is dim instead of a hole.
 VisualStandards.Fixtures = {
 	-- 2-tube troffer: an open wash from the diffuser. At 150 degrees the cone
 	-- edge sits against the ceiling, so floor and walls fade with the range
 	fluoro = {
-		main = { class = "SurfaceLight", host = "Housing", face = Enum.NormalId.Bottom, angle = 150, range = 16, ratio = 1 },
-		fill = { range = 18, ratio = 0.25, solo = 1 },
+		main = { class = "SurfaceLight", host = "Housing", face = Enum.NormalId.Bottom, angle = 150, range = 16, ratio = 0.75 },
+		fill = { range = 20, ratio = 0.4, solo = 1 },
 	},
 	-- enamel pendant: a warm core under the bell (the bell's local -X face
 	-- points down). The bell hangs 9.5 studs up: a 62 degree cone stays off the
 	-- walls and its edge reaches the floor at the end of the 12 stud range. The
 	-- fill is the glow under the shade: floor penumbra, walls and ceiling
 	pendant = {
-		main = { class = "SpotLight", host = "Shade", face = Enum.NormalId.Left, angle = 62, range = 12, ratio = 1.8 },
-		fill = { range = 15, ratio = 0.28, solo = 1 },
+		main = { class = "SpotLight", host = "Shade", face = Enum.NormalId.Left, angle = 62, range = 12, ratio = 1.2 },
+		fill = { range = 18, ratio = 0.45, solo = 1 },
 	},
 	-- caged / bare bulbs light everything around them: the point light is the source
 	cage = { fill = { range = 12, ratio = 1, solo = 1 } },
@@ -132,9 +133,9 @@ VisualStandards.MenuLook = {
 }
 
 VisualStandards.Quality = {
-	[1] = { lightLod = 70, secondary = false, detailLod = 40, shadowLights = 2 },
-	[2] = { lightLod = 95, secondary = true, detailLod = 70, shadowLights = 10 },
-	[3] = { lightLod = 120, secondary = true, detailLod = 110, shadowLights = 14 },
+	[1] = { lightLod = 70, secondary = false, detailLod = 40, shadowLights = 3 },
+	[2] = { lightLod = 95, secondary = true, detailLod = 70, shadowLights = 12 },
+	[3] = { lightLod = 120, secondary = true, detailLod = 110, shadowLights = 16 },
 }
 
 function VisualStandards.tier(level: number?)

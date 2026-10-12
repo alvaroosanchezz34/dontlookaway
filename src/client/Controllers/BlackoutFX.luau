@@ -1,7 +1,7 @@
 --[[
 	BlackoutFX
 	What a blackout brings with it besides the light (LightController and
-	Shared/LightingRules do the lamps). Each level is more macabre, not darker:
+	Shared/LightingRules do the lamps). Each level is darker and more macabre:
 
 	  1 FAILS     a lamp near you clicks and buzzes for a moment
 	  2 BREATHES  a door close by eases open on its own, creaking (locally:

@@ -11,7 +11,7 @@
 	Building state (workspace attributes)
 	  Power, Blackout (0-4), BlackoutZone, BlackoutSeed, Escape
 
-	Blackout levels: more macabre, not darker (the rules: Shared/LightingRules)
+	Blackout levels: darker and more macabre (the rules: Shared/LightingRules)
 	  1 FAILS     a third of the lamps stutter and buzz, then come back
 	  2 BREATHES  the lamps swell and sink together; the light goes sickly pale
 	  3 BEATS     the lamps beat like a heart; a wave of light runs down the
@@ -27,6 +27,14 @@
 
 	Lights far from the camera are disabled locally (light LOD) so the building
 	stays fast on phones and consoles; their glowing tubes still read from afar.
+	The LOD looks ahead: where the camera looks and walks, lamps switch on
+	further out (AHEAD_REACH) and fade in over a wide band (FADE_BAND), and
+	behind it they go sooner (BEHIND_REACH), so the cost stays about the same
+	and a pool is already lit, its shadow settled, before you walk into it.
+	The lamps that cast shadows are the ones nearest a point a few studs ahead
+	of the camera (LEAD), not the camera itself, and a lamp changing between
+	shadowed and not grows or shrinks its range over a few frames instead of
+	jumping (RANGE_RATE).
 	Near fixtures are evaluated every frame (smooth flicker); far ones in
 	FAR_BUCKETS slices, one slice a frame, so no frame pays for all of them.
 	Lights that follow the main power (PoweredLight) are collected once, not
@@ -54,6 +62,18 @@ local LightingRules = require(ReplicatedStorage.Shared.LightingRules)
 local LightController = {}
 
 local LOD_DISTANCE = 95 -- updated from the quality tier
+-- the LOD's reach ahead of the view (x1 + AHEAD_REACH) and behind it
+-- (x1 - BEHIND_REACH), and the share of it over which a lamp fades in
+local AHEAD_REACH = 0.35
+local BEHIND_REACH = 0.3
+local FADE_BAND = 0.35
+-- shadows go to the lamps nearest a point this many studs ahead of the camera
+local LEAD = 20
+-- how fast a lamp's range follows its target (1/s): ~0.3 s to settle
+local RANGE_RATE = 8
+-- where the view is heading (flat): camera look and walking direction
+local heading = Vector3.new(0, 0, -1)
+local leadPoint = Vector3.zero
 local useMain = true
 local DARK = Color3.fromRGB(38, 38, 36)
 local DEAD_LAMP = Color3.fromRGB(46, 42, 36)
@@ -61,8 +81,8 @@ local DEAD_LAMP = Color3.fromRGB(46, 42, 36)
 local OBSERVER_SAG = 26
 local observerAt: Vector3? = nil
 
-type LightEntry = { light: Light, ratio: number, solo: number, main: boolean, range: number }
-type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string, bucket: number, wallDist: number, shadowed: boolean, dist: number }
+type LightEntry = { light: Light, ratio: number, solo: number, main: boolean, range: number, cur: number }
+type Info = { model: Model, light: PointLight?, lights: { LightEntry }, lamps: { BasePart }, flickerUntil: number, seed: number, lit: boolean, level: number, floor: string, bucket: number, wallDist: number, shadowed: boolean, dist: number, leadDist: number, inRange: boolean, evaluatedAt: number }
 type Beacon = { model: Model, rotor: BasePart, beams: { SpotLight }, glow: PointLight?, dome: BasePart?, phase: number }
 
 local fixtures: { [Model]: Info } = {}
@@ -93,6 +113,7 @@ local function register(model: Instance)
 				solo = if type(solo) == "number" then solo elseif type(ratio) == "number" then ratio else 1,
 				main = d:GetAttribute("Main") == true,
 				range = (d :: any).Range,
+				cur = (d :: any).Range,
 			})
 		elseif d:IsA("BasePart") and (d.Name == "Tube" or d.Name == "Tube2" or d.Name == "Bulb") then
 			table.insert(lamps, d)
@@ -116,6 +137,9 @@ local function register(model: Instance)
 		wallDist = (if type(wallDist) == "number" then wallDist else 40) + 1,
 		shadowed = false,
 		dist = math.huge,
+		leadDist = math.huge,
+		inRange = false,
+		evaluatedAt = os.clock(),
 	}
 end
 
@@ -175,7 +199,6 @@ local function evaluate(info: Info, camPos: Vector3, now: number)
 			if p < 0.6 and here > math.max(front, 8) then
 				lit = false
 			end
-			brightness *= 1.1
 		end
 	end
 	-- the light is its: lamps near The Observer sag and stutter, at any level
@@ -190,15 +213,30 @@ local function evaluate(info: Info, camPos: Vector3, now: number)
 	end
 	local dist = here
 	info.dist = dist
-	-- light LOD: the light fades over the last fifth of the distance instead of
-	-- switching off at a line (a far stretch of corridor no longer goes black
-	-- at once); the tube keeps glowing either way
-	local fade = math.clamp((LOD_DISTANCE - dist) / (LOD_DISTANCE * 0.2), 0, 1)
+	local step = math.min(now - info.evaluatedAt, 0.5)
+	info.evaluatedAt = now
+	-- light LOD, looking ahead: a lamp in front of the view (or of where you
+	-- walk) switches on further out than one behind you, and fades in over
+	-- the outer FADE_BAND of its reach instead of switching on at a line, so
+	-- the pool is lit and its shadow settled before you get there; the tube
+	-- keeps glowing either way
+	local ahead = if here > 0.5 then (pivot - camPos):Dot(heading) / here else 1
+	local reach = LOD_DISTANCE * (if ahead >= 0 then 1 + AHEAD_REACH * ahead else 1 + BEHIND_REACH * ahead)
+	local fade = math.clamp((reach - dist) / (reach * FADE_BAND), 0, 1)
+	fade = fade * fade * (3 - 2 * fade)
+	info.inRange = fade > 0
+	-- shadow priority: near the lead point, and a lamp behind the view counts
+	-- as further away than one in front of it at the same distance
+	info.leadDist = (pivot - leadPoint).Magnitude * (if ahead < 0 then 1 - 0.8 * ahead else 1 - 0.15 * ahead)
 	-- a jumpscare blacks out every light around you (ScareController)
 	local inRange = lit and fade > 0 and not State.scareDark
-	-- the nearest lamps cast shadows (pickShadowed); the others never reach
-	-- past their room's walls, which a light without shadows would go through
+	-- the lamps nearest the lead point cast shadows (pickShadowed); the others
+	-- never reach past their room's walls, which a light without shadows
+	-- would go through. A lamp gaining shadows grows to its full range over a
+	-- few frames; one losing them keeps its shadows until it has shrunk back
+	-- inside its walls, so it never lights through one
 	local shadowed = info.shadowed
+	local k = 1 - math.exp(-RANGE_RATE * step)
 	for _, entry in info.lights do
 		local l = entry.light
 		if entry.main then
@@ -209,9 +247,20 @@ local function evaluate(info: Info, camPos: Vector3, now: number)
 			l.Brightness = brightness * (if useMain then entry.ratio else entry.solo) * fade
 		end
 		l.Color = color
-		l.Shadows = shadowed
-		local range = if shadowed then entry.range else math.min(entry.range, info.wallDist)
-		if (l :: any).Range ~= range then
+		local cut = math.min(entry.range, info.wallDist)
+		local target = if shadowed then entry.range else cut
+		if not inRange then
+			-- off: no need to ease, it starts from where it should be
+			entry.cur = target
+		else
+			entry.cur += (target - entry.cur) * k
+			if math.abs(target - entry.cur) < 0.05 then
+				entry.cur = target
+			end
+		end
+		l.Shadows = shadowed or entry.cur > cut + 0.05
+		local range = entry.cur
+		if math.abs((l :: any).Range - range) > 0.02 then
 			(l :: any).Range = range
 		end
 	end
@@ -225,19 +274,24 @@ local function evaluate(info: Info, camPos: Vector3, now: number)
 	info.lit = lit
 end
 
--- Shadow LOD: the N lit lamps nearest the camera (N per quality tier) cast
--- shadows; a lamp keeps them until it drops out of the nearest N + 2, so
--- shadows do not jump on and off when two lamps are about as far.
+-- Shadow LOD: the N lit lamps nearest the lead point, a few studs ahead of
+-- the camera (N per quality tier), cast shadows, so the lamps you are walking
+-- toward have theirs before you reach them; a lamp keeps them until it drops
+-- out of the nearest N + 3, so shadows do not jump on and off when two lamps
+-- are about as far.
+local shadowList: { Info } = {}
+local function byLead(a: Info, b: Info): boolean
+	return a.leadDist < b.leadDist
+end
 local function pickShadowed(count: number)
-	local list = {}
+	local list = shadowList
+	table.clear(list)
 	for _, info in fixtures do
-		if info.lit and info.dist < LOD_DISTANCE then
+		if info.lit and info.inRange then
 			table.insert(list, info)
 		end
 	end
-	table.sort(list, function(a, b)
-		return a.dist < b.dist
-	end)
+	table.sort(list, byLead)
 	local rank: { [Info]: number } = {}
 	for i, info in list do
 		rank[info] = i
@@ -245,7 +299,7 @@ local function pickShadowed(count: number)
 	for _, info in fixtures do
 		local r = rank[info]
 		if info.shadowed then
-			info.shadowed = r ~= nil and r <= count + 2
+			info.shadowed = r ~= nil and r <= count + 3
 		else
 			info.shadowed = r ~= nil and r <= count
 		end
@@ -405,11 +459,27 @@ function LightController:Start()
 	end)
 	-- near fixtures every frame (smooth flicker), far ones one slice a frame
 	local farAcc = 0
+	local lastCamPos: Vector3? = nil
 	local frame = 0
 	RunService.RenderStepped:Connect(function(dt)
-		local camPos = Workspace.CurrentCamera.CFrame.Position
+		local camCF = Workspace.CurrentCamera.CFrame
+		local camPos = camCF.Position
 		local now = os.clock()
 		frame += 1
+		-- where the view is heading: mostly where it looks, partly where it
+		-- walks (smoothed, flat), and the lead point a few studs along it
+		local look = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z)
+		local moved = if lastCamPos then camPos - lastCamPos else Vector3.zero
+		lastCamPos = camPos
+		local walk = Vector3.new(moved.X, 0, moved.Z)
+		local want = (if look.Magnitude > 0.1 then look.Unit else heading) * 0.65 + (if walk.Magnitude > 0.01 then walk.Unit * 0.35 else Vector3.zero)
+		if want.Magnitude > 0.1 then
+			heading = heading:Lerp(want.Unit, math.min(1, dt * 6))
+			if heading.Magnitude > 0.1 then
+				heading = heading.Unit
+			end
+		end
+		leadPoint = camPos + heading * LEAD
 		local bucket = frame % FAR_BUCKETS
 		observerAt = nil
 		for _, o in CollectionService:GetTagged("Observer") do

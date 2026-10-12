@@ -33,7 +33,8 @@ DataService.Loaded = Signal.new() -- (player, data)
 DataService.Changed = Signal.new() -- (player, data)
 
 -- v1: launch. v2: equipment, loadout, upgrades, challenges, gloves & badges.
-local SCHEMA_VERSION = 3
+-- v3: lore archive. v4: softer film grain by default.
+local SCHEMA_VERSION = 4
 
 local TEMPLATE = {
 	version = SCHEMA_VERSION,
@@ -106,7 +107,7 @@ local TEMPLATE = {
 		audioIndicators = false,
 		reduceMotion = false,
 		filmGrain = true,
-		grainIntensity = 0.5,
+		grainIntensity = 0.3,
 		graphics = "AUTO",
 		colorMode = "NORMAL",
 	},
@@ -209,6 +210,15 @@ local function migrate(data)
 	if from < 3 then
 		-- v3 adds the lore archive (empty: everyone starts the story at chapter 1)
 		data.lore = if type(data.lore) == "table" then data.lore else {}
+	end
+	if from < 4 then
+		-- v4 lowers the default grain from 0.5 to 0.3. A save still at exactly
+		-- 0.5 never moved the slider (it was the default): it follows the new
+		-- default. Any other value was the player's choice and stays.
+		local s = data.settings
+		if type(s) == "table" and s.grainIntensity == 0.5 then
+			s.grainIntensity = 0.3
+		end
 	end
 	return data
 end
@@ -344,7 +354,7 @@ local function validate(data)
 	s.fov = num(s.fov, GameConfig.Camera.DefaultFOV, GameConfig.Camera.MinFOV, GameConfig.Camera.MaxFOV)
 	s.brightness = num(s.brightness, 0.5, 0, 1)
 	s.subtitleSize = num(s.subtitleSize, 0.5, 0, 1)
-	s.grainIntensity = num(s.grainIntensity, 0.5, 0, 1)
+	s.grainIntensity = num(s.grainIntensity, 0.3, 0, 1)
 	for _, b in { "headBob", "cameraShake", "reducedEffects", "flashingAccepted", "subtitles", "invertY", "flashlightEffects", "audioIndicators", "reduceMotion", "filmGrain" } do
 		if type(s[b]) ~= "boolean" then
 			s[b] = TEMPLATE.settings[b]

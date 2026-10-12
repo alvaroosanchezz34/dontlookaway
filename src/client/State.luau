@@ -31,7 +31,7 @@ local State = {
 		audioIndicators = false,
 		reduceMotion = false,
 		filmGrain = true,
-		grainIntensity = 0.5,
+		grainIntensity = 0.3,
 		graphics = "AUTO",
 		colorMode = "NORMAL",
 	},

@@ -9,8 +9,10 @@
 	Grain   two full-screen tiled layers over the world and under the HUD (the
 	        HUD is not part of the film): white grain that lifts the image and
 	        black grain that sinks it. 24 times a second both jump to a random
-	        offset, so the grain is new every frame. It shows more in the dark
-	        (no power, deep blackouts), with fear, and in a scare (Spike).
+	        offset, so the grain is new every frame. It is faint by default
+	        (the image is dark already, and grain on a dark image reads as
+	        noise) and rises a little in the dark (no power, deep blackouts),
+	        with fear, and for a moment in a scare (Spike).
 	        Where the grain comes from, best first:
 	          texture  the uploaded sheets (AssetIds.Film, tools/gen_film.py)
 	          runtime  a noise texture made in the game (EditableImage: in a
@@ -111,13 +113,16 @@ local function makeLayer(name: string, light: boolean): ImageLabel?
 end
 
 -- How strong the grain is right now (0..1 before the player's intensity).
+-- The extra for the dark is small: a darker image already shows grain more.
+local BASE = 0.4
+local MAX_ALPHA = 0.3
 local function amount(): number
 	local power = Workspace:GetAttribute("Power") == true
 	local blackout = Workspace:GetAttribute("Blackout")
 	local level = if type(blackout) == "number" then blackout else 0
-	local dark = if not power and State.round.state ~= "LOBBY" then 0.6 else level * 0.12
+	local dark = if not power and State.round.state ~= "LOBBY" then 0.15 else level * 0.04
 	local spike = if os.clock() < spikeUntil then spikeAmount else 0
-	local a = 0.55 + dark + (State.fear or 0) * 0.25 + spike
+	local a = BASE + dark + (State.fear or 0) * 0.15 + spike
 	if level >= 4 and not State.settings.reducedEffects then
 		-- the grain trembles
 		a *= 0.85 + 0.3 * random:NextNumber()
@@ -135,7 +140,7 @@ end
 -- One frame of dirt on the film: a speck or a vertical scratch.
 local function dirt()
 	local size = workspace.CurrentCamera.ViewportSize
-	if random:NextNumber() < 1 / 40 then
+	if random:NextNumber() < 1 / 60 then
 		local d = random:NextInteger(2, 6)
 		local speck = Kit.frame({
 			Size = UDim2.fromOffset(d, d),
@@ -148,7 +153,7 @@ local function dirt()
 		Kit.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = speck })
 		table.insert(transient, speck)
 	end
-	if random:NextNumber() < 1 / 110 then
+	if random:NextNumber() < 1 / 160 then
 		local h = random:NextNumber(0.3, 0.9)
 		local scratch = Kit.frame({
 			Size = UDim2.new(0, 1, h, 0),
@@ -187,14 +192,13 @@ local function scatter(alpha: number)
 			s.Visible = false
 		else
 			s.Visible = true
-			local px = if random:NextNumber() < 0.25 then 2 else 1
-			s.Size = UDim2.fromOffset(px, px)
+			s.Size = UDim2.fromOffset(1, 1)
 			s.Position = UDim2.fromOffset(random:NextInteger(0, math.max(1, size.X)), random:NextInteger(0, math.max(1, size.Y)))
 			local light = random:NextNumber() < 0.5
 			s.BackgroundColor3 = if light then Color3.new(1, 1, 1) else Color3.new(0, 0, 0)
-			-- a speck is a single pixel: it must be stronger than a texture's
-			-- grain to read (the field is sparse)
-			s.BackgroundTransparency = 1 - math.clamp(alpha * 3 * random:NextNumber(0.7, 1.4), 0, 0.85)
+			-- a speck is a single pixel: a little stronger than a texture's
+			-- grain to read (the field is sparse), never a hard dot
+			s.BackgroundTransparency = 1 - math.clamp(alpha * 1.8 * random:NextNumber(0.7, 1.3), 0, 0.6)
 		end
 	end
 end
@@ -202,8 +206,8 @@ end
 local function frame()
 	clearTransient()
 	local on = enabled()
-	local intensity = math.clamp(State.settings.grainIntensity or 0.5, 0, 1)
-	local alpha = if on then math.clamp(amount() * intensity * 0.5, 0, 0.6) else 0
+	local intensity = math.clamp(State.settings.grainIntensity or 0.3, 0, 1)
+	local alpha = if on then math.clamp(amount() * intensity * 0.5, 0, MAX_ALPHA) else 0
 	for _, label in layers do
 		label.Visible = alpha > 0.005
 		label.ImageTransparency = 1 - alpha
@@ -232,9 +236,9 @@ local function frame()
 	end
 end
 
--- A scare: the grain jumps for `duration` seconds.
+-- A scare: the grain jumps, for a little less than `duration` seconds.
 function FilmController:Spike(duration: number, strength: number?)
-	spikeUntil = os.clock() + duration
+	spikeUntil = os.clock() + duration * 0.6
 	spikeAmount = strength or 0.8
 end
 

@@ -1000,15 +1000,24 @@ do
 	for _, name in { "EMERGENCY", "BREATH", "HEARTBEAT", "BLACKOUT", "CINEMATIC", "ESCAPE" } do
 		local p = P[name]
 		check(lum(p.Ambient) <= lum(normal.Ambient) + 0.01, string.format("%s ambient is no brighter than NORMAL (%.1f vs %.1f)", name, lum(p.Ambient), lum(normal.Ambient)))
-		check(p.ExposureCompensation <= normal.ExposureCompensation, name .. " exposure is no higher than NORMAL")
+		-- EMERGENCY has no fixture lighting the floor (it is the darkest state
+		-- on screen); its exposure stays over NORMAL's so the flashlight reads
+		if name ~= "EMERGENCY" then
+			check(p.ExposureCompensation <= normal.ExposureCompensation, name .. " exposure is no higher than NORMAL")
+		end
 		check(p.atmosphere.Haze <= normal.atmosphere.Haze + 0.01, string.format("%s adds no haze to grey the distance (%.1f)", name, p.atmosphere.Haze))
 	end
-	-- blackouts with power are more macabre, not darker: NORMAL's light, a
-	-- grade of their own; no power (EMERGENCY) is the one darker state
+	-- blackouts with power take light away, level by level: each preset has
+	-- less ambient and less exposure than the one before
+	local previous = normal
 	for _, name in { "BREATH", "HEARTBEAT", "BLACKOUT" } do
-		check(lum(P[name].Ambient) >= lum(normal.Ambient) - 0.01 and P[name].ExposureCompensation >= normal.ExposureCompensation, name .. " keeps NORMAL's light")
+		local p = P[name]
+		check(lum(p.Ambient) <= lum(previous.Ambient) and p.ExposureCompensation < previous.ExposureCompensation, name .. " is darker than the level before it")
+		previous = p
 	end
-	check(lum(P.EMERGENCY.Ambient) <= lum(normal.Ambient), "without power it is darker than any blackout")
+	check(normal.ExposureCompensation < 0, "NORMAL's exposure is under zero: the building is dark")
+	check(normal.cc.Contrast <= 0.1, "NORMAL's contrast is low: the pools and the stretch between them stay close")
+	check(lum(P.EMERGENCY.Ambient) <= lum(normal.Ambient), "without power the ambient is no brighter than NORMAL")
 	check(P.ESCAPE.cc.TintColor.R > P.ESCAPE.cc.TintColor.B, "the escape is tinted red")
 	check(P.CINEMATIC.cc.Contrast >= normal.cc.Contrast and P.CINEMATIC.cc.Saturation <= normal.cc.Saturation, "a scripted moment is harder and colder than NORMAL")
 	check(string.find(Server.Services.LightingService.Source, "never blind", 1, true) == nil, "no comment says the darkness is never blind")
@@ -1155,29 +1164,36 @@ do
 	local client = game:GetService("StarterPlayer").StarterPlayerScripts.Client.Controllers.LightController.Source
 	check(string.find(client, "math.min(entry.range, info.wallDist)", 1, true) ~= nil, "a lamp without shadows is cut to its walls")
 	check(string.find(client, "l.Shadows = shadowed", 1, true) ~= nil and string.find(client, "pickShadowed(tier.shadowLights)", 1, true) ~= nil, "the nearest lamps cast the shadows")
-	check(string.find(client, "LOD_DISTANCE * 0.2", 1, true) ~= nil, "far lamps fade instead of switching off")
+	check(string.find(client, "reach * FADE_BAND", 1, true) ~= nil, "far lamps fade in over a wide band instead of switching on at a line")
+	check(string.find(client, "AHEAD_REACH", 1, true) ~= nil and string.find(client, "leadPoint", 1, true) ~= nil, "the light LOD and the shadows look ahead of the camera")
+	check(string.find(client, "entry.cur += (target - entry.cur) * k", 1, true) ~= nil, "a lamp eases its range when it gains or loses shadows")
 end
 
-section("blackouts: each level more macabre, not darker")
+section("blackouts: each level darker and more macabre")
 do
 	local LightingRules = requireModule(RS.Shared.LightingRules)
 	local f = { seed = 123, floor = "G", mode = "on", emergency = false, forceOn = false, off = false, tint = nil, base = roblox.Color3.new(1, 1, 1), baseBrightness = 1 }
-	-- the light a working lamp gives on average over 20 s, level by level
+	-- the light the building's working lamps give on average over 10 s, level
+	-- by level (40 lamps: at level 1 only some of them stutter)
 	local means = {}
 	for level = 0, 4 do
 		local world = { power = true, level = level, zone = "G", seed = 7, escape = false }
 		local sum, n = 0, 0
-		for i = 0, 1999 do
-			local lit, b = LightingRules.evaluate(f, world, i * 0.01, {})
-			sum += if lit then b else 0
-			n += 1
+		for lamp = 1, 40 do
+			local g = table.clone(f)
+			g.seed = lamp * 37
+			for i = 0, 999 do
+				local lit, b = LightingRules.evaluate(g, world, i * 0.01, {})
+				sum += if lit then b else 0
+				n += 1
+			end
 		end
 		means[level] = sum / n
 	end
-	for level = 2, 4 do
-		check(means[level] >= means[level - 1] - 0.05, string.format("level %d is not darker than level %d (%.3f vs %.3f)", level, level - 1, means[level], means[level - 1]))
+	for level = 1, 4 do
+		check(means[level] < means[level - 1], string.format("level %d is darker than level %d (%.3f vs %.3f)", level, level - 1, means[level], means[level - 1]))
 	end
-	check(means[4] >= 0.8, string.format("a total blackout keeps most of the light (%.3f)", means[4]))
+	check(means[4] >= 0.2 and means[4] <= 0.5, string.format("a total blackout keeps some light, not all of it (%.3f)", means[4]))
 	-- the steady reading (the server's) is the same on every level
 	for level = 1, 4 do
 		local _, b = LightingRules.evaluate(f, { power = true, level = level, zone = "G", seed = 7, escape = false }, 0, { steady = true })
@@ -1195,7 +1211,8 @@ do
 	local prev = 0
 	for i = 0, 999 do
 		local _, b = LightingRules.evaluate(f, { power = true, level = 3, zone = "", seed = 7, escape = false }, i * 0.01, { reduced = true })
-		if b > 1.0 and prev <= 1.0 then
+		local mid = LightingRules.LEVEL_MEAN[3]
+		if b > mid and prev <= mid then
 			beats += 1
 		end
 		prev = b

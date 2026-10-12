@@ -123,3 +123,60 @@ view G-02: NORMAL mean 0.141 black 41%; B1 mean 0.135 black 41%; B2 mean 0.130 b
 - Sin corriente (EMERGENCY) sigue siendo el estado oscuro de verdad.
 - Es una aproximación: en Studio el brillo absoluto cambiará (texturas,
   rebotes, el tonemapper de Roblox). Lo que vale es la comparación.
+
+
+## v3: menos luz, contraste más suave, blackouts más oscuros (octubre 2026)
+
+Esta pasada cambia la regla de arriba: los blackouts con corriente ya no
+mantienen la luz media. Cada nivel quita luz (`LightingRules.LEVEL_MEAN`:
+1 → 0,8, 2 → 0,55, 3 → 0,45, 4 → 0,35) y su preset baja también la
+exposición. La tabla del modelo de arriba se quedó corta: en Studio el juego
+se veía mucho más claro de lo que daba `light_probe` (un suelo gris bajo una
+lámpara salía a 0,74 en pantalla, no a 0,33), así que esta vez se midió
+directamente en Studio.
+
+**Cómo se midió:** partida en Studio (modo Play), cámara fija en el pasillo
+principal G_c (desde x 14 mirando a +X) y en el despacho G_b, captura de
+pantalla y luminancia sRGB media con un desenfoque de 7 px para quitar el
+grano. "Bajo lámpara" y "entre lámparas" son dos zonas fijas del suelo del
+pasillo. "Negro" es el porcentaje de píxeles por debajo de 0,06. Capturas
+en `docs/img/v3_*.jpg`. `light_probe` no se volvió a pasar en esta pasada.
+
+| Vista | Media antes | Media después | Negro antes | Negro después |
+|---|---|---|---|---|
+| Pasillo, NORMAL | 0,446 | 0,189 | 6 % | 4 % |
+| Pasillo, B1 | | 0,155 | | 8 % |
+| Pasillo, B2 | 0,432 | 0,138 | 0 % | 12 % |
+| Pasillo, B3 | | 0,088 | | 21 % |
+| Pasillo, B4 | 0,482 | 0,081 | 0 % | 27 % |
+| Pasillo, EMERGENCY | 0,124 | 0,092 | 0 % | 24 % |
+| Despacho G-02, NORMAL | 0,622 | 0,195 | 0 % | 5 % |
+
+| Suelo del pasillo (NORMAL) | Antes | Después |
+|---|---|---|
+| Bajo una lámpara | 0,73 | 0,27 |
+| Entre dos lámparas | 0,74 | 0,22 |
+| Proporción | 1,0 | 1,25 (objetivo ≤ 3) |
+
+Antes el pasillo con un blackout 4 era más claro que en NORMAL. Ahora cada
+nivel es más oscuro que el anterior y B4 sigue sin ser negro (27 % de la
+vista).
+
+**Luces que aparecían de golpe.** Las lámparas sin sombra tienen el alcance
+recortado a la distancia a su pared (un tubo del pasillo se queda en 3,5
+studs y no llega al suelo). Solo las N más cercanas a la cámara tenían
+sombra, y al ganarla el alcance saltaba de 3,5 a 16 en un frame: ese era el
+charco que aparecía delante. Ahora el LOD mira hacia delante
+(`LightController`: más alcance en la dirección de la vista y de la marcha,
+menos detrás, fundido en el 35 % exterior), las sombras van a las lámparas
+más cercanas a un punto 20 studs por delante de la cámara, y el alcance
+crece o encoge en unos 0,3 s. Recorriendo el pasillo a 10 studs/s, lámparas
+del pasillo ya con sombra y alcance completo:
+
+| Distancia por delante | Antes | Después |
+|---|---|---|
+| 6-20 studs | 87-93 % | 97-100 % |
+| 20-36 studs | 17-20 % | 90-95 % |
+| 36-56 studs | 0 % | 6-8 % |
+
+Presupuesto de sombras por calidad: 3 / 12 / 16 lámparas (antes 2 / 10 / 14).

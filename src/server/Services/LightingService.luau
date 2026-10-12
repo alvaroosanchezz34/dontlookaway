@@ -8,8 +8,8 @@
 	Darkness is a deep grey, MONOCHROME's dark (docs/LIGHTING_MONOCHROME.md).
 	With power, the fixtures do the lighting: each throws a pool that fades out
 	and the space between two still reads, dimly; a room with no lamp is a deep
-	grey where silhouettes show up close. Blackouts change how the light
-	behaves, not how much there is (LightingRules). Without power (EMERGENCY)
+	grey where silhouettes show up close. Each blackout level takes light
+	away and changes how what is left behaves (LightingRules). Without power (EMERGENCY)
 	what you see without the flashlight is what glows (emergency lamps, exit
 	signs, beacon domes) and the silhouettes right next to you: you need the
 	flashlight. No light follows the camera. The only lift is the
@@ -21,8 +21,8 @@
 	Power
 	  workspace "Power" (bool)        MAIN circuit fixtures need it
 	Blackouts (temporary, layered on top of Power)
-	  workspace "Blackout" (0-4)      0 none. Each level is more macabre, not
-	                                  darker (LightingRules, same light on average):
+	  workspace "Blackout" (0-4)      0 none. Each level is darker and more
+	                                  macabre (LightingRules.LEVEL_MEAN):
 	                                  1 FAILS: a third of the lamps stutter and buzz
 	                                  2 BREATHES: the lamps swell and sink together,
 	                                    the light drains to a sick pale white
@@ -69,8 +69,10 @@ local dof: DepthOfFieldEffect
 -- pivots contrast round mid grey, so without a lift every dark tone below a
 -- threshold is crushed to 0 and the stretch between two lamps reads as a hole
 -- right next to the pool. Each interior grade lifts its blacks by half its
--- contrast plus BLACK_FLOOR, like the raised blacks of old film. Measured in
--- docs/LIGHTING_MONOCHROME.md.
+-- contrast plus BLACK_FLOOR, like the raised blacks of old film. The
+-- contrast itself is low: the pool and the stretch between two pools are
+-- closer in brightness, the dark comes from the exposure, not from crushing.
+-- Measured in Studio, docs/LIGHTING_MONOCHROME.md (v3).
 local BLACK_FLOOR = 0.035
 local function lifted(contrast: number): number
 	return contrast / 2 + BLACK_FLOOR
@@ -91,67 +93,71 @@ LightingService.Presets = {
 		cc = { Brightness = 0.0, Contrast = 0.14, Saturation = -0.6, TintColor = Color3.fromRGB(226, 234, 255) },
 		atmosphere = { Density = 0.4, Haze = 2.1, Glare = 0, Color = Color3.fromRGB(70, 78, 92), Decay = Color3.fromRGB(36, 40, 50) },
 	},
-	-- main power lost: emergency lamps, exit signs, the flashlight
+	-- main power lost: emergency lamps, exit signs, the flashlight. Darker than
+	-- NORMAL in what reaches the eye (no fixture lights the floor); the
+	-- exposure stays a little over NORMAL's so the beam still reads
 	EMERGENCY = {
-		Ambient = Color3.fromRGB(18, 18, 20),
-		OutdoorAmbient = Color3.fromRGB(20, 21, 24),
-		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.75, TintColor = Color3.fromRGB(226, 234, 250) },
+		Ambient = Color3.fromRGB(14, 14, 16),
+		OutdoorAmbient = Color3.fromRGB(16, 17, 19),
+		ExposureCompensation = 0.3,
+		cc = { Brightness = lifted(0.1), Contrast = 0.1, Saturation = -0.75, TintColor = Color3.fromRGB(226, 234, 250) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(14, 15, 18), Decay = Color3.fromRGB(6, 6, 8) },
 	},
 	-- NORMAL: the building with power and no event. The reference for play: a
 	-- dark corridor where only the fixtures light anything. Each one throws a
 	-- pool that fades out (VisualStandards.Fixtures) and the stretch between
-	-- pools is dark; the glowing tubes read from afar. A minimal ambient, a cold
-	-- near-monochrome grade, no haze to grey the distance. The contrast is kept
-	-- moderate: a hard one crushes the penumbra of every pool to black.
+	-- pools is dim, never a hole; the glowing tubes read from afar. A minimal
+	-- ambient, a cold near-monochrome grade, no haze to grey the distance. The
+	-- exposure is under zero: the dark is the exposure's, and the contrast is
+	-- kept low so the penumbra of every pool survives.
 	NORMAL = {
-		Ambient = Color3.fromRGB(22, 22, 23),
-		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
-		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.82, TintColor = Color3.fromRGB(228, 236, 250) },
+		Ambient = Color3.fromRGB(16, 16, 17),
+		OutdoorAmbient = Color3.fromRGB(18, 19, 21),
+		ExposureCompensation = -1.6,
+		cc = { Brightness = lifted(0.08), Contrast = 0.08, Saturation = -0.82, TintColor = Color3.fromRGB(228, 236, 250) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(26, 28, 32), Decay = Color3.fromRGB(10, 10, 12) },
 	},
 	-- scripted moments (cinematics, the Observer's reveal): the same building,
 	-- harder and colder, for a few seconds at a time. NORMAL's light, a
 	-- harsher, colder grade
 	CINEMATIC = {
-		Ambient = Color3.fromRGB(20, 20, 22),
-		OutdoorAmbient = Color3.fromRGB(22, 23, 27),
-		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.18), Contrast = 0.18, Saturation = -0.86, TintColor = Color3.fromRGB(220, 230, 252) },
+		Ambient = Color3.fromRGB(15, 15, 16),
+		OutdoorAmbient = Color3.fromRGB(17, 18, 21),
+		ExposureCompensation = -1.6,
+		cc = { Brightness = lifted(0.14), Contrast = 0.14, Saturation = -0.86, TintColor = Color3.fromRGB(220, 230, 252) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(24, 27, 33), Decay = Color3.fromRGB(9, 10, 12) },
 	},
-	-- The blackouts with power (LightingRules: more macabre, not darker): the
-	-- same light as NORMAL, a grade that turns. 2 BREATHES: the light drains
-	-- to a sick pale white; 3 BEATS: harder, a trace of red (the emergency
-	-- lamps are the only colour); 4 WATCHES: the hardest, coldest grade
+	-- The blackouts with power (LightingRules.LEVEL_MEAN): each level takes
+	-- light away, lamps and exposure both, and turns the grade. 2 BREATHES:
+	-- the light drains to a sick pale white; 3 BEATS: harder, a trace of red
+	-- (the emergency lamps are the only colour); 4 WATCHES: the darkest,
+	-- coldest grade
 	BREATH = {
-		Ambient = Color3.fromRGB(22, 22, 23),
-		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
-		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.85, TintColor = Color3.fromRGB(232, 240, 222) },
+		Ambient = Color3.fromRGB(14, 14, 15),
+		OutdoorAmbient = Color3.fromRGB(16, 17, 19),
+		ExposureCompensation = -1.75,
+		cc = { Brightness = lifted(0.08), Contrast = 0.08, Saturation = -0.85, TintColor = Color3.fromRGB(232, 240, 222) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(26, 28, 26), Decay = Color3.fromRGB(10, 11, 10) },
 	},
 	HEARTBEAT = {
-		Ambient = Color3.fromRGB(22, 22, 23),
-		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
-		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.78, TintColor = Color3.fromRGB(246, 228, 226) },
+		Ambient = Color3.fromRGB(12, 12, 13),
+		OutdoorAmbient = Color3.fromRGB(14, 15, 17),
+		ExposureCompensation = -1.9,
+		cc = { Brightness = lifted(0.1), Contrast = 0.1, Saturation = -0.78, TintColor = Color3.fromRGB(246, 228, 226) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(30, 24, 24), Decay = Color3.fromRGB(12, 9, 9) },
 	},
 	BLACKOUT = {
-		Ambient = Color3.fromRGB(22, 22, 23),
-		OutdoorAmbient = Color3.fromRGB(24, 25, 28),
-		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.2), Contrast = 0.2, Saturation = -0.86, TintColor = Color3.fromRGB(236, 228, 232) },
+		Ambient = Color3.fromRGB(10, 10, 11),
+		OutdoorAmbient = Color3.fromRGB(12, 13, 15),
+		ExposureCompensation = -2.05,
+		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.86, TintColor = Color3.fromRGB(236, 228, 232) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(20, 20, 22), Decay = Color3.fromRGB(8, 8, 9) },
 	},
 	ESCAPE = {
-		Ambient = Color3.fromRGB(22, 17, 17),
-		OutdoorAmbient = Color3.fromRGB(24, 19, 19),
-		ExposureCompensation = 0.8,
-		cc = { Brightness = lifted(0.16), Contrast = 0.16, Saturation = -0.6, TintColor = Color3.fromRGB(255, 222, 216) },
+		Ambient = Color3.fromRGB(16, 12, 12),
+		OutdoorAmbient = Color3.fromRGB(18, 14, 14),
+		ExposureCompensation = -1.7,
+		cc = { Brightness = lifted(0.12), Contrast = 0.12, Saturation = -0.6, TintColor = Color3.fromRGB(255, 222, 216) },
 		atmosphere = { Density = 0.2, Haze = 0.2, Glare = 0, Color = Color3.fromRGB(32, 22, 22), Decay = Color3.fromRGB(12, 8, 8) },
 	},
 	RESULTS = {
@@ -177,7 +183,7 @@ LightingService.Base = {
 	EnvironmentDiffuseScale = 0.08,
 	EnvironmentSpecularScale = 0.5,
 	-- soft shadow edges, like the pools themselves
-	ShadowSoftness = 0.5,
+	ShadowSoftness = 0.65,
 	FogEnd = 100000,
 }
 
@@ -289,8 +295,13 @@ function LightingService:IsDark(position: Vector3?): boolean
 	for _, f in mapFixtures(map) do
 		local d = (f.pos - at).Magnitude
 		if d <= f.reach * litReach and f.model.Parent then
-			local lit = LightingRules.evaluate(LightingRules.fixture(f.model), world, now, { steady = true })
-			if lit and Registry.PlayerService:HasLineOfSight(f.pos, at, f.model) then
+			local fixture = LightingRules.fixture(f.model)
+			local lit, brightness = LightingRules.evaluate(fixture, world, now, { steady = true })
+			-- a dimmed lamp (a deep blackout) lights a smaller pool: its reach
+			-- shrinks with the square root of its share of the light, as the
+			-- floor under it falls off
+			local share = math.clamp(brightness / math.max(fixture.baseBrightness, 0.01), 0, 1)
+			if lit and d <= f.reach * litReach * math.sqrt(share) and Registry.PlayerService:HasLineOfSight(f.pos, at, f.model) then
 				dark = false
 				break
 			end

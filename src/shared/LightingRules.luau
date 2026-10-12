@@ -26,18 +26,18 @@ local LightingRules = {}
 LightingRules.EMERGENCY_COLOR = Color3.fromRGB(255, 176, 120)
 LightingRules.ALARM_COLOR = Color3.fromRGB(255, 64, 52)
 -- the red of the emergency lamps at levels 3-4 with power: a little less
--- saturated and brighter, so the red pools light as much as the white
--- lamps they replace (red carries a quarter of white's luminance)
+-- saturated than the alarm red. An accent in the dark, not the light you
+-- walk by: the gain keeps the red pools well under the white lamps
 LightingRules.ALARM_LIT = Color3.fromRGB(255, 96, 80)
-LightingRules.ALARM_LIT_GAIN = 3
+LightingRules.ALARM_LIT_GAIN = 1.2
 -- the colour the light drains to when the building breathes (level 2)
 LightingRules.SICKLY = Color3.fromRGB(214, 226, 200)
 
 --[[
-	Blackouts: each level is more macabre, not darker (docs/LIGHTING_MONOCHROME.md)
-	With main power no level switches lamps off: every lamp that works keeps
-	about the same light on average (LEVEL_MEAN, what the server's steady
-	reading uses), and what changes is how that light behaves:
+	Blackouts: each level is darker and more macabre (docs/LIGHTING_MONOCHROME.md)
+	With main power no level switches lamps off: every lamp that works gives
+	less light on average the deeper the blackout (LEVEL_MEAN, what the
+	server's steady reading uses), and how that light behaves changes too:
 	  1 FAILS     a third of the lamps stutter and buzz, then come back
 	  2 BREATHES  every lamp swells and sinks together, slowly (~0.25 Hz),
 	              and the light drains to a sick, pale white
@@ -50,7 +50,7 @@ LightingRules.SICKLY = Color3.fromRGB(214, 226, 200)
 	blackout of the collapse (level 4) takes half of them.
 	reduced: the player's reduced-effects setting: no pulse over 1 Hz.
 ]]
-LightingRules.LEVEL_MEAN = { [0] = 1, [1] = 0.9, [2] = 0.9, [3] = 0.9, [4] = 0.9 }
+LightingRules.LEVEL_MEAN = { [0] = 1, [1] = 0.8, [2] = 0.55, [3] = 0.45, [4] = 0.35 }
 
 -- A heart's double beat, 0..1, period ~1.15 s.
 function LightingRules.heartbeat(t: number): number

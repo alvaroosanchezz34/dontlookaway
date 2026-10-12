@@ -647,8 +647,8 @@ function HorrorDirector:EnterFear(forced: Player?)
 	local agg = aggression()
 	local victimRoot = Util.getRoot(victim)
 	-- pacing, not sight: the dark where the victim stands, or the building's
-	-- worst moments (a blackout of level 3-4 is not darker any more, but it
-	-- still calls it sooner)
+	-- worst moments (a blackout of level 3-4 calls it sooner wherever the
+	-- victim stands)
 	local dark = Registry.LightingService:IsDark(victimRoot and victimRoot.Position) or Registry.LightingService:GetBlackout() >= 3
 	-- hunts: from DANGER on (sooner after the previous one when it is dark)
 	if self:Reached(Story.Danger) then
