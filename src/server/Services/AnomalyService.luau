@@ -775,7 +775,12 @@ function AnomalyService:Report(player: Player, origin: any, dir: any, opts: { [s
 	if opts and opts.photo then
 		return
 	end
-	-- nothing there. Was it something a teammate fixed a moment ago?
+	-- nothing there. Something a distortion left behind is neither right
+	-- nor wrong (it isn't an anomaly, and nobody told them what it was)
+	if Registry.DistortionService and Registry.DistortionService:IsResidue(player, origin, dir) then
+		return
+	end
+	-- Was it something a teammate fixed a moment ago?
 	for _, r in recentResolved do
 		if now - r.t < 4 and matchScore(origin, dir, r.pos, 4) then
 			return

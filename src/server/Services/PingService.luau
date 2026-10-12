@@ -43,6 +43,10 @@ local function allowed(player: Player): boolean
 end
 
 local function onPing(player: Player, kind: any, position: any)
+	-- from inside a distortion a ping would point somewhere that isn't there
+	if Registry.DistortionService and Registry.DistortionService:IsBusy(player) then
+		return
+	end
 	if type(kind) ~= "string" or not Pings.List[kind] then
 		return
 	end

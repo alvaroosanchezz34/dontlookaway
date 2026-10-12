@@ -59,7 +59,8 @@ local humanoid: Humanoid? = nil
 local root: BasePart? = nil
 local breath: Sound? = nil
 local state = S.Dormant
-local mode: string? = nil -- "sighting" | "hunt" | "escape"
+local mode: string? = nil -- "sighting" | "hunt" | "escape" | "inspect" | "distortion"
+local distortionChase = false -- borrowed and chasing its target (proximity reads HUNT)
 local target: Player? = nil
 local huntEndsAt = 0
 local sightingData = nil
@@ -208,6 +209,7 @@ local function park()
 	mode = nil
 	target = nil
 	sightingData = nil
+	distortionChase = false
 	waypoints = {}
 	pathFailures = 0
 	setBehavior(nil)
@@ -708,6 +710,67 @@ function ObserverService:IsActive(): boolean
 	return mode ~= nil
 end
 
+-- A player living a distortion is somewhere else: nothing here targets them.
+local function away(player: Player?): boolean
+	local service = Registry.DistortionService
+	return player ~= nil and service ~= nil and service:IsBusy(player)
+end
+
+--[[
+	Distortions borrow it (DistortionService): while borrowed nothing else
+	drives it (the main loop skips it, hunts, sightings and mimic catches
+	can't start) and it is given back parked. There is only ever one.
+]]
+function ObserverService:IsAvailable(): boolean
+	return active and mode == nil and not attackLock
+end
+
+function ObserverService:Borrow(cf: CFrame, player: Player): (Model?, Humanoid?, BasePart?)
+	if not self:IsAvailable() then
+		return nil, nil, nil
+	end
+	place(cf)
+	mode = "distortion"
+	target = player
+	distortionChase = false
+	setState(S.Watched)
+	setBehavior("OBSERVING")
+	return model, humanoid, root
+end
+
+-- The borrower drives it: behaviour, state, where it faces, the chase flag
+-- (proximity reads HUNT for its target while chasing).
+function ObserverService:DistortionDrive(opts: { behavior: string?, state: string?, face: Vector3?, chase: boolean?, sync: boolean? })
+	if mode ~= "distortion" then
+		return
+	end
+	if opts.behavior then
+		setBehavior(opts.behavior)
+	end
+	if opts.state then
+		setState(opts.state)
+	end
+	if opts.face then
+		faceToward(opts.face)
+	end
+	if opts.chase ~= nil then
+		distortionChase = opts.chase
+	end
+	if opts.sync then
+		syncTurn()
+	end
+end
+
+function ObserverService:Release()
+	if mode == "distortion" then
+		park()
+	end
+end
+
+function ObserverService:IsBorrowed(): boolean
+	return mode == "distortion"
+end
+
 function ObserverService:GetMode(): string?
 	return mode
 end
@@ -739,7 +802,8 @@ local function huntSurvived()
 end
 
 function ObserverService:Vanish()
-	if mode == nil then
+	if mode == nil or mode == "distortion" then
+		-- a borrowed Observer is only given back by its borrower (Release)
 		return
 	end
 	huntSurvived()
@@ -754,7 +818,7 @@ end
 
 -- Appear far away, wait to be seen, leave when they look away.
 function ObserverService:Sighting(player: Player): boolean
-	if mode or not active then
+	if mode or not active or away(player) then
 		return false
 	end
 	local proot = Util.getRoot(player)
@@ -808,7 +872,7 @@ function ObserverService:Sighting(player: Player): boolean
 end
 
 function ObserverService:StartHunt(player: Player, opts: { [string]: any }?)
-	if not active then
+	if not active or mode == "distortion" or away(player) then
 		return false
 	end
 	opts = opts or {}
@@ -861,7 +925,7 @@ function ObserverService:StartHunt(player: Player, opts: { [string]: any }?)
 end
 
 function ObserverService:StartEscapeChase()
-	if not active then
+	if not active or mode == "distortion" then
 		return
 	end
 	if mode then
@@ -924,6 +988,9 @@ function ObserverService:SpawnMimic(viewer: Player, imitated: Player?): (boolean
 	if not active then
 		return false, "no round running"
 	end
+	if away(viewer) then
+		return false, "the viewer is inside a distortion"
+	end
 	return Mimic.spawn(viewer, imitated or viewer)
 end
 
@@ -984,6 +1051,9 @@ function ObserverService:Inspect(player: Player): (boolean, string)
 	if not proot then
 		return false, "no character"
 	end
+	if mode == "distortion" then
+		return false, "it is busy inside a distortion"
+	end
 	if mode then
 		park()
 	end
@@ -1019,6 +1089,10 @@ end
 local function tick(dt: number)
 	Mimic.tick(dt)
 	if not mode or not model or model.Parent ~= workspace or not root then
+		return
+	end
+	if mode == "distortion" then
+		-- borrowed: the distortion drives it
 		return
 	end
 	if mode == "inspect" then
@@ -1227,7 +1301,7 @@ function ObserverService:Proximity(player: Player, observerPos: Vector3?): strin
 		return "FAR"
 	end
 	local d = (pr.Position - observerPos).Magnitude
-	if (mode == "hunt" or mode == "escape") and (player == target or mode == "escape") and d < 90 then
+	if ((mode == "hunt" or mode == "escape") and (player == target or mode == "escape") or (mode == "distortion" and distortionChase and player == target)) and d < 90 then
 		return "HUNT"
 	elseif d < 14 then
 		return "VERY_NEAR"

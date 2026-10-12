@@ -69,6 +69,7 @@ local ORDER = {
 	"WorldFXController",
 	"ParanoiaController",
 	"BlackoutFX",
+	"DistortionController",
 	"ObserverFX",
 	"FlashlightController",
 	"ToolController",

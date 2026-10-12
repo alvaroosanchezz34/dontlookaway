@@ -89,6 +89,12 @@ local function camera(dt: number): CFrame?
 	end
 	index = math.clamp(index, 1, #list)
 	local target = list[index]
+	if target:GetAttribute("Distortion") then
+		-- somewhere the cameras don't reach (a distortion): the feed is lost
+		nameLabel.Text = "WATCHING  " .. string.upper(target.DisplayName) .. "   ·   SIGNAL LOST"
+		smoothed = nil
+		return CFrame.lookAt(Vector3.new(80, 60, 190), Vector3.new(80, 0, 60))
+	end
 	local character = target.Character :: Model
 	local head = character:FindFirstChild("Head") :: BasePart
 	local root = character:FindFirstChild("HumanoidRootPart") :: BasePart?

@@ -440,6 +440,65 @@ do
 	frames(2)
 end
 
+section("distortion: the corridor's cues, and everything put back")
+do
+	local Hall = requireModule(game:GetService("ServerScriptService").Server.Distortions.HallwayBuilder)
+	local hall = Hall.build()
+	hall.Parent = workspace
+	localPlayer:SetAttribute("Status", "ALIVE")
+	frames(2)
+	local D = Registry.DistortionController
+	check(D ~= nil, "the distortion controller runs")
+	local yaw0, pitch0 = Registry.CameraController:GetYawPitch()
+	fire("Distortion", { cue = "break", id = "ImpossibleHallway", token = 7 })
+	check(Registry.HUDController:IsQuiet(), "the objectives and the team fade during it")
+	task.wait(0.6)
+	fire("Distortion", { cue = "arrive", id = "ImpossibleHallway", token = 7, hall = hall, look = Hall.toWorld(0, 3, Hall.SPAWN_Z - 40) })
+	frames(3)
+	check(State.distortion == "ImpossibleHallway", "the client knows it is inside one")
+	check(#D:Lamps() == Hall.SEGMENTS, "every lamp of the corridor is driven (" .. #D:Lamps() .. ")")
+	local deadLit = false
+	for _, lamp in D:Lamps() do
+		if lamp.dead and lamp.light.Enabled then
+			deadLit = true
+		end
+	end
+	check(not deadLit, "a dead lamp never lights")
+	hall:SetAttribute("DarkFrom", 0)
+	frames(2)
+	local anyLit = false
+	for _, lamp in D:Lamps() do
+		if lamp.light.Enabled then
+			anyLit = true
+		end
+	end
+	check(not anyLit, "the dark takes every lamp it reaches")
+	for _, cue in { "notice", "wake", "chase" } do
+		local ok, err = pcall(fire, "Distortion", { cue = cue, id = "ImpossibleHallway", token = 7 })
+		check(ok, "cue " .. cue .. ": " .. tostring(err))
+		frames(1)
+	end
+	fire("Distortion", { cue = "taken", id = "ImpossibleHallway", token = 99 })
+	check(State.distortion == "ImpossibleHallway", "a cue from another run is ignored")
+	fire("Distortion", { cue = "exit", id = "ImpossibleHallway", token = 7 })
+	fire("Distortion", { cue = "return", id = "ImpossibleHallway", token = 7, outcome = "escaped" })
+	frames(2)
+	local yaw1, pitch1 = Registry.CameraController:GetYawPitch()
+	check(State.distortion == nil and not Registry.HUDController:IsQuiet(), "after the return nothing of it is left on screen")
+	check(math.abs(yaw1 - yaw0) < 1e-6 and math.abs(pitch1 - pitch0) < 1e-6, "the view faces where it faced before")
+	check(#D:Lamps() == 0, "the corridor's lamps are no longer driven")
+	-- the watchdog: no return cue, but the server cleared it
+	fire("Distortion", { cue = "break", id = "ImpossibleHallway", token = 8 })
+	localPlayer:SetAttribute("Distortion", "ImpossibleHallway")
+	localPlayer:SetAttribute("Distortion", nil)
+	task.wait(1.7)
+	frames(1)
+	check(State.distortion == nil and not Registry.HUDController:IsQuiet(), "a lost return still puts everything back")
+	hall:Destroy()
+	localPlayer:SetAttribute("Status", "MENU")
+	frames(2)
+end
+
 section("supply room")
 fire("Challenge", { daily = { { id = "D_ANOMALY_3", text = "Find 3 anomalies", goal = 3, progress = 1, done = false, echoes = 60, xp = 80 } }, weekly = { { id = "W_SURVIVE_5", text = "Survive 5", goal = 5, progress = 5, done = true, echoes = 500, xp = 700 } }, dailyResetsIn = 4000, weeklyResetsIn = 300000, dailiesDone = 2 })
 check(State.challenges ~= nil, "challenge snapshot reaches State")

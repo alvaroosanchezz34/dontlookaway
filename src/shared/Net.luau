@@ -56,6 +56,7 @@ Net.Events = {
 	Challenge = {},
 	ShopResult = {}, -- the answer to every shop request: { action, id, ok, reason }
 	PremiumResult = {}, -- a Robux purchase's outcome: { key, ok, reason, granted }
+	Distortion = {}, -- a reality distortion's cues for the one player living it
 }
 
 Net.Functions = {

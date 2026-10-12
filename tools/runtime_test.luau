@@ -1790,6 +1790,437 @@ do
 	check(count == 1, "exactly one script sets MarketplaceService.ProcessReceipt (" .. count .. ")")
 end
 
+section("distortions: the impossible hallway, built, paced and always undone")
+do
+	local Hall = requireModule(Server.Distortions.HallwayBuilder)
+	local IH = requireModule(Server.Distortions.ImpossibleHallway)
+	local Catalog = requireModule(RS.Shared.Catalog.Distortions)
+	local GameConfig = requireModule(RS.Shared.Config.GameConfig)
+	-- the catalogue: built events have a module, designed ones are never chosen
+	local built = 0
+	for _, def in Catalog.List do
+		for _, field in { "id", "category", "weight", "cooldown", "perPlayer", "perRound", "minStory", "maxDuration", "intensity", "players" } do
+			check(def[field] ~= nil, def.id .. " defines " .. field)
+		end
+		if def.enabled then
+			built += 1
+			check(Server.Distortions:FindFirstChild(def.id) ~= nil, def.id .. " is enabled and has its module")
+		end
+	end
+	check(built == 1 and Catalog.get("ImpossibleHallway").enabled, "only the impossible hallway is built (the others are designs)")
+	-- the corridor
+	local model = Hall.build()
+	local structure = model:FindFirstChild("Structure")
+	local parts = {}
+	for _, d in structure:GetChildren() do
+		if d:IsA("BasePart") then
+			table.insert(parts, d)
+			check(d.CanCollide and d.Anchored, "structure collides and is anchored: " .. d.Name)
+		end
+	end
+	-- structural parts touch, never overlap
+	local overlaps = 0
+	local function box(p)
+		local h = p.Size / 2
+		return p.CFrame.Position - h, p.CFrame.Position + h
+	end
+	for i = 1, #parts do
+		local a0, a1 = box(parts[i])
+		for j = i + 1, #parts do
+			local b0, b1 = box(parts[j])
+			local ox = math.min(a1.X, b1.X) - math.max(a0.X, b0.X)
+			local oy = math.min(a1.Y, b1.Y) - math.max(a0.Y, b0.Y)
+			local oz = math.min(a1.Z, b1.Z) - math.max(a0.Z, b0.Z)
+			if ox > 0.01 and oy > 0.01 and oz > 0.01 then
+				overlaps += 1
+			end
+		end
+	end
+	check(overlaps == 0, "no two structural parts of the corridor overlap (" .. overlaps .. ")")
+	local decorCollides = 0
+	for _, d in model:FindFirstChild("Detail"):GetDescendants() do
+		if d:IsA("BasePart") and d.CanCollide then
+			decorCollides += 1
+		end
+	end
+	check(decorCollides == 0, "no decoration collides: nothing to snag on while running")
+	local lamps = model:FindFirstChild("Lamps"):GetChildren()
+	check(#lamps == Hall.SEGMENTS, "one fixture per segment (" .. #lamps .. ")")
+	local deadNearSpawn = false
+	for _, lamp in lamps do
+		if lamp:GetAttribute("Dead") and math.abs(lamp:GetAttribute("Z") - Hall.SPAWN_Z) < 30 then
+			deadNearSpawn = true
+		end
+	end
+	check(not deadNearSpawn, "the lamps where you arrive all work")
+	check(Hall.contains(Hall.spawnCFrame().Position) and Hall.contains(Hall.observerCFrame().Position), "you and it both start inside the corridor")
+	check(Hall.SPAWN_Z - Hall.OBSERVER_Z >= 100, "it starts far away (" .. (Hall.SPAWN_Z - Hall.OBSERVER_Z) .. " studs)")
+	check(Hall.EXIT_Z > Hall.SPAWN_Z and Hall.EXIT_Z < 0, "the way out is behind you")
+	local o = Hall.ORIGIN.Position
+	check(o.X > 1000 and o.Z > 1000, "the corridor is far from the building and the lobby")
+	check(not Hall.contains(Vector3.new(80, 3, 60)), "the building is not inside the corridor")
+	model:Destroy()
+
+	-- the pace: whoever keeps moving is never reached, whoever stops is
+	local P = IH.Pace
+	local reach = GameConfig.Observer.CatchDistance + 1.5
+	local M = GameConfig.Movement
+	local function run(mode)
+		local pz, oz = Hall.SPAWN_Z, Hall.OBSERVER_Z
+		local stamina, regenWait, sprinting = M.StaminaMax, 0, true
+		local stalled, minGap, t, playerSpeed = 0, math.huge, 0, 0
+		local dt = 0.1
+		while t < 70 do
+			local speed = 0
+			if mode == "sprint" then
+				if sprinting and stamina > 0 then
+					speed = M.SprintSpeed
+					stamina -= M.StaminaDrain * dt
+					regenWait = M.StaminaRegenDelay
+					if stamina <= 0 then
+						sprinting = false
+					end
+				else
+					speed = M.WalkSpeed
+					regenWait -= dt
+					if regenWait <= 0 then
+						stamina = math.min(M.StaminaMax, stamina + M.StaminaRegen * dt)
+					end
+					if stamina >= M.StaminaMinToSprint * 2 then
+						sprinting = true
+					end
+				end
+			elseif mode == "walk" then
+				speed = M.WalkSpeed
+			end
+			pz += speed * dt
+			playerSpeed += (speed - playerSpeed) * math.min(1, dt * 3)
+			stalled = if playerSpeed < 2.5 then stalled + dt else 0
+			local gap = pz - oz
+			local progress = (pz - Hall.SPAWN_Z) / (0 - Hall.SPAWN_Z)
+			oz += IH.paceSpeed(gap, progress, playerSpeed, stalled, 1) * dt
+			gap = pz - oz
+			minGap = math.min(minGap, gap)
+			t += dt
+			if gap <= reach then
+				return "caught", t, minGap
+			end
+			if pz >= Hall.EXIT_Z then
+				return "escaped", t, minGap
+			end
+		end
+		return "timeout", t, minGap
+	end
+	local outcome, t, gap = run("sprint")
+	check(outcome == "escaped", string.format("someone who runs (with stamina) gets out (%s after %.1f s)", outcome, t))
+	check(t >= 18 and t <= 40, string.format("the run lasts 18-40 s (%.1f s)", t))
+	check(gap > reach + 4, string.format("and it comes close without reaching them (closest %.1f studs)", gap))
+	local sprintT, sprintGap = t, gap
+	outcome, t, gap = run("walk")
+	check(outcome == "escaped", string.format("even walking the whole way gets you out (%s, %.1f s)", outcome, t))
+	local walkT, walkGap = t, gap
+	outcome, t = run("stand")
+	check(outcome == "caught" and t < 20, string.format("standing still, it reaches you (%s after %.1f s)", outcome, t))
+	print(string.format("  hallway: running %.1f s (closest %.1f studs), walking %.1f s (closest %.1f), standing still caught after %.1f s", sprintT, sprintGap, walkT, walkGap, t))
+	check(IH.paceSpeed(100, 0, 0, 0, 1) <= P.maxSpeed and IH.paceSpeed(0, 1, 0, 0, 1) >= P.minSpeed, "its speed stays within its limits")
+	-- light: a dead lamp or the dark don't hold it
+	IH._setLamps({ { z = -100, dead = false }, { z = -112, dead = true } })
+	check(IH.litAt(-101, -500), "a working lamp lights the corridor under it")
+	check(not IH.litAt(-112, -500), "a dead lamp doesn't")
+	check(not IH.litAt(-101, -90), "and nothing is lit in the dark")
+
+	-- the director, end to end, with the services around it stubbed
+	local sent = {}
+	local Net = requireModule(RS.Shared.Net)
+	local savedFire, savedOn = Net.fire, Net.on
+	Net.fire = function(player, name, payload)
+		table.insert(sent, { name = name, payload = payload })
+	end
+	Net.on = noop
+	local state = { running = true, round = "EXPLORING", story = "DISTORTION", phase = "CALM", blackout = 0, available = true, prox = 1, alive = true, tutorialDone = true, holding = false }
+	local borrowed, released, dread = 0, 0, 0
+	local applied = {}
+	local logs = {}
+	local fakeObs = Instance.new("Model")
+	local obsRoot = Instance.new("Part")
+	obsRoot.Name = "HumanoidRootPart"
+	obsRoot.CFrame = Hall.observerCFrame()
+	obsRoot.Position = Hall.observerCFrame().Position
+	obsRoot.Parent = fakeObs
+	local obsHead = Instance.new("Part")
+	obsHead.Name = "Head"
+	obsHead.CFrame = Hall.observerCFrame() * CFrame.new(0, 8, 0)
+	obsHead.Position = obsHead.CFrame.Position
+	obsHead.Parent = fakeObs
+	local fakeHumanoid = { WalkSpeed = 0, MoveTo = noop, Move = noop }
+	local player = fakePlayer(9401, Vector3.new(20, 3, 20))
+	local attrs = {}
+	player.SetAttribute = function(_, k, v)
+		attrs[k] = v
+	end
+	player.GetAttribute = function(_, k)
+		return attrs[k]
+	end
+	local other = fakePlayer(9402, Vector3.new(24, 3, 20))
+	local fixtureA, fixtureB = Instance.new("Model"), Instance.new("Model")
+	for i, f in { fixtureA, fixtureB } do
+		f.Parent = workspace
+		local pp = Instance.new("Part")
+		pp.CFrame = CFrame.new(20 + i * 6, 10, 26)
+		pp.Position = Vector3.new(20 + i * 6, 10, 26)
+		pp.Parent = f
+		f.PrimaryPart = pp
+	end
+	local room = { id = "G_a", fixtures = { fixtureA, fixtureB }, props = {}, floorSpots = { Vector3.new(22, 0, 22) }, center = Vector3.new(20, 0, 20), min = Vector3.new(0, 0, 0), max = Vector3.new(40, 12, 40), floorY = 0 }
+	local statusSignal = makeSignal()
+	local roundSignal = makeSignal()
+	withRegistry({
+		RoundService = {
+			IsRunning = function()
+				return state.running
+			end,
+			GetState = function()
+				return state.round
+			end,
+			GetElapsed = function()
+				return 900
+			end,
+			GetDifficultyConfig = function()
+				return GameConfig.Difficulty.NORMAL
+			end,
+			StateChanged = roundSignal,
+		},
+		HorrorDirector = {
+			GetStoryPhase = function()
+				return state.story
+			end,
+			Reached = function(_, name)
+				local order = { "ARRIVAL", "UNEASE", "DISTORTION", "DANGER", "COLLAPSE", "ESCAPE" }
+				return (table.find(order, state.story) or 0) >= (table.find(order, name) or 99)
+			end,
+			GetPhase = function()
+				return state.phase
+			end,
+			CanAfford = function()
+				return true
+			end,
+			Spend = noop,
+			AddDread = function(_, n)
+				dread += n
+			end,
+		},
+		LightingService = { GetBlackout = function()
+			return state.blackout
+		end },
+		ObserverService = {
+			IsAvailable = function()
+				return state.available
+			end,
+			Borrow = function()
+				borrowed += 1
+				state.available = false
+				return fakeObs, fakeHumanoid, obsRoot
+			end,
+			DistortionDrive = noop,
+			Release = function()
+				released += 1
+				state.available = true
+			end,
+			ProximityLevel = function()
+				return state.prox
+			end,
+		},
+		PlayerService = {
+			IsAlive = function(_, p)
+				return state.alive and (p == player or p == other)
+			end,
+			GetAlive = function()
+				return { player, other }
+			end,
+			Teleport = function(_, p, cf)
+				local root = p.Character:FindFirstChild("HumanoidRootPart")
+				root.CFrame = cf
+				root.Position = cf.Position
+			end,
+			IsLookingAt = function()
+				return false
+			end,
+			GetEye = noop,
+			GetLook = noop,
+			StatusChanged = statusSignal,
+		},
+		MapService = { GetMap = function()
+			return {
+				Rooms = { G_a = room },
+				Doors = {},
+				roomAt = function(_, pos)
+					return if pos.Magnitude < 200 then room else nil
+				end,
+			}
+		end },
+		InteractionService = { IsHolding = function()
+			return state.holding
+		end },
+		DataService = { Get = function()
+			return { flags = { tutorialDone = state.tutorialDone } }
+		end },
+		AudioService = { PlayAtFor = noop },
+		InventoryService = { IsLightOn = function()
+			return false
+		end },
+		AnomalyService = { GetActive = function()
+			return {}
+		end },
+		RealityService = { Apply = function(_, ops, scope, players)
+			table.insert(applied, { ops = ops, scope = scope, players = players })
+			return "token"
+		end },
+		DoorService = { IsOpen = function()
+			return false
+		end, SetOpen = noop },
+		AdminService = { Log = function(_, text)
+			table.insert(logs, text)
+		end },
+	}, function(Registry)
+		local playerRemoving = makeSignal()
+		env.setService("Players", { PlayerRemoving = playerRemoving, GetPlayers = function()
+			return { player, other }
+		end })
+		env.setService("RunService", { Heartbeat = makeSignal() })
+		local D = requireModule(Server.Services.DistortionService)
+		env.setService("Players", nil)
+		env.setService("RunService", nil)
+		Registry.DistortionService = D
+		-- a clear spot is always found here (overlap queries are the engine's)
+		local savedReturn = D.ReturnSpot
+		D.ReturnSpot = function(_, ctx)
+			return ctx.origin.cf
+		end
+		D:Init()
+		D:Start()
+		-- refusals, each with its reason
+		local function refused(reason, setup, undo)
+			setup()
+			local ok, why = D:Trigger(player, "ImpossibleHallway", false)
+			check(not ok and string.find(why, reason, 1, true) ~= nil, "refused: " .. reason .. " (" .. tostring(why) .. ")")
+			undo()
+		end
+		refused("no round running", function() state.running = false end, function() state.running = true end)
+		refused("round state", function() state.round = "ESCAPE" end, function() state.round = "EXPLORING" end)
+		refused("story phase", function() state.story = "UNEASE" end, function() state.story = "DISTORTION" end)
+		refused("the director is in", function() state.phase = "FEAR" end, function() state.phase = "CALM" end)
+		refused("a major blackout", function() state.blackout = 3 end, function() state.blackout = 0 end)
+		refused("The Observer is busy", function() state.available = false end, function() state.available = true end)
+		refused("The Observer is near them", function() state.prox = 3 end, function() state.prox = 1 end)
+		refused("holding an interaction", function() state.holding = true end, function() state.holding = false end)
+		refused("tutorial", function() state.tutorialDone = false end, function() state.tutorialDone = true end)
+		local ok, why = D:Trigger(player, "Loop", true)
+		check(not ok and string.find(why, "designed but not built", 1, true) ~= nil, "a designed-only event can't be forced")
+		-- forced: past the timing, never past safety
+		state.story = "UNEASE"
+		ok, why = D:Trigger(player, "ImpossibleHallway", true)
+		check(ok, "an admin test runs before its story phase: " .. tostring(why))
+		check(D:IsBusy(player) and not D:IsBusy(other) and attrs.Distortion == "ImpossibleHallway", "one player is inside, the other is not")
+		local ok2, why2 = D:Trigger(other, "ImpossibleHallway", true)
+		check(not ok2 and string.find(why2, "another distortion", 1, true) ~= nil, "never two at once (" .. tostring(why2) .. ")")
+		task.wait(0.9)
+		local ctx = D:Current()
+		check(ctx and ctx.phase == "ARRIVE" and borrowed == 1, "after the cut the player has arrived and it is borrowed once")
+		local proot = player.Character:FindFirstChild("HumanoidRootPart")
+		check(Hall.contains(proot.Position), "the player stands in the corridor")
+		local cues = {}
+		for _, s2 in sent do
+			if s2.name == "Distortion" then
+				table.insert(cues, s2.payload.cue)
+			end
+		end
+		check(table.concat(cues, ",") == "break,arrive", "the client was told: break, arrive (" .. table.concat(cues, ",") .. ")")
+		-- arrive -> notice -> wake -> chase, by the clock
+		ctx.phaseAt -= 2
+		IH.step(ctx, 0.1)
+		check(ctx.phase == "NOTICE", "it watches first (NOTICE)")
+		ctx.phaseAt -= 20
+		IH.step(ctx, 0.1)
+		check(ctx.phase == "WAKE", "then it wakes")
+		task.wait(1.8)
+		check(ctx.phase == "CHASE", "then it comes (CHASE)")
+		-- a stale step from this run can't act after it ends
+		local staleRan = false
+		D:After(ctx, 0.2, function()
+			staleRan = true
+		end)
+		-- reaching the door is the way out
+		proot.CFrame = CFrame.new(Hall.toWorld(0, 3, Hall.EXIT_Z + 1))
+		proot.Position = Hall.toWorld(0, 3, Hall.EXIT_Z + 1)
+		IH.step(ctx, 0.1)
+		check(ctx.finished and ctx.outcome == "escaped", "reaching the door gets you out")
+		task.wait(0.6)
+		check(not staleRan, "a step scheduled by a finished run never runs")
+		check(not D:IsActive() and released == 1 and state.available, "it is given back, once")
+		check(attrs.Distortion == nil, "the player is no longer marked as away")
+		check((proot.Position - Vector3.new(20, 3, 20)).Magnitude < 0.01, "back exactly where they stood")
+		check(#applied == 1 and applied[1].scope == "PLAYER" and applied[1].players[1] == player, "one small difference in the room, for them only")
+		check(D:IsResidue(player, Vector3.new(20, 4, 20), (fixtureA:GetPivot().Position - Vector3.new(20, 4, 20)).Unit) or D:IsResidue(player, Vector3.new(20, 4, 20), (fixtureB:GetPivot().Position - Vector3.new(20, 4, 20)).Unit), "reporting that difference is neither right nor wrong")
+		check(not D:IsResidue(other, Vector3.new(20, 4, 20), Vector3.new(1, 0, 0)), "and it is theirs alone")
+		local report = D:LastReport()
+		check(report and report.outcome == "escaped" and report.restored and report.residue ~= nil, "the report says how it ended (" .. tostring(report and report.residue) .. ")")
+		check(dread == 0, "getting out adds no dread")
+		-- interrupted: dying during it ends it safely
+		local hallModel = IH.hall()
+		check(hallModel.Parent == game:GetService("ServerStorage"), "the corridor is put away between runs")
+		ok = D:Trigger(other, "ImpossibleHallway", true)
+		check(ok, "another player can live it afterwards (forced)")
+		task.wait(0.9)
+		statusSignal:Fire(other, "DEAD")
+		task.wait(0.6)
+		check(not D:IsActive() and state.available and D:LastReport().outcome == "cancelled", "dying inside cancels it and gives it back")
+		-- the round ending ends it
+		ok = D:Trigger(player, "ImpossibleHallway", true)
+		task.wait(0.9)
+		roundSignal:Fire("RESULTS")
+		task.wait(0.6)
+		check(not D:IsActive() and D:LastReport().outcome == "cancelled" and string.find(D:LastReport().reason, "round state", 1, true) ~= nil, "the round ending cancels it safely")
+		-- taken: no death, dread instead
+		ok = D:Trigger(player, "ImpossibleHallway", true)
+		task.wait(0.9)
+		ctx = D:Current()
+		ctx.phaseAt -= 30
+		IH.step(ctx, 0.1)
+		ctx.phaseAt -= 30
+		IH.step(ctx, 0.1)
+		task.wait(1.8)
+		check(ctx.phase == "CHASE", "the chase began (" .. tostring(ctx.phase) .. ")")
+		ctx.data.chaseStartedAt -= 100
+		local proot2 = player.Character:FindFirstChild("HumanoidRootPart")
+		proot2.CFrame = CFrame.new(Hall.toWorld(0, 3, Hall.SPAWN_Z))
+		proot2.Position = Hall.toWorld(0, 3, Hall.SPAWN_Z)
+		obsRoot.Position = Hall.toWorld(0, 3, Hall.SPAWN_Z - 2)
+		IH.step(ctx, 0.1)
+		task.wait(1.5)
+		check(D:LastReport().outcome == "taken" and dread == 15 and state.alive, "taken: back alive, with the building's attention (dread)")
+		-- the hallway step errors: still undone
+		ok = D:Trigger(player, "ImpossibleHallway", true)
+		task.wait(0.9)
+		ctx = D:Current()
+		ctx.data.root = nil
+		ctx.phase = "CHASE"
+		D:Tick(0.1)
+		task.wait(0.5)
+		check(not D:IsActive() and state.available, "an error inside the event still ends it and gives everything back")
+		D.ReturnSpot = savedReturn
+		check(#logs > 0, "every run is logged for the admin tools")
+	end)
+	Net.fire, Net.on = savedFire, savedOn
+	-- the director never chooses someone inside one, and other systems leave them be
+	local src = Server.Services.HorrorDirector.Source
+	check(string.find(src, "local function present()", 1, true) ~= nil and select(2, string.gsub(src, "present%(%)", "")) >= 5, "the director's events skip whoever is inside a distortion")
+	local obs = Server.Services.ObserverService.Source
+	check(string.find(obs, "if mode == \"distortion\" then\n\t\t-- borrowed: the distortion drives it", 1, true) ~= nil, "the Observer's own loop leaves a borrowed Observer alone")
+	check(string.find(obs, "mode == nil or mode == \"distortion\"", 1, true) ~= nil, "only its borrower can give it back")
+	check(string.find(Server.Services.AnomalyService.Source, "DistortionService:IsResidue", 1, true) ~= nil, "reports know about a distortion's traces")
+	check(string.find(Server.Services.PingService.Source, "DistortionService:IsBusy", 1, true) ~= nil, "no pings from inside a distortion")
+end
+
 section("summary")
 print(string.format("%d checks, %d failures", checks, failures))
 process.exit(if failures == 0 then 0 else 1)

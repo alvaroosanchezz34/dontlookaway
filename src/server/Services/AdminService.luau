@@ -89,6 +89,7 @@ local function snapshot()
 		story = Registry.HorrorDirector:GetStoryPhase(),
 		guidance = Registry.GuidanceService:GetLevel(),
 		blackout = Registry.LightingService:GetBlackout(),
+		distortion = Registry.DistortionService:Status(),
 		power = Registry.LightingService:IsPowered(),
 		dread = math.floor(Registry.HorrorDirector:GetDread()),
 		observer = Registry.ObserverService:GetState(),
@@ -260,7 +261,10 @@ end
 COMMANDS.despawnEntities = function()
 	Registry.ObserverService:DespawnMimic()
 	Registry.ObserverService:Vanish()
-	return "mimic and observer removed"
+	if Registry.DistortionService:IsActive() then
+		Registry.DistortionService:Cancel("admin: despawn entities")
+	end
+	return "mimic and observer removed (and any distortion cancelled)"
 end
 
 local PARANOIA = { micro = true, glimpse = true, shadow = true, silence = true }
@@ -356,6 +360,43 @@ COMMANDS.blackout = function(_admin, level)
 	end
 	Registry.LightingService:Blackout(level, 30)
 	return string.format("blackout level %d for 30s (onset style %s, phase %s)", level, tostring(workspace:GetAttribute("BlackoutStyle")), tostring(workspace:GetAttribute("BlackoutPhase")))
+end
+
+-- Distortions (DistortionService): list, force one (respecting every safety
+-- check but the timing), status, cancel safely, the last run's report.
+COMMANDS.distortionList = function()
+	return Registry.DistortionService:List()
+end
+
+COMMANDS.distortionTest = function(admin, arg)
+	local id, target = "ImpossibleHallway", admin
+	if type(arg) == "string" then
+		id = arg
+	elseif type(arg) == "number" then
+		target = findPlayer(arg) or admin
+	elseif type(arg) == "table" then
+		id = if type(arg.id) == "string" then arg.id else id
+		target = findPlayer(arg.target) or admin
+	end
+	local ok, why = Registry.DistortionService:Trigger(target, id, true)
+	return (if ok then "" else "NOT started: ") .. why
+end
+
+COMMANDS.distortionStatus = function()
+	local line = Registry.DistortionService:Status()
+	print("[Admin] distortion " .. line)
+	return line
+end
+
+COMMANDS.distortionCancel = function()
+	local _, why = Registry.DistortionService:Cancel("admin")
+	return why
+end
+
+COMMANDS.distortionReport = function()
+	local line = Registry.DistortionService:Report()
+	print("[Admin] distortion report: " .. line)
+	return line
 end
 
 COMMANDS.killSelf = function(admin)

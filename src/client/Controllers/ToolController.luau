@@ -174,7 +174,8 @@ local function updateRadio()
 	local camera = Workspace.CurrentCamera
 	local viewport = camera.ViewportSize
 	for _, p in Players:GetPlayers() do
-		if p ~= player and p:GetAttribute("Status") == "ALIVE" then
+		-- someone inside a distortion is nowhere the radio can find
+		if p ~= player and p:GetAttribute("Status") == "ALIVE" and not p:GetAttribute("Distortion") then
 			local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if root then
 				local rel = camera.CFrame:PointToObjectSpace(root.Position)

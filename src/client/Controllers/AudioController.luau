@@ -221,6 +221,10 @@ end
 
 -- Where is the listener? "lobby" | "outside" | "building" | "basement"
 local function zone(): string
+	-- inside a distortion: nowhere the building's sounds reach
+	if State.distortion then
+		return "void"
+	end
 	local camera = Workspace.CurrentCamera
 	if not camera then
 		return "lobby"
@@ -244,6 +248,8 @@ local MIX = {
 	outside = { AmbientRain = 1, Wind = 0.9, AmbientDrone = 0.25 },
 	building = { AmbientDrone = 0.8, AmbientAir = 0.7, AmbientHum = 0.5, AmbientRain = 0.18, Ventilation = 0.7, EmergencyAlarm = 1 },
 	basement = { AmbientDrone = 1, AmbientAir = 0.4, AmbientHum = 0.25, Ventilation = 0.4, EmergencyAlarm = 0.7 },
+	-- a distortion: the fluorescent hum and a low drone, nothing else
+	void = { AmbientHum = 1.1, AmbientDrone = 0.35 },
 }
 
 -- beds that only exist while the building has power
@@ -256,7 +262,7 @@ local function updateBeds(dt: number)
 	local z = zone()
 	local inMenu = State.status == "MENU"
 	local mix = MIX[z] or {}
-	local inRound = State.round.state ~= "LOBBY" and z ~= "lobby"
+	local inRound = State.round.state ~= "LOBBY" and z ~= "lobby" and z ~= "void"
 	local power = workspace:GetAttribute("Power") == true
 	local blackout = workspace:GetAttribute("Blackout")
 	blackout = if type(blackout) == "number" then blackout else 0
@@ -287,7 +293,7 @@ local function updateBeds(dt: number)
 		if key ~= "EmergencyAlarm" and State.status == "ALIVE" then
 			target *= PROX_DUCK[State.prox] or 1
 		end
-		if workspace:GetAttribute("Escape") and z ~= "outside" then
+		if workspace:GetAttribute("Escape") and z ~= "outside" and z ~= "void" then
 			-- during the escape the building's hum drains away
 			target *= if key == "AmbientDrone" then 1.2 else 0.3
 		end

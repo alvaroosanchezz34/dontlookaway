@@ -27,6 +27,12 @@ local holds: { [Player]: { target: Instance, started: number } } = {}
 -- Kinds allowed while in the lobby (not alive in a round).
 local LOBBY_KINDS = { Kiosk = true }
 
+-- Is this player in the middle of a hold interaction (a door, a fuse, boards)?
+function InteractionService:IsHolding(player: Player): boolean
+	local hold = holds[player]
+	return hold ~= nil and os.clock() - hold.started < 15
+end
+
 function InteractionService:Register(kind: string, handler: (Player, Instance) -> boolean)
 	handlers[kind] = handler
 end

@@ -43,6 +43,7 @@ local function render()
 		string.format("seed %s   map seed %s   %s", tostring(s.seed), tostring(s.mapSeed), if s.dataMock then "(DATASTORE MOCK)" else ""),
 		string.format("story %s   director %s   dread %d   observer %s / %s", tostring(s.story), s.phase, s.dread, s.observer, tostring(s.observerMode)),
 		string.format("guidance level %s   blackout %s   power %s", tostring(s.guidance), tostring(s.blackout), tostring(s.power)),
+		"distortion " .. tostring(s.distortion),
 	}
 	if s.stats then
 		table.insert(lines, string.format("anomalies spawned %d  found %d  missed %d", s.stats.spawned, s.stats.found, s.stats.missed))
@@ -116,6 +117,11 @@ local function build()
 		{ "Scare test: drop", "scareTest", "drop" },
 		{ "Scare test: lights out", "scareTest", "lightsout" },
 		{ "Scare test: peek", "scareTest", "peek" },
+		{ "Distortion: list", "distortionList" },
+		{ "Distortion: hallway (target)", "distortionTest", true },
+		{ "Distortion: status", "distortionStatus" },
+		{ "Distortion: cancel", "distortionCancel" },
+		{ "Distortion: report", "distortionReport" },
 		{ "Vanish Observer", "vanishObserver" },
 		{ "Despawn entities", "despawnEntities" },
 		{ "Paranoia: glimpse", "paranoia", "glimpse" },

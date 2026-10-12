@@ -2,12 +2,20 @@
 	HUDController
 	Minimal HUD. Shows only what matters and fades away when fear is high, so the
 	scariest moments have nothing between you and the dark.
-	  top-left     objectives and anomaly count
-	  top-right    team list
-	  bottom-left  flashlight battery, stamina (only when not full)
+	  top-left     objectives, and the anomaly count as a progress line
+	  top-right    team list (only with teammates)
+	  bottom-left  flashlight battery (pulses when low), stamina (only when
+	               not full)
 	  bottom-mid   inventory (4 slots)
+	  bottom-right tool belt (ToolController)
 	  centre       crosshair dot, interaction prompt, report focus ring
 	  layers       toasts, journal/achievement cards, captions, hints
+	One lane per kind of message, so nothing lands on anything else:
+	  toasts top centre (at most 3, a repeat within a few seconds is
+	  dropped), the prompt and hints under the crosshair, captions above the
+	  slots, coaching above the captions, cards on the right.
+	Quiet (SetQuiet): the objectives and the team fade out while something
+	owns the moment (a distortion of reality); the bars stay.
 ]]
 
 local Players = game:GetService("Players")
@@ -55,6 +63,10 @@ local hintLabel: TextLabel
 local escapeLabel: TextLabel
 local hintToken = 0
 local captionToken = 0
+local infoGroup: CanvasGroup
+local quiet = false
+local lastToast: { [string]: number } = {}
+local lastPrimary = ""
 
 ------------------------------------------------------------------------------------
 -- Construction
@@ -62,7 +74,7 @@ local captionToken = 0
 
 local function bar(parent: Instance, label: string, y: number): (Frame, Frame, TextLabel)
 	local holder = Kit.frame({ Size = UDim2.fromOffset(260, 30), Position = UDim2.new(0, 0, 0, y), BackgroundTransparency = 1, Parent = parent })
-	local text = Kit.text({ Text = label, Size = UDim2.fromOffset(260, 16), FontFace = Kit.F.Heading, TextSize = 13, TextColor3 = C.TextDim, Parent = holder })
+	local text = Kit.text({ Text = label, Size = UDim2.fromOffset(260, 16), FontFace = Kit.F.Heading, TextSize = 13, TextColor3 = C.TextDim, TextStrokeTransparency = 0.7, Parent = holder })
 	local track = Kit.frame({ Size = UDim2.fromOffset(220, 4), Position = UDim2.fromOffset(0, 20), BackgroundColor3 = C.Line, BackgroundTransparency = 0.2, Parent = holder })
 	local fill = Kit.frame({ Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.Battery, Parent = track })
 	return holder, fill, text
@@ -95,12 +107,15 @@ end
 function HUDController:Init()
 	gui = Kit.screen("HUD", 2)
 	faded = Kit.new("CanvasGroup", { Name = "Faded", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = gui })
+	-- what can go quiet: objectives and the team
+	infoGroup = Kit.new("CanvasGroup", { Name = "Info", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = faded })
 	-- objectives
-	objectivesFrame = Kit.frame({ Size = UDim2.fromOffset(460, 300), Position = UDim2.fromOffset(40, 36), BackgroundTransparency = 1, Parent = faded })
+	objectivesFrame = Kit.frame({ Size = UDim2.fromOffset(460, 300), Position = UDim2.fromOffset(40, 36), BackgroundTransparency = 1, Parent = infoGroup })
 	Kit.list(objectivesFrame, 6)
-	counter = Kit.text({ Text = "", Size = UDim2.fromOffset(300, 20), Position = UDim2.new(1, -340, 0, 36), TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Mono, TextSize = 14, TextColor3 = C.TextDim, Parent = faded })
+	-- (the anomaly count is a line among the objectives; this label stays empty)
+	counter = Kit.text({ Text = "", Size = UDim2.fromOffset(300, 20), Position = UDim2.new(1, -340, 0, 36), TextXAlignment = Enum.TextXAlignment.Right, FontFace = Kit.F.Mono, TextSize = 14, TextColor3 = C.TextDim, Parent = infoGroup })
 	-- team list
-	teamFrame = Kit.frame({ Size = UDim2.fromOffset(300, 160), Position = UDim2.new(1, -340, 0, 66), BackgroundTransparency = 1, Parent = faded })
+	teamFrame = Kit.frame({ Size = UDim2.fromOffset(300, 160), Position = UDim2.new(1, -340, 0, 36), BackgroundTransparency = 1, Parent = infoGroup })
 	Kit.list(teamFrame, 4, false, Enum.HorizontalAlignment.Right)
 	-- battery / stamina
 	local bars = Kit.frame({ Size = UDim2.fromOffset(260, 80), Position = UDim2.new(0, 40, 1, -110), BackgroundTransparency = 1, Parent = faded })
@@ -163,7 +178,31 @@ function HUDController:SetFocus(progress: number?)
 	focusRing.Size = UDim2.fromOffset(64 - 16 * progress, 64 - 16 * progress)
 end
 
+-- Objectives and team fade out while something owns the moment.
+function HUDController:SetQuiet(on: boolean)
+	if quiet == on then
+		return
+	end
+	quiet = on
+	Kit.tween(infoGroup, if on then 0.6 else 1.2, { GroupTransparency = if on then 1 else 0 })
+end
+
+function HUDController:IsQuiet(): boolean
+	return quiet
+end
+
 function HUDController:Hint(text: string, duration: number?)
+	if hintLabel.Text == text and hintLabel.TextTransparency < 0.5 then
+		-- the same line is already showing: just keep it a little longer
+		hintToken += 1
+		local token = hintToken
+		task.delay(duration or 4, function()
+			if token == hintToken then
+				Kit.tween(hintLabel, 0.8, { TextTransparency = 1 })
+			end
+		end)
+		return
+	end
 	hintToken += 1
 	local token = hintToken
 	hintLabel.Text = text
@@ -227,6 +266,13 @@ function HUDController:SoundIndicator(position: Vector3, text: string)
 end
 
 function HUDController:Toast(text: string, kind: string?, sub: string?)
+	-- the same message twice in a few seconds is one message
+	local key = text .. "|" .. (sub or "")
+	local now = os.clock()
+	if lastToast[key] and now - lastToast[key] < 3 then
+		return
+	end
+	lastToast[key] = now
 	local color = if kind == "danger" then C.Danger elseif kind == "warning" then C.Warning elseif kind == "team" then C.Accent else C.Text
 	local toast = Kit.frame({ Size = UDim2.fromOffset(560, if sub then 52 else 36), BackgroundColor3 = C.Black, BackgroundTransparency = 0.45, Parent = toastList })
 	Kit.corner(toast, 4)
@@ -254,7 +300,7 @@ function HUDController:Toast(text: string, kind: string?, sub: string?)
 			count += 1
 		end
 	end
-	if count > 4 then
+	if count > 3 then
 		for _, c in toastList:GetChildren() do
 			if c:IsA("Frame") and c ~= toast then
 				c:Destroy()
@@ -300,7 +346,7 @@ function HUDController:Coach(text: string, duration: number?)
 	if existing then
 		existing:Destroy()
 	end
-	local chip = Kit.frame({ Name = "Coach", Size = UDim2.fromOffset(0, 40), AutomaticSize = Enum.AutomaticSize.X, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -200), BackgroundColor3 = C.Black, BackgroundTransparency = 0.35, Parent = gui })
+	local chip = Kit.frame({ Name = "Coach", Size = UDim2.fromOffset(0, 40), AutomaticSize = Enum.AutomaticSize.X, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -250), BackgroundColor3 = C.Black, BackgroundTransparency = 0.35, Parent = gui })
 	Kit.corner(chip, 4)
 	Kit.padding(chip, 0, 18)
 	local label = Kit.text({ Text = text, Size = UDim2.fromOffset(0, 40), AutomaticSize = Enum.AutomaticSize.X, TextXAlignment = Enum.TextXAlignment.Center, FontFace = Kit.F.Body, TextSize = 17, Parent = chip })
@@ -378,6 +424,15 @@ local function renderObjectives()
 		end
 	end
 	local data = State.objectives
+	local primaryText = ""
+	for _, item in data.list or {} do
+		if item.primary and not item.done then
+			primaryText = item.text
+			break
+		end
+	end
+	local primaryChanged = primaryText ~= lastPrimary and primaryText ~= ""
+	lastPrimary = primaryText
 	for i, item in data.list or {} do
 		local row = Kit.frame({ Size = UDim2.fromOffset(460, if item.primary then 28 else 24), BackgroundTransparency = 1, LayoutOrder = i, Parent = objectivesFrame })
 		if item.hint then
@@ -387,7 +442,7 @@ local function renderObjectives()
 		end
 		local box = Kit.frame({ Size = UDim2.fromOffset(10, 10), Position = UDim2.new(0, 0, 0.5, -5), BackgroundColor3 = if item.done then C.Text else C.Panel, BackgroundTransparency = if item.done then 0.1 else 0.5, Parent = row })
 		Kit.stroke(box, C.TextDim, 1, 0.2)
-		Kit.text({
+		local label = Kit.text({
 			Text = item.text,
 			Size = UDim2.new(1, -22, 1, 0),
 			Position = UDim2.fromOffset(22, 0),
@@ -397,8 +452,22 @@ local function renderObjectives()
 			TextStrokeTransparency = 0.75,
 			Parent = row,
 		})
+		if primaryChanged and item.primary and item.text == primaryText then
+			-- a new goal arrives: it slides in and lights up once, quietly
+			label.Position = UDim2.fromOffset(34, 0)
+			label.TextTransparency = 0.7
+			Kit.tween(label, 0.5, { Position = UDim2.fromOffset(22, 0), TextTransparency = 0 })
+		end
 	end
-	counter.Text = if (data.quota or 0) > 0 then string.format("ANOMALIES  %d / %d", data.found or 0, data.quota) else ""
+	counter.Text = ""
+	-- the anomaly count: a line with its own progress, under the goals
+	if (data.quota or 0) > 0 then
+		local found = math.min(data.found or 0, data.quota)
+		local row = Kit.frame({ Size = UDim2.fromOffset(460, 30), BackgroundTransparency = 1, LayoutOrder = 1000, Parent = objectivesFrame })
+		Kit.text({ Text = string.format("ANOMALIES  %d / %d", found, data.quota), Size = UDim2.new(1, -22, 0, 16), Position = UDim2.fromOffset(22, 2), FontFace = Kit.F.Mono, TextSize = 13, TextColor3 = if found >= data.quota then C.Good else C.TextDim, TextStrokeTransparency = 0.75, Parent = row })
+		local track = Kit.frame({ Size = UDim2.fromOffset(180, 2), Position = UDim2.fromOffset(22, 22), BackgroundColor3 = C.Line, BackgroundTransparency = 0.2, Parent = row })
+		Kit.frame({ Size = UDim2.fromScale(found / data.quota, 1), BackgroundColor3 = if found >= data.quota then C.Good else C.Text, Parent = track })
+	end
 end
 
 local function renderInventory()
@@ -483,8 +552,12 @@ local function update(dt: number)
 	faded.GroupTransparency += (target - faded.GroupTransparency) * Util.damp(2, dt)
 	local battery = player:GetAttribute("Battery") or 100
 	batteryFill.Size = UDim2.fromScale(math.clamp(battery / 100, 0, 1), 1)
-	batteryFill.BackgroundColor3 = if battery < GameConfig.Flashlight.LowBatteryThreshold then C.Danger else C.Battery
+	local low = battery < GameConfig.Flashlight.LowBatteryThreshold
+	batteryFill.BackgroundColor3 = if low then C.Danger else C.Battery
 	batteryLabel.Text = string.format("LIGHT  %d%%%s", math.floor(battery + 0.5), if player:GetAttribute("Flashlight") then "" else "  OFF")
+	-- a low battery breathes (under 1 Hz): noticed, never flashing
+	batteryLabel.TextTransparency = if low then 0.25 + 0.25 * math.sin(os.clock() * 3) else 0
+	batteryLabel.TextColor3 = if low then C.Danger:Lerp(C.Text, 0.35) else C.TextDim
 	local stamina = State.stamina / GameConfig.Movement.StaminaMax
 	staminaFrame.Visible = stamina < 0.995
 	staminaFill.Size = UDim2.fromScale(stamina, 1)

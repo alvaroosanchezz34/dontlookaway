@@ -86,7 +86,7 @@ local budget = 0
 local BUDGET_MAX = 100
 -- refill per second for each story phase
 local BUDGET_RATE = { ARRIVAL = 0, UNEASE = 0.35, DISTORTION = 0.5, DANGER = 0.65, COLLAPSE = 0.85, ESCAPE = 1 }
-local COST = { hunt = 45, mimic = 40, sighting = 30, blackout = 35, scare = 25, shadow = 12, glimpse = 10, silence = 8, micro = 4 }
+local COST = { hunt = 45, mimic = 40, distortion = 40, sighting = 30, blackout = 35, scare = 25, shadow = 12, glimpse = 10, silence = 8, micro = 4 }
 local nextParanoiaAt = 0
 
 function HorrorDirector:Rng()
@@ -127,6 +127,28 @@ local function charge(kind: string, free: boolean?)
 	if not free then
 		budget = math.max(0, budget - (COST[kind] or 0))
 	end
+end
+
+-- Other directors (DistortionService) pay from the same budget.
+function HorrorDirector:CanAfford(kind: string): boolean
+	return afford(kind)
+end
+
+function HorrorDirector:Spend(kind: string)
+	charge(kind)
+end
+
+-- The players who are here: alive and not inside a distortion (somewhere
+-- else for a while: no event, sound or scare is placed around them).
+local function present(): { Player }
+	local list = {}
+	local distortions = Registry.DistortionService
+	for _, p in Registry.PlayerService:GetAlive() do
+		if not (distortions and distortions:IsBusy(p)) then
+			table.insert(list, p)
+		end
+	end
+	return list
 end
 
 function HorrorDirector:IsRunning(): boolean
@@ -207,7 +229,7 @@ end
 local AMBIENT = { "DistantPipe", "DistantKnock", "DistantMetal", "DistantGroan", "WoodCreak", "DistantPipe", "WoodCreak", "BuildingSettle", "ElevatorGroan" }
 
 local function randomAlive(): Player?
-	local alive = Registry.PlayerService:GetAlive()
+	local alive = present()
 	if #alive == 0 then
 		return nil
 	end
@@ -597,7 +619,7 @@ end
 ------------------------------------------------------------------------------------
 
 local function mostIsolated(): Player?
-	local alive = Registry.PlayerService:GetAlive()
+	local alive = present()
 	local best, bestD = nil, -1
 	for _, p in alive do
 		local r = Util.getRoot(p)
@@ -623,7 +645,7 @@ local function mostIsolated(): Player?
 end
 
 local function separatedPair(): (Player?, Player?)
-	local alive = Registry.PlayerService:GetAlive()
+	local alive = present()
 	for _, a in alive do
 		for _, b in alive do
 			local ra, rb = Util.getRoot(a), Util.getRoot(b)
@@ -810,7 +832,7 @@ end
 -- players the Observer is not already near, only in the quiet parts of the curve.
 local function paranoia()
 	local candidates = {}
-	for _, p in Registry.PlayerService:GetAlive() do
+	for _, p in present() do
 		if Registry.ObserverService:ProximityLevel(p) <= 2 then
 			table.insert(candidates, p)
 		end

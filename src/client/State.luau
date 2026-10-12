@@ -50,6 +50,7 @@ local State = {
 	inputType = "Keyboard", -- Keyboard | Gamepad | Touch
 	uiOpen = false, -- a menu panel has focus (mouse unlocked)
 	scareDark = false, -- a jumpscare owns the screen: lights, HUD, sound and look input are off (ScareController)
+	distortion = nil :: string?, -- a reality distortion this player is living (DistortionController)
 	phase = "CALM",
 	storyPhase = "ARRIVAL",
 	tools = { tools = {}, selected = 0 }, -- this round's equipment belt
