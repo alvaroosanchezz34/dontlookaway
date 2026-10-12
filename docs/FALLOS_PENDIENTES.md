@@ -355,7 +355,11 @@ Guion en `PROMPT_ILUMINACION_MONOCHROME.md`; medidas de antes y después en
 - Lámparas muertas: suciedad sobre el cristal (la calcomanía de mugre ya
   subida).
 
-**El grano sin API key.** El juego elige solo, de mejor a peor:
+**El grano.** Subido desde Studio el 12-10-2026: `grain_light`
+75475187132085 y `grain_dark` 133619764838758, ya en `AssetIds.Film`. Si en la
+Output aparece «Asset type does not match», son IDs de calcomanía y no de
+imagen: `tools/studio/check_image_ids.luau` da los buenos. El juego elige
+solo, de mejor a peor:
 
 1. **Texturas subidas** (`AssetIds.Film`): el grano más fino. No hace falta
    API key: en Studio, *Asset Manager → Bulk Import* con
@@ -365,7 +369,7 @@ Guion en `PROMPT_ILUMINACION_MONOCHROME.md`; medidas de antes y después en
 2. **Textura creada en el juego** (`EditableImage`): en un juego publicado
    Roblox solo la permite si el dueño tiene verificación de edad (13+) y de
    identidad y activa *Game Settings → Security → Allow Mesh / Image APIs*.
-3. **Motas** (ahora mismo, por defecto): un campo de puntos de un píxel,
+3. **Motas** (si faltan las dos anteriores): un campo de puntos de un píxel,
    blancos y negros, que cambian 24 veces por segundo (220 / 450 / 700 según
    la calidad gráfica). No necesita nada; es más grueso que la película.
 

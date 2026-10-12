@@ -51,8 +51,8 @@ AssetIds.Decals = {
 -- (or the Creator Dashboard), then put the IMAGE id here, not the Decal id
 -- (tools/studio/check_image_ids.luau tells them apart).
 AssetIds.Film = {
-	grain_light = 0,
-	grain_dark = 0,
+	grain_light = 75475187132085,
+	grain_dark = 133619764838758,
 }
 
 -- THE OBSERVER (assets/observer/*.obj and observer_skin_*.png).
