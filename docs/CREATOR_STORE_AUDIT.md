@@ -177,6 +177,14 @@ Así cada asset queda en el repo, versionado, auditable con la herramienta y rev
 
 ## G. Acciones manuales pendientes (tuyas)
 
+**Atajo para ver y oír todos los candidatos:**
+1. Abre un place vacío (*File → New*), **nunca** el del juego.
+2. Pega `tools/studio/preview_store_candidates.luau` en *View → Command Bar*.
+3. Los modelos aparecen en `Workspace.StoreCandidates`, en fila y con su nombre. **Se borran todos sus scripts antes de que puedan ejecutarse**, y la salida lista cuáles había.
+4. Los sonidos quedan en `StoreCandidates.Sounds`. Selecciona uno → *Properties* → *Preview*.
+
+Ningún asset del Store está metido en el juego hasta que lo apruebes.
+
 **1. Para cada modelo que quieras evaluar:**
 1. Abre **un place vacío** en Studio (nunca el del juego).
 2. Inserta el asset desde la Toolbox con su ID.
