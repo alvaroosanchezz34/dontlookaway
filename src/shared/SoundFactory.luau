@@ -54,11 +54,13 @@ function SoundFactory.validate()
 	local ids = {}
 	local seen = {}
 	for _, def in AudioLibrary.Sounds do
-		if def.id and not seen[def.id] then
-			seen[def.id] = true
-			local probe = Instance.new("Sound")
-			probe.SoundId = def.id
-			table.insert(ids, probe)
+		for _, id in { def.id, def.recorded } do
+			if id and not seen[id] then
+				seen[id] = true
+				local probe = Instance.new("Sound")
+				probe.SoundId = id
+				table.insert(ids, probe)
+			end
 		end
 	end
 	for _, id in AssetIds.Audio do
@@ -135,10 +137,20 @@ function SoundFactory.create(key: string, parent: Instance?, opts: { [string]: a
 	opts = opts or {}
 	local sound = Instance.new("Sound")
 	sound.Name = key
-	local customUrl, region = SoundFactory.custom(key)
-	sound.Volume = (def.volume or 0.5) * (opts.volume or 1)
+	-- a Creator Store recording wins over the sheet and the built-in sample,
+	-- unless it failed to load (then the sound falls back to those)
+	local recorded = if def.recorded and not failed[def.recorded] then def.recorded else nil
+	local customUrl, region = nil, nil
+	if not recorded then
+		customUrl, region = SoundFactory.custom(key)
+	end
+	sound.Volume = (if recorded then def.recordedVolume or def.volume or 0.5 else def.volume or 0.5) * (opts.volume or 1)
 	sound.Looped = if opts.looped ~= nil then opts.looped else (def.looped == true)
-	if customUrl then
+	if recorded then
+		sound.SoundId = recorded
+		local variation = if type(def.speed) == "table" then random:NextNumber(0.94, 1.06) else 1
+		sound.PlaybackSpeed = variation * (opts.speed or 1)
+	elseif customUrl then
 		-- one region of a sheet: play just that stretch (and loop inside it)
 		sound.SoundId = customUrl
 		sound.PlaybackRegionsEnabled = true
@@ -159,6 +171,8 @@ function SoundFactory.create(key: string, parent: Instance?, opts: { [string]: a
 	end
 	-- a sheet sound keeps only the spatial effects, plus its own sheetEffects
 	local effects = def.effects or {}
+	-- a recording is processed like a sheet sound: spatial effects only
+	local original = customUrl or recorded
 	if customUrl and def.sheetEffects then
 		effects = table.clone(effects)
 		for _, e in def.sheetEffects do
@@ -167,7 +181,7 @@ function SoundFactory.create(key: string, parent: Instance?, opts: { [string]: a
 	end
 	if #effects > 0 then
 		for i, effect in effects do
-			if customUrl and not SPATIAL[effect[1]] and not effect.sheet then
+			if original and not SPATIAL[effect[1]] and not effect.sheet then
 				continue
 			end
 			local ok, instance = pcall(Instance.new, effect[1])

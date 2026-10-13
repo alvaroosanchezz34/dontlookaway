@@ -1826,6 +1826,39 @@ do
 		check(not Access.isAuthorized(42, Config, publicServer), "marketing access: never on a public server, not even the owner")
 		check(not Access.isAuthorized(987654, Config, publicServer), "marketing access: never on a public server")
 	end
+	-- the approved Creator Store recordings: played as recorded (no pitch or
+	-- distortion chain), the rest of the library untouched
+	do
+		local SoundFactory = requireModule(RS.Shared.SoundFactory)
+		local AudioLibrary = requireModule(RS.Shared.Config.AudioLibrary)
+		local APPROVED = {
+			AmbientDrone = 9112775175, ElectricBuzz = 619993906, BoilerRumble = 9112839293, ElectricSurge = 9114247505,
+			BreakerFlip = 9120099286, TrackHorror = 9039981149, TrackScaryAtmosphere = 1847064374,
+		}
+		for key, id in APPROVED do
+			local def = AudioLibrary.Sounds[key]
+			check(def ~= nil and def.recorded == "rbxassetid://" .. id, "store audio: " .. key .. " uses " .. id)
+			local snd = SoundFactory.create(key)
+			check(snd ~= nil and snd.SoundId == "rbxassetid://" .. id, "store audio: " .. key .. " plays the recording")
+			if snd then
+				check(math.abs(snd.PlaybackSpeed - 1) < 0.07, "store audio: " .. key .. " at its own speed (" .. snd.PlaybackSpeed .. ")")
+				local processed = false
+				for _, e in snd:GetChildren() do
+					if e:IsA("DistortionSoundEffect") or e:IsA("PitchShiftSoundEffect") or e:IsA("EqualizerSoundEffect") or e:IsA("TremoloSoundEffect") then
+						processed = true
+					end
+				end
+				check(not processed, "store audio: " .. key .. " without the old processing")
+				snd:Destroy()
+			end
+		end
+		local whisper = SoundFactory.create("Whisper")
+		local sheetUrl = SoundFactory.custom("Whisper")
+		check(whisper ~= nil and whisper.SoundId == (sheetUrl or AudioLibrary.Sounds.Whisper.id), "store audio: other sounds unchanged (sheet or sample)")
+		if whisper then
+			whisper:Destroy()
+		end
+	end
 	-- the seeded random source repeats
 	Rng.seed(7)
 	local a1, a2 = Rng:NextNumber(), Rng:NextInteger(1, 100)

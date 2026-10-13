@@ -12,6 +12,26 @@
 
 ---
 
+## Integrado (aprobado por ti tras escucharlo)
+
+| Sonido del juego | Asset | ID |
+|---|---|---|
+| `AmbientDrone` (ambiente principal) | Eerie Ambience 1 (SFX) · ProSoundEffects | 9112775175 |
+| `ElectricBuzz` (zumbido de tubos) | Buzzing Fluorescent Light | 619993906 |
+| `BoilerRumble` (sala de calderas) | Oil Refinery Ambience 2 (SFX) · ProSoundEffects | 9112839293 |
+| `ElectricSurge` (subidón eléctrico) | Electricity Static 22 (SFX) · ProSoundEffects | 9114247505 |
+| `BreakerFlip` (interruptor del puzle de corriente) | Toggle Switch Metal Industrial Equipment 76 (SFX) · ProSoundEffects | 9120099286 |
+| `TrackHorror` (música; vídeo de campaña V10) | Horror · APM | 9039981149 |
+| `TrackScaryAtmosphere` (música; vídeo de campaña V1) | Scary Atmosphere · APM | 1847064374 |
+
+**Cómo funciona:**
+- Cada sonido lleva el campo `recorded` en `Config/AudioLibrary.luau`.
+- La grabación suena a su velocidad, sin el procesado (velocidad baja, distorsión, filtros) que se usaba para convertir las muestras de Roblox en terror.
+- Solo conserva los efectos espaciales.
+- **Si un ID no carga, el juego vuelve solo al sonido anterior.**
+- Para revertir uno, se borra su `recorded`.
+- Las comprobaciones están en `tools/client_test.luau`. **Falta oírlo en Studio dentro del juego**: los volúmenes (`recordedVolume`) son una primera estimación.
+
 ## A. Diagnóstico del proyecto
 
 **Cómo está hecho Ashgrove.** Todo el mundo se **genera por código**:

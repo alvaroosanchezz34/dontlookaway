@@ -23,6 +23,19 @@
 		          (from an uploaded sheet only the spatial ones are kept)
 		sheetEffects  extra effects only for the uploaded sheet recording
 		min, max  RollOffMinDistance / RollOffMaxDistance for 3D sounds
+		recorded  a Creator Store recording ("rbxassetid://..."): wins over the
+		          sheet and the sample, plays at its own speed with spatial
+		          effects only, and falls back to them if it fails to load
+		recordedVolume  its volume (default: volume)
+
+	Creator Store recordings in use (approved; docs/CREATOR_STORE_AUDIT.md):
+		AmbientDrone   9112775175  Eerie Ambience 1 (SFX), ProSoundEffects
+		ElectricBuzz   619993906   Buzzing Fluorescent Light
+		BoilerRumble   9112839293  Oil Refinery Ambience 2 (SFX), ProSoundEffects
+		ElectricSurge  9114247505  Electricity Static 22 (SFX), ProSoundEffects
+		BreakerFlip    9120099286  Toggle Switch Metal Industrial Equipment 76 (SFX), ProSoundEffects
+		TrackHorror           9039981149  Horror, APM
+		TrackScaryAtmosphere  1847064374  Scary Atmosphere, APM
 ]]
 
 local S = {
@@ -84,7 +97,7 @@ AudioLibrary.Groups = { "Ambient", "Footsteps", "Player", "Monster", "Anomaly", 
 
 AudioLibrary.Sounds = {
 	-- AMBIENT ------------------------------------------------------------------
-	AmbientDrone = { id = S.swim, group = "Ambient", volume = 0.55, speed = 0.18, looped = true, effects = { lowpass(-40, -12), reverb(6, 0) } },
+	AmbientDrone = { recorded = "rbxassetid://9112775175", recordedVolume = 0.5, id = S.swim, group = "Ambient", volume = 0.55, speed = 0.18, looped = true, effects = { lowpass(-40, -12), reverb(6, 0) } },
 	AmbientAir = { id = S.swoosh, group = "Ambient", volume = 0.18, speed = 0.12, looped = true, effects = { lowpass(-25, -6), reverb(4, -4), tremolo(0.2, 0.5) } },
 	AmbientHum = { id = S.ping, group = "Ambient", volume = 0.12, speed = 0.05, looped = true, effects = { lowpass(-30, -2), tremolo(8, 0.25) } },
 	-- the uploaded rain is band-passed noise (400-7000 Hz): three quarters of
@@ -106,14 +119,14 @@ AudioLibrary.Sounds = {
 	WoodCreak = { id = S.getup, group = "Ambient", volume = 0.45, speed = { 0.28, 0.38 }, effects = { reverb(3, -2), lowpass(-10, -2) }, min = 8, max = 90 },
 	Drip = { id = S.water, group = "Ambient", volume = 0.25, speed = { 1.6, 2.2 }, effects = { reverb(3, -2), echo(0.25, 0.3, -12) }, min = 4, max = 45 },
 	SteamHiss = { id = S.swoosh, group = "Ambient", volume = 0.25, speed = 0.65, looped = true, effects = { lowpass(-6, 2) }, min = 6, max = 50 },
-	ElectricBuzz = { id = S.ping, group = "Ambient", volume = 0.18, speed = 0.09, looped = true, effects = { distort(0.4), tremolo(12, 0.4), lowpass(-12, -2) }, min = 4, max = 32 },
+	ElectricBuzz = { recorded = "rbxassetid://619993906", recordedVolume = 0.35, id = S.ping, group = "Ambient", volume = 0.18, speed = 0.09, looped = true, effects = { distort(0.4), tremolo(12, 0.4), lowpass(-12, -2) }, min = 4, max = 32 },
 	LightFlicker = { id = S.click, group = "Ambient", volume = 0.35, speed = { 0.55, 0.8 }, effects = { distort(0.3) }, min = 6, max = 50 },
 	BulbPop = { id = S.glass, group = "Ambient", volume = 0.55, speed = { 1.4, 1.7 }, effects = { reverb(2, -4) }, min = 8, max = 80 },
 	Wind = { id = S.swoosh, group = "Ambient", volume = 0.25, speed = 0.08, looped = true, effects = { reverb(5, -2), tremolo(0.15, 0.7) }, min = 10, max = 80 },
 	ServerFans = { id = S.swim, group = "Ambient", volume = 0.3, speed = 0.9, looped = true, effects = { lowpass(-18, -6) }, min = 6, max = 40 },
 	Static = { id = S.swim, group = "Ambient", volume = 0.25, speed = 2.6, looped = true, effects = { distort(0.8), lowpass(4, 2) }, min = 4, max = 30 },
 	ClockTick = { id = S.click, group = "Ambient", volume = 0.18, speed = 1.6, min = 3, max = 18 },
-	BoilerRumble = { id = S.swim, group = "Ambient", volume = 0.45, speed = 0.25, looped = true, effects = { lowpass(-35, -8), distort(0.25) }, min = 10, max = 70 },
+	BoilerRumble = { recorded = "rbxassetid://9112839293", recordedVolume = 0.55, id = S.swim, group = "Ambient", volume = 0.45, speed = 0.25, looped = true, effects = { lowpass(-35, -8), distort(0.25) }, min = 10, max = 70 },
 	Fridge = { id = S.ping, group = "Ambient", volume = 0.1, speed = 0.04, looped = true, effects = { lowpass(-30, -6) }, min = 4, max = 24 },
 	Ventilation = { id = S.swim, group = "Ambient", volume = 0.22, speed = 0.42, looped = true, effects = { lowpass(-22, -6), tremolo(0.3, 0.25) }, min = 6, max = 40 },
 	ElevatorGroan = { id = S.getup, group = "Ambient", volume = 0.35, speed = { 0.12, 0.16 }, effects = { reverb(7, 0), lowpass(-18, -4), echo(0.5, 0.4, -10) }, min = 20, max = 160 },
@@ -122,7 +135,7 @@ AudioLibrary.Sounds = {
 	DistantFootsteps = { id = S.plastic, group = "Ambient", volume = 0.35, speed = { 0.6, 0.7 }, effects = { reverb(5, -1), lowpass(-20, -6) }, min = 15, max = 110 },
 	EmergencyAlarm = { id = S.ping, group = "Ambient", volume = 0.16, speed = 0.58, looped = true, effects = { tremolo(1.2, 1), reverb(4, -2), lowpass(-8, -2) }, min = 10, max = 120 },
 	PowerDown = { id = S.launch, group = "Interaction", volume = 0.75, speed = 0.09, effects = { reverb(7, 0), lowpass(-14, -2), pitch(0.5) } },
-	ElectricSurge = { id = S.ping, group = "Interaction", volume = 0.5, speed = 0.12, effects = { distort(0.7), tremolo(18, 0.9), lowpass(-6, 0) } },
+	ElectricSurge = { recorded = "rbxassetid://9114247505", recordedVolume = 0.55, id = S.ping, group = "Interaction", volume = 0.5, speed = 0.12, effects = { distort(0.7), tremolo(18, 0.9), lowpass(-6, 0) } },
 	Sparks = { id = S.snap, group = "Ambient", volume = 0.45, speed = { 1.3, 1.7 }, effects = { distort(0.3) }, min = 6, max = 60 },
 
 	-- FOOTSTEPS ----------------------------------------------------------------
@@ -201,7 +214,7 @@ AudioLibrary.Sounds = {
 	DoorLocked = { id = S.click, group = "Interaction", volume = 0.55, speed = { 0.4, 0.46 }, effects = { distort(0.2) }, min = 4, max = 40 },
 	DoorUnlock = { id = S.switch, group = "Interaction", volume = 0.55, speed = 0.6, min = 4, max = 40 },
 	FuseInsert = { id = S.switch, group = "Interaction", volume = 0.7, speed = 0.45, effects = { reverb(1.5, -6) }, min = 5, max = 50 },
-	BreakerFlip = { id = S.switch, group = "Interaction", volume = 0.8, speed = 0.35, effects = { reverb(2, -4) }, min = 5, max = 60 },
+	BreakerFlip = { recorded = "rbxassetid://9120099286", recordedVolume = 0.8, id = S.switch, group = "Interaction", volume = 0.8, speed = 0.35, effects = { reverb(2, -4) }, min = 5, max = 60 },
 	PowerOn = { id = S.launch, group = "Interaction", volume = 0.6, speed = 0.15, effects = { reverb(6, 0), lowpass(-16, -4) } },
 	PowerHum = { id = S.ping, group = "Interaction", volume = 0.18, speed = 0.06, looped = true, effects = { distort(0.25), tremolo(6, 0.3) }, min = 6, max = 60 },
 	KeypadBeep = { id = S.ping, group = "Interaction", volume = 0.35, speed = 1.3, min = 3, max = 30 },
@@ -245,6 +258,9 @@ AudioLibrary.Sounds = {
 	MusicBell = { id = S.ping, group = "Music", volume = 0.18, speed = 1, effects = { reverb(9, 0), echo(0.6, 0.5, -10), lowpass(-14, -2) } },
 	MusicLow = { id = S.ping, group = "Music", volume = 0.22, speed = 0.25, effects = { reverb(9, 0), lowpass(-30, -6) } },
 	MusicPulse = { id = S.hit, group = "Music", volume = 0.45, speed = 0.3, effects = { lowpass(-34, -8), reverb(3, -6) } },
+	-- Creator Store music (APM, approved): whole tracks, played as they are
+	TrackHorror = { recorded = "rbxassetid://9039981149", id = S.swim, group = "Music", volume = 0.35, looped = true },
+	TrackScaryAtmosphere = { recorded = "rbxassetid://1847064374", id = S.swim, group = "Music", volume = 0.35, looped = true },
 	MusicPad = { id = S.swim, group = "Music", volume = 0.25, speed = 0.3, looped = true, effects = { lowpass(-30, -6), chorus(), reverb(8, 0) } },
 	MusicChasePad = { id = S.rocket, group = "Music", volume = 0.25, speed = 0.13, looped = true, effects = { distort(0.4), lowpass(-14, -2), tremolo(4, 0.6) } },
 	MusicString = { id = S.groan, group = "Music", volume = 0.14, speed = 0.5, effects = { reverb(8, 0), chorus(), lowpass(-16, -4) } },

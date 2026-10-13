@@ -103,6 +103,7 @@ return {
 				return Shots.join(hallOpen(set, cam, "STATIC", 44), {
 					-- under the white tube, 92 studs away
 					{ at = 0, action = "SpawnEffect", kind = "entity", name = "it", cframe = it(set.SPOT_Z), ash = false },
+					{ at = 0, action = "PlayAmbience", sound = "TrackScaryAtmosphere", name = "music", volume = 0.7, fadeIn = 2 },
 					{ at = 0.4, action = "ShowText", id = "a", text = "IT HASN'T MOVED.", style = "whisper", position = "upper", size = 0.034, fadeIn = 0.4, duration = 2.6 },
 				}, powerCut(set, 4.0, 0.35), {
 					{ at = 4.15, action = "PlaceObject", name = "it", to = it(-390) },
@@ -119,6 +120,7 @@ return {
 					{ at = 11.9, action = "SetCamera", cframe = cam * CFrame.Angles(math.rad(17), 0, 0), preset = "STATIC", fov = 44 },
 					{ at = 11.9, action = "StopSound", name = "buzz", fadeOut = 0 },
 					{ at = 11.9, action = "StopSound", name = "heart", fadeOut = 0.2 },
+					{ at = 11.9, action = "StopSound", name = "music", fadeOut = 0.15 },
 					{ at = 12.5, action = "EyesGlow", name = "it", on = true },
 					{ at = 12.5, action = "PlaySound", sound = "ObserverInhale", position = set.at(0, 8, CAM_Z - 8), volume = 0.8 },
 				}, Shots.cut(13.7), title(14.0, Config))
@@ -277,6 +279,7 @@ return {
 				return Shots.join(Shots.doorway(set, { door = 0.92, lamp = 0.55 }), {
 					{ at = 0, action = "SetCamera", cframe = set.camera(20, 5.8), preset = "CINEMATIC", fov = 40 },
 					{ at = 0, action = "MoveCamera", to = set.camera(8.5, 6.6), duration = 10.5, ease = "creep" },
+					{ at = 0, action = "PlayAmbience", sound = "TrackHorror", name = "music", volume = 0.7, fadeIn = 2.5 },
 					-- it is there from the first frame, in the black
 					{ at = 0, action = "SpawnEffect", kind = "entity", name = "it", cframe = facing((o * CFrame.new(0, 0, -2.6)).Position, (o * CFrame.new(0, 0, 20)).Position), ash = false },
 					{ at = 4.2, action = "EyesGlow", name = "it", on = true },
