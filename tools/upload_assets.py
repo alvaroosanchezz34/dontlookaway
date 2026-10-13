@@ -4,13 +4,17 @@ writes their ids into AssetIds.luau - no Asset Manager, no screenshots.
 Run it on your own computer (it needs your API key and internet access to
 apis.roblox.com). Python 3.8+, no extra packages.
 
-    1. create.roblox.com -> (select the group) -> Open Cloud -> API Keys ->
+    The assets must belong to whoever owns the game: its group (--group) or,
+    for a game on your own account, you (--user <your user id>).
+
+    1. create.roblox.com -> (select the group, or your account) -> Open Cloud -> API Keys ->
        Create API Key: add "Assets API" with Read + Write, the IP of your PC
        (or 0.0.0.0/0), save the key somewhere private.
     2. The group id is the number in the group's page address.
     3. In the repo:
          set ROBLOX_API_KEY=...        (PowerShell: $env:ROBLOX_API_KEY="...")
          python tools/upload_assets.py --group 12345678 observer props audio
+         (game on your own account: --user <your user id> instead of --group)
        Sets: observer (30 maps), props (~57 maps), audio (3 sounds),
              textures (54 maps), decals, film (2 grain sheets). Default: observer props audio.
        --dry-run lists what would be uploaded.
@@ -82,13 +86,13 @@ def call(method, url, key, data=None, ctype=None):
     raise SystemExit("gave up on " + url)
 
 
-def upload(path, kind, group, key):
+def upload(path, kind, creator, key):
     name = os.path.splitext(os.path.basename(path))[0]
     request = {
         "assetType": kind,
         "displayName": ("DLA " + name)[:50],
         "description": "DON'T LOOK AWAY - " + os.path.relpath(path, ROOT).replace("\\", "/"),
-        "creationContext": {"creator": {"groupId": str(group)}},
+        "creationContext": {"creator": creator},
     }
     data, ctype = multipart({"request": json.dumps(request)}, "fileContent", path)
     op = call("POST", API + "/assets", key, data, ctype)
@@ -107,7 +111,9 @@ def upload(path, kind, group, key):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--group", required=True, type=int)
+    who = ap.add_mutually_exclusive_group(required=True)
+    who.add_argument("--group", type=int, help="the group that owns the game")
+    who.add_argument("--user", type=int, help="your user id, when the game is yours (not a group's)")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("sets", nargs="*", default=["observer", "props", "audio"])
     args = ap.parse_args()
@@ -126,9 +132,10 @@ def main():
             print("  %-6s %s" % (k, os.path.relpath(p, ROOT)))
         return
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    creator = {"groupId": str(args.group)} if args.group else {"userId": str(args.user)}
     for i, (path, kind) in enumerate(todo, 1):
         rel = os.path.relpath(path, ROOT).replace("\\", "/")
-        asset = upload(path, kind, args.group, key)
+        asset = upload(path, kind, creator, key)
         done[rel] = asset
         json.dump(done, open(OUT, "w"), indent=1)
         print("[%d/%d] %s -> %d" % (i, len(todo), rel, asset))
