@@ -25,9 +25,10 @@ local Lore = {}
 
 Lore.Categories = { "PROJECT FILES", "PERSONNEL", "INCIDENTS", "RESEARCH", "AUDIO LOGS", "PHOTOGRAPHS", "CLASSIFIED" }
 
--- Entries needed (found across all your nights) before the photograph from the
--- hidden room develops into THE WITNESS ending.
-Lore.WitnessRequired = 10
+-- The photograph from the hidden room only develops for someone who "has read
+-- everything": every entry of chapters 1-7 (the chapter 8 pages are the reward
+-- and come out with the photograph, never from the building).
+Lore.WitnessChapter = 8
 
 Lore.List = {
 	-- 1. Ashgrove was a project ------------------------------------------------
@@ -46,7 +47,7 @@ Lore.List = {
 	{ id = "AL_VALE_01", chapter = 2, category = "AUDIO LOGS", kind = "tape", title = "VALE - LOG 01",
 		body = "\"Day forty. A chair moved eleven centimetres. Nobody was inside. I'm... delighted. Something happens when we stop looking. We just have to be very careful not to look.\"" },
 	{ id = "NT_DAY3", chapter = 2, category = "INCIDENTS", kind = "doc", title = "NOTE",
-		body = "Day 3.\nThe staff photo in the corridor has one more face than we have staff.\nNobody will say whose." },
+		body = "Day 43.\nThe staff photo in the corridor has one more face than we have staff.\nNobody will say whose." },
 	{ id = "RE_RULE", chapter = 2, category = "RESEARCH", kind = "doc", title = "WORKING HYPOTHESIS",
 		body = "If you stop looking at a thing, it stops having to be what it was.\n\nCorollary: keep your eyes on the doors." },
 
@@ -54,7 +55,7 @@ Lore.List = {
 	{ id = "IN_BASEMENT", chapter = 3, category = "INCIDENTS", kind = "doc", title = "NOTE",
 		body = "The basement corridor was longer this morning.\nI counted the lights. There were more lights." },
 	{ id = "NT_PAINTING", chapter = 3, category = "INCIDENTS", kind = "doc", title = "NOTE",
-		body = "Marta says the painting in reception used to be a landscape.\nI have worked here eleven years.\nIt has always been a portrait.\nHasn't it?" },
+		body = "Marta says the painting in reception used to be a landscape.\nI looked after this building for eleven years before the project came.\nIt has always been a portrait.\nHasn't it?" },
 	{ id = "MM_FUSES", chapter = 3, category = "PROJECT FILES", kind = "doc", title = "FACILITIES MEMO",
 		body = "The fuses burn out at the same minute every night.\nWe have replaced the wiring twice.\nStop asking for a third." },
 	{ id = "AL_VALE_02", chapter = 3, category = "AUDIO LOGS", kind = "tape", title = "VALE - LOG 02",
@@ -103,9 +104,9 @@ Lore.List = {
 		body = "Status: unknown.\nLast seen carrying a single photograph toward the loading dock.\nHe said it had to leave the building with someone who had read everything.\n'Or it won't develop.'" },
 
 	-- 8. The Witness ---------------------------------------------------------------
-	{ id = "CL_WITNESS", chapter = 8, category = "CLASSIFIED", kind = "doc", title = "THE WITNESS", witness = true,
+	{ id = "CL_WITNESS", chapter = 8, category = "CLASSIFIED", kind = "doc", title = "THE WITNESS", witness = true, rewardOnly = true,
 		body = "A photograph taken by someone who knew what they were looking at, carried out of Ashgrove.\nIf it develops, the project was not for nothing.\n\nIf it develops, look closely at who is standing behind you in it." },
-	{ id = "AL_VALE_04", chapter = 8, category = "AUDIO LOGS", kind = "tape", title = "VALE - LOG 04 (LAST)",
+	{ id = "AL_VALE_04", chapter = 8, category = "AUDIO LOGS", kind = "tape", title = "VALE - LOG 04 (LAST)", rewardOnly = true,
 		body = "\"If you are hearing this you got further than any of us. Don't look for me. Look at the photograph. Count the people. Then count again when you're outside.\"" },
 }
 
@@ -117,6 +118,14 @@ end
 
 Lore.Count = #Lore.List
 
+-- Entries of the chapters before THE WITNESS (what "everything" means).
+Lore.WitnessRequired = 0
+for _, e in Lore.List do
+	if e.chapter < Lore.WitnessChapter then
+		Lore.WitnessRequired += 1
+	end
+end
+
 -- How much of the archive has a profile found?
 function Lore.found(profileLore: { [string]: any }?): number
 	local n = 0
@@ -126,6 +135,22 @@ function Lore.found(profileLore: { [string]: any }?): number
 		end
 	end
 	return n
+end
+
+-- Entries of chapters 1-7 a profile has found.
+function Lore.foundBeforeWitness(profileLore: { [string]: any }?): number
+	local n = 0
+	for _, e in Lore.List do
+		if e.chapter < Lore.WitnessChapter and profileLore and profileLore[e.id] then
+			n += 1
+		end
+	end
+	return n
+end
+
+-- Has this profile read everything the photograph asks for?
+function Lore.canWitness(profileLore: { [string]: any }?): boolean
+	return Lore.chapter(profileLore) >= Lore.WitnessChapter
 end
 
 -- The chapter a profile has reached (the lowest chapter with unfound entries).
@@ -159,7 +184,10 @@ function Lore.pick(team: { { [string]: any } }, count: number, rng): { any }
 				missing = true
 			end
 		end
-		if missing and e.chapter <= chapter + 1 then
+		if e.rewardOnly and missing then
+			-- the last pages only come out of the building with the photograph
+			continue
+		elseif missing and e.chapter <= chapter + 1 then
 			table.insert(unfound, e)
 		elseif e.chapter <= math.max(chapter, 2) then
 			table.insert(seen, e)

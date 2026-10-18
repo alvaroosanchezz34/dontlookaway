@@ -210,7 +210,7 @@ local function journal(body: Frame, tab: string?)
 		local rBody = Kit.text({ Text = "", Size = UDim2.new(1, 0, 1, -70), Position = UDim2.fromOffset(0, 60), FontFace = Kit.F.Type, TextSize = 18, TextColor3 = C.TextDim, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, Parent = reader })
 		local count = Lore.found(found)
 		rTitle.Text = string.format("ASHGROVE OBSERVATION PROJECT  ·  %d / %d", count, Lore.Count)
-		rBody.Text = if count == 0 then "Nothing recovered yet.\n\nDocuments, photographs and tapes are scattered through the building. Read them; they are kept here." elseif count < Lore.WitnessRequired then string.format("Some things only make sense once you know enough.\n\n%d more entries before you would understand the photograph.", Lore.WitnessRequired - count) else "You know enough now.\n\nThere is a room the plans don't show. Something in it should leave the building with you."
+		rBody.Text = if count == 0 then "Nothing recovered yet.\n\nDocuments, photographs and tapes are scattered through the building. Read them; they are kept here." elseif not Lore.canWitness(found) then string.format("Some things only make sense once you have read everything.\n\n%d more entries before you would understand the photograph.", Lore.WitnessRequired - Lore.foundBeforeWitness(found)) else "You know enough now.\n\nThere is a room the plans don't show. Something in it should leave the building with you."
 		local scroll = Kit.scroll(list)
 		Kit.list(scroll, 4)
 		local order = 0

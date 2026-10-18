@@ -395,3 +395,37 @@ solo, de mejor a peor:
    a 24 fps).
 6. Con «Reduced flashes & glitches»: sin parpadeo de proyector, sin
    siluetas de un fotograma, pulsos lentos.
+
+## 11. Pasada de lógica y enganche (18-10-2026, rama `fixes/vega`)
+
+| Qué | Dónde |
+|---|---|
+| THE WITNESS pide haber leído todo el archivo de los capítulos 1-7 (29 entradas), como dice la historia, en vez de 10. El texto del archivo del lobby y el aviso de la foto en blanco cuentan con eso. | `Catalog/Lore`, `RoundService`, `MenuController` |
+| `CL_WITNESS` y `AL_VALE_04` (capítulo 8) ya no pueden salir como papeles en el edificio: solo salen con la foto. | `Lore.pick` (`rewardOnly`) |
+| Lore sin contradicciones: la nota del día 3 pasa al día 43 (Vale ve lo primero raro el día 40) y quien lleva once años es el que cuidaba el edificio antes del proyecto. | `Catalog/Lore` |
+| El lore de la noche solo mira a los participantes de la ronda, no a quien está en el menú o el lobby. | `ObjectiveService:Plan` |
+| La dificultad baja a la más alta que tengan desbloqueada todos los que están listos (con aviso). Un novato ya no entra en NIGHTMARE por el host. | `LobbyService` |
+| Equipos veteranos (tutorial hecho y 3+ rondas cada uno): el apagón llega como mucho a los 75 s. | `HorrorDirector`, `GameConfig.VeteranRounds/VeteranArrival` |
+| Quien se desconecta sale como LEFT en los resultados, no como LOST. | `RoundService`, `ResultsController` |
+| El bonus de +10 % se llama "Played as a team": se da con cualquier compañero, no solo con amigos. | `ProgressionService` |
+| Badges de Roblox para 10 logros, y los logros ya ganados reciben su badge al entrar. Faltan los IDs. | `GameConfig.Badges`, `ProgressionService` |
+
+**Para que funcionen las badges:** crearlas en el Creator Dashboard (Engagement → Badges) y pegar cada ID en `GameConfig.Badges`. Con 0 no se hace nada.
+
+**Comprobar en Studio:** entrar con un perfil que tenga todo el lore de 1-7 y salir con la foto (debe dar THE WITNESS); con 2 jugadores, uno sin HARD desbloqueado y el host con HARD elegido (la ronda debe ir en NORMAL con aviso); el panel F8 con un perfil veterano (el apagón a los 75 s en NORMAL).
+
+## 12. Cámaras de seguridad para los que ya no están dentro (18-10-2026)
+
+Quien ha muerto, se ha quedado encerrado o ya ha salido no se queda solo mirando: con **C** (o el botón SECURITY CAMERAS sobre la vista de espectador) ve el edificio por las cámaras de seguridad, y lo que ve una cámara en directo cuenta como mirado. El Observer se queda quieto en cámara igual que delante de un vivo.
+
+Reglas, para que no rompa la partida:
+
+- Las cámaras van con la corriente del edificio. Durante el apagón no hay señal: restaurar la luz también devuelve los ojos a los muertos.
+- Una cámara solo ve lo iluminado, dentro de 70 studs y de su ángulo, con línea de visión.
+- Cada cinta aguanta 8 s en directo y luego rebobina 6 s. Cambiar de cámara no la reinicia.
+- El parpadeo forzado por mirar fijo también se aplica a quien mira por la cámara.
+- Hay 8 cámaras por edificio: todos los pasillos y después salas grandes elegidas con la semilla. Tienen un piloto rojo que se enciende cuando alguien mira por ellas.
+
+Todo se ajusta en `GameConfig.SecurityCams`. Código: `SecurityCamService` (servidor, decide), `SecurityCamController` (cliente, pinta) y tres puntos de `ObserverService` (`watchers`, `unseenAt` y el avistamiento).
+
+**Comprobar en Studio** (Start con 2 jugadores): matar a uno desde el panel F8, pulsar C, buscar al Observer en una cámara con la corriente restaurada y ver que se queda quieto mientras el vivo le da la espalda; que durante el apagón salga NO SIGNAL; que al acabar los 8 s rebobine y el Observer vuelva a moverse; que ninguna cámara quede metida en una pared (si alguna mira a la nada, el problema está en `mountFor`).

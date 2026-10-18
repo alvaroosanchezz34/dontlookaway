@@ -33,6 +33,7 @@ local ORDER = {
 	"PuzzleService",
 	"AnomalyService",
 	"ObserverService",
+	"SecurityCamService",
 	"HorrorDirector",
 	"DistortionService",
 	"GuidanceService",

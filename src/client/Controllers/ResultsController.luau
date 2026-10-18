@@ -30,7 +30,7 @@ local ENDINGS = {
 	THE_WITNESS = { "THE WITNESS", "The photograph develops on the drive home: eleven people on the front steps, and Vale among them. Behind every window, something tall is watching. Count the people again. There are twelve." },
 }
 
-local OUTCOME = { ESCAPED = "ESCAPED", DEAD = "TAKEN", LOCKED_IN = "SHUT IN", LOST = "LOST" }
+local OUTCOME = { ESCAPED = "ESCAPED", DEAD = "TAKEN", LOCKED_IN = "SHUT IN", LOST = "LOST", LEFT = "LEFT" }
 -- endings nobody walked away from
 local LOSSES = { OBSERVER_CAUGHT_YOU = true, FAILED_TO_IDENTIFY = true, LOCKED_IN = true, OUT_OF_TIME = true }
 

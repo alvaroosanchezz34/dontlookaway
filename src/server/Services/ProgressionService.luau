@@ -6,6 +6,7 @@
 ]]
 
 local Players = game:GetService("Players")
+local BadgeService = game:GetService("BadgeService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -78,6 +79,38 @@ end
 -- Achievements
 ------------------------------------------------------------------------------------
 
+-- Roblox badges for the achievements listed in GameConfig.Badges (id 0 = not
+-- created yet, skipped). Badges show on the player's profile and the game page.
+local function awardBadge(player: Player, achievementId: string)
+	local badgeId = GameConfig.Badges[achievementId]
+	if not badgeId or badgeId == 0 then
+		return
+	end
+	task.spawn(function()
+		local ok, has = pcall(BadgeService.UserHasBadgeAsync, BadgeService, player.UserId, badgeId)
+		if ok and not has and player.Parent then
+			local awarded, err = pcall(BadgeService.AwardBadge, BadgeService, player.UserId, badgeId)
+			if not awarded then
+				warn("[ProgressionService] badge " .. achievementId .. " failed: " .. tostring(err))
+			end
+		end
+	end)
+end
+
+-- Achievements earned before the badges existed get their badge on join.
+local function syncBadges(player: Player)
+	local data = Registry.DataService:Get(player)
+	if not data then
+		return
+	end
+	for id in data.achievements do
+		if player.Parent then
+			awardBadge(player, id)
+			task.wait(0.5)
+		end
+	end
+end
+
 function ProgressionService:Award(player: Player, id: string)
 	local def = Achievements.ById[id]
 	if not def then
@@ -94,6 +127,7 @@ function ProgressionService:Award(player: Player, id: string)
 	roundAchievements[player] = roundAchievements[player] or {}
 	table.insert(roundAchievements[player], id)
 	Net.fire(player, "Unlock", { type = "achievement", id = id, name = def.name, description = def.description, echoes = def.echoes })
+	awardBadge(player, id)
 	Registry.AudioService:Play2D({ player }, "Achievement")
 	Registry.AnalyticsService:Event(player, "Achievement", 1, { id = id })
 	-- cosmetics awarded by achievements become available immediately
@@ -297,7 +331,7 @@ function ProgressionService:RoundEnded(player: Player, info)
 		subtotalXP += row.xp
 	end
 	if info.playerCount > 1 then
-		add("Played with friends  +10%", subtotalEchoes * R.FriendsBonus, subtotalXP * R.FriendsBonus)
+		add("Played as a team  +10%", subtotalEchoes * R.FriendsBonus, subtotalXP * R.FriendsBonus)
 	end
 	subtotalEchoes, subtotalXP = 0, 0
 	for _, row in breakdown do
@@ -446,6 +480,7 @@ function ProgressionService:Start()
 	Registry.DataService.Loaded:Connect(function(player)
 		syncAttributes(player)
 		self:Push(player)
+		task.spawn(syncBadges, player)
 	end)
 	Registry.DataService.Changed:Connect(function(player)
 		syncAttributes(player)

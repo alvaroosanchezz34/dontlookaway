@@ -268,10 +268,11 @@ function ObjectiveService:Plan(map, rng, playerCount: number)
 			end, "offering")
 		end
 	end
-	-- lore: tonight's pieces continue the team's story in order (Catalog/Lore)
+	-- lore: tonight's pieces continue the team's story in order (Catalog/Lore).
+	-- Only the people playing tonight count, not whoever waits in the menu or lobby.
 	local team = {}
-	for _, p in Players:GetPlayers() do
-		local d = Registry.DataService:Get(p)
+	for _, rec in Registry.RoundService:GetParticipants() do
+		local d = rec.player and Registry.DataService:Get(rec.player)
 		if d then
 			table.insert(team, d.lore or {})
 		end

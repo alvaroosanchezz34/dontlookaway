@@ -159,6 +159,16 @@ local function elapsed(): number
 	return os.clock() - roundStart
 end
 
+-- A team of veterans does not sit through the whole calm opening every night.
+local veteranTeam = false
+local function arrivalLimit(c): number
+	local limit = c.ArrivalDuration or 180
+	if veteranTeam then
+		limit = math.min(limit, GameConfig.VeteranArrival)
+	end
+	return limit
+end
+
 local function inStory(): number
 	return os.clock() - storyStartedAt
 end
@@ -743,7 +753,7 @@ local function storyStep()
 	local found = state and state.found or 0
 	local locks = locksReleased()
 	if story == Story.Arrival then
-		if t >= (c.ArrivalDuration or 180) then
+		if t >= arrivalLimit(c) then
 			HorrorDirector:TriggerOutage()
 		end
 	elseif story == Story.Unease then
@@ -944,6 +954,13 @@ function HorrorDirector:BeginRound(seed: number)
 	lastScareAt = os.clock() - 30
 	scaresThisRound = 0
 	usedScares = {}
+	veteranTeam = true
+	for _, p in Registry.PlayerService:GetAlive() do
+		local data = Registry.DataService:Get(p)
+		if not data or not data.flags.tutorialDone or (data.stats.rounds or 0) < GameConfig.VeteranRounds then
+			veteranTeam = false
+		end
+	end
 	budget = 0
 	nextParanoiaAt = os.clock() + 40
 	story = ""

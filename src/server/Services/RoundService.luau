@@ -213,12 +213,12 @@ function RoundService:PlayerEscaped(player: Player)
 		-- enough of the archive (Catalog/Lore); otherwise it stays blank
 		local hasPhoto = Registry.InventoryService:Has(player, "PHOTOGRAPH")
 		local data = Registry.DataService:Get(player)
-		local known = data and Lore.found(data.lore) or 0
-		rec.witness = hasPhoto and known >= Lore.WitnessRequired
+		local known = data and Lore.foundBeforeWitness(data.lore) or 0
+		rec.witness = hasPhoto and data ~= nil and Lore.canWitness(data.lore)
 		if hasPhoto and not rec.witness then
 			task.delay(2.5, function()
 				if player.Parent then
-					Net.fire(player, "Caption", { text = string.format("The photograph is blank. You don't know enough yet. (%d/%d archive entries)", known, Lore.WitnessRequired), duration = 6, speaker = "tape" })
+					Net.fire(player, "Caption", { text = string.format("The photograph is blank. You haven't read everything yet. (%d/%d archive entries)", known, Lore.WitnessRequired), duration = 6, speaker = "tape" })
 				end
 			end)
 		elseif rec.witness then
@@ -455,7 +455,8 @@ local function results()
 			})
 			local roster = {}
 			for _, other in participants do
-				table.insert(roster, { name = other.name, outcome = other.outcome or "LOST" })
+				-- someone who disconnected was not lost with the building: they left
+				table.insert(roster, { name = other.name, outcome = other.outcome or (if other.leftAlive and not other.player then "LEFT" else "LOST") })
 			end
 			Net.fire(player, "Results", { ending = personal[userId], team = team, summary = summary, reward = reward, roster = roster })
 		end

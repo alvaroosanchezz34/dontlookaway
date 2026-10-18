@@ -30,6 +30,7 @@ Net.Events = {
 	Gear = { rate = 3, burst = 6 },
 	Tool = { rate = 6, burst = 10 },
 	Premium = { rate = 1, burst = 3 },
+	SecurityCam = { rate = 4, burst = 8 }, -- out of the round: which camera to watch (0 = none)
 
 	-- server -> client
 	RoundState = {},

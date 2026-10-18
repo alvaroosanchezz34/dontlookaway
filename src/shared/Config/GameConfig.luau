@@ -234,6 +234,37 @@ GameConfig.Rewards = {
 	XPPerLock = 25,
 }
 
+-- Roblox badges, by achievement id (Catalog/Achievements). Create each badge on
+-- the Creator Dashboard (Engagement > Badges) and paste its id. 0 = no badge yet.
+GameConfig.Badges = {
+	FIRST_NIGHT = 0,
+	ESCAPED = 0,
+	MET_OBSERVER = 0,
+	SECRET_ROOM = 0,
+	THE_WITNESS = 0,
+	HARD_ESCAPE = 0,
+	NIGHTMARE = 0,
+	NOT_MY_FRIEND = 0,
+	PERFECT_INVESTIGATION = 0,
+	JOURNAL_ALL = 0,
+}
+
+-- A team where everyone has finished the tutorial and played this many rounds
+-- skips most of the calm ARRIVAL: the outage comes after VeteranArrival seconds
+-- (or the difficulty's ArrivalDuration, whichever is shorter).
+GameConfig.VeteranRounds = 3
+GameConfig.VeteranArrival = 75
+
+-- Security cameras (SecurityCamService): players out of the round watch
+-- through them, and a live camera holds The Observer like a pair of eyes.
+GameConfig.SecurityCams = {
+	Count = 8, -- cameras per building (every corridor, then large rooms)
+	Range = 70, -- studs
+	HalfAngle = 38, -- degrees from the lens axis
+	HoldTime = 8, -- seconds of live picture before the tape rewinds
+	Cooldown = 6, -- seconds of rewind (static)
+}
+
 GameConfig.Data = {
 	StoreName = "DLA_PlayerData_v1",
 	AutosaveInterval = 90,

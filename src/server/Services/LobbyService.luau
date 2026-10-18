@@ -58,6 +58,27 @@ local function canUse(player: Player?, value: string): boolean
 	return data.flags.nightmareUnlocked == true
 end
 
+-- The hardest difficulty, from `wanted` down, that every player in `list` has
+-- unlocked: a newcomer in a public server is never dragged into NIGHTMARE.
+local DIFFICULTY_LADDER = { Enums.Difficulty.Nightmare, Enums.Difficulty.Hard, Enums.Difficulty.Normal }
+local function bestFor(list: { Player }, wanted: string): string
+	local from = table.find(DIFFICULTY_LADDER, wanted) or #DIFFICULTY_LADDER
+	for i = from, #DIFFICULTY_LADDER do
+		local value = DIFFICULTY_LADDER[i]
+		local all = true
+		for _, p in list do
+			if not canUse(p, value) then
+				all = false
+				break
+			end
+		end
+		if all then
+			return value
+		end
+	end
+	return Enums.Difficulty.Normal
+end
+
 function LobbyService:Broadcast()
 	local list = {}
 	local h = host()
@@ -232,11 +253,17 @@ function LobbyService:Start()
 					if not canUse(host(), difficulty) then
 						difficulty = Enums.Difficulty.Normal
 					end
+					local chosen = bestFor(readyList, difficulty)
+					if chosen ~= difficulty then
+						for _, p in readyList do
+							Net.fire(p, "Notify", { kind = "info", text = "Tonight runs on " .. chosen .. ": not everyone has unlocked " .. difficulty .. " yet." })
+						end
+					end
 					for _, p in readyList do
 						ready[p] = false
 					end
 					task.spawn(function()
-						Registry.RoundService:StartRound(readyList, difficulty)
+						Registry.RoundService:StartRound(readyList, chosen)
 					end)
 				end
 				LobbyService:Broadcast()

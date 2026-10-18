@@ -260,6 +260,8 @@ local function canMakeOut(viewer: Player, point: Vector3): boolean
 	return Registry.LightingService:IsLit(point)
 end
 
+local camHoldNotified: { [Player]: number } = {}
+
 -- Players currently holding the Observer in place.
 local function watchers(): { Player }
 	local list = {}
@@ -273,6 +275,20 @@ local function watchers(): { Player }
 				if Registry.PlayerService:IsLookingAt(p, pt, "screen", 140, model) and canMakeOut(p, pt) then
 					table.insert(list, p)
 					break
+				end
+			end
+		end
+	end
+	-- out of the round, watching through a security camera: the dead keep it
+	-- still too (SecurityCamService; the same forced blink applies to them)
+	local cams = Registry.SecurityCamService
+	if cams then
+		for _, p in cams:LiveViewers() do
+			if not isBlinking(p) and not table.find(list, p) and cams:ViewerSees(p, points, model) then
+				table.insert(list, p)
+				if not camHoldNotified[p] or os.clock() - camHoldNotified[p] > 12 then
+					camHoldNotified[p] = os.clock()
+					Net.fire(p, "Notify", { kind = "team", text = "IT STOPPED.", sub = "It holds still while you watch. Don't look away." })
 				end
 			end
 		end
@@ -337,6 +353,9 @@ end
 
 local function unseenAt(spot: Vector3): boolean
 	local pts = { spot + Vector3.new(0, 8.5, 0), spot + Vector3.new(0, 4, 0) }
+	if Registry.SecurityCamService and Registry.SecurityCamService:AnySees(pts) then
+		return false
+	end
 	return not Registry.PlayerService:CanAnyoneSee(pts, "periphery", 240)
 end
 
@@ -1127,7 +1146,7 @@ local function tick(dt: number)
 		elseif data.seenAt then
 			data.lookAwayFor += dt
 			-- gone the moment they look away. Never let them see it leave.
-			if data.lookAwayFor > 0.3 and not Registry.PlayerService:CanAnyoneSee(samplePoints(), "periphery", 240, model) then
+			if data.lookAwayFor > 0.3 and not Registry.PlayerService:CanAnyoneSee(samplePoints(), "periphery", 240, model) and not (Registry.SecurityCamService and Registry.SecurityCamService:AnySees(samplePoints(), model)) then
 				park()
 				return
 			end
