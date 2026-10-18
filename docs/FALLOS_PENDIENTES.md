@@ -11,6 +11,13 @@ Studio.
 
 ## 0. Recursos subidos por otra cuenta (probable causa de varios fallos)
 
+> **Comprobado el 18-10-2026 en Studio: no hace falta subir nada.** Los 195 IDs
+> de `AssetIds.luau` (materiales, calcomanías, grano, audio, Observer, pieles y
+> las 17 mallas de props con sus mapas) son del grupo Unreality Works, y en Play
+> carga todo: "10 meshes loaded" y "prop meshes: 17 of 17 in use". El aviso de
+> `rbxassetid://203785492` no es del juego (no está en ningún script ni
+> propiedad del place): lo carga Studio. Lo de abajo queda como historial.
+
 **Visto en Studio:** con los modelos del Observer que subió la otra cuenta,
 en tu place solo cargó la cabeza que subiste tú. El cuerpo salió con el rig
 de piezas de emergencia. Ya está corregido: `AssetIds.Observer.models` apunta
