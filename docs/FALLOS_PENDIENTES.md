@@ -436,3 +436,7 @@ Reglas, para que no rompa la partida:
 Todo se ajusta en `GameConfig.SecurityCams`. Código: `SecurityCamService` (servidor, decide), `SecurityCamController` (cliente, pinta) y tres puntos de `ObserverService` (`watchers`, `unseenAt` y el avistamiento).
 
 **Comprobar en Studio** (Start con 2 jugadores): matar a uno desde el panel F8, pulsar C, buscar al Observer en una cámara con la corriente restaurada y ver que se queda quieto mientras el vivo le da la espalda; que durante el apagón salga NO SIGNAL; que al acabar los 8 s rebobine y el Observer vuelva a moverse; que ninguna cámara quede metida en una pared (si alguna mira a la nada, el problema está en `mountFor`).
+
+**Probado en Studio (18-10-2026, un jugador con estado DEAD simulado en el servidor):** 7-8 cámaras, ninguna en una pared; LIVE 8 s y REWIND 6 s; cambiar de cámara no reinicia la cinta; con el apagón, STATIC y la cinta parada; piloto rojo solo en LIVE. Con el Observer delante de la CAM 01, WATCHED los 6 s de LIVE sin moverse un stud, y al rebobinar se mueve. Falta ver con 2 jugadores reales la interfaz del cliente (C, NO SIGNAL).
+
+**Arreglado al probarlo:** el Observer y el Mimic buscaban camino con un radio de agente de 1.6 y 1.5, y con eso el navmesh no pasa por ninguna puerta. `pathOk` fallaba siempre, así que ninguna caza llegaba a empezar y el Observer no podía andar de una sala a otra (solo se recolocaba). Ahora el radio es 1 en los dos.

@@ -362,7 +362,7 @@ end
 -- Is there a walkable path between two points? (true when pathfinding is unavailable)
 local function pathOk(a: Vector3, b: Vector3): boolean
 	local okCreate, path = pcall(function()
-		return PathfindingService:CreatePath({ AgentRadius = 1.6, AgentHeight = 9, AgentCanJump = false })
+		return PathfindingService:CreatePath({ AgentRadius = 1, AgentHeight = 9, AgentCanJump = false })
 	end)
 	if not okCreate or not path then
 		return true
@@ -425,7 +425,7 @@ local function firstAhead(list, pos: Vector3): number
 	return math.min(#list, best + 1)
 end
 
-local PATH_PARAMS = { AgentRadius = 1.6, AgentHeight = 9, AgentCanJump = false, WaypointSpacing = 4 }
+local PATH_PARAMS = { AgentRadius = 1, AgentHeight = 9, AgentCanJump = false, WaypointSpacing = 4 }
 
 local function computePath(goal: Vector3)
 	if not root or pathPending then

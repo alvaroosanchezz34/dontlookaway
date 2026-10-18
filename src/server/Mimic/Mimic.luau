@@ -52,7 +52,7 @@ Mimic.Animations = {
 
 local SKIN = Color3.fromRGB(150, 150, 142) -- bloodless grey
 local CLOTH_TINT = Color3.fromRGB(150, 146, 142) -- washed-out clothes
-local PATH_PARAMS = { AgentRadius = 1.5, AgentHeight = 6.5, AgentCanJump = false, WaypointSpacing = 4 }
+local PATH_PARAMS = { AgentRadius = 1, AgentHeight = 6.5, AgentCanJump = false, WaypointSpacing = 4 }
 local STUCK_AFTER = 2.2 -- seconds trying to move without making progress
 
 type Data = {
