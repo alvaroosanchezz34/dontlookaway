@@ -535,6 +535,45 @@ function DataService:SaveNow(player: Player): boolean
 	return ok == true and wrote == true
 end
 
+-- Before a teleport: save and drop the session lock so the next server loads
+-- the profile at once. Nothing saves after this (until Reclaim). False when
+-- the save failed: the player must not leave with unsaved progress.
+function DataService:Release(player: Player): boolean
+	local profile = profiles[player]
+	if not profile then
+		return false
+	end
+	if profile.released then
+		return true -- temporary profile: nothing of it is ever saved
+	end
+	local ok, wrote = saveProfile(player, true)
+	profile.handedOff = ok == true
+	return ok == true and wrote == true
+end
+
+-- The teleport failed after Release: take the lock back and keep saving.
+function DataService:Reclaim(player: Player)
+	local profile = profiles[player]
+	if not profile or not profile.handedOff then
+		return
+	end
+	profile.handedOff = nil
+	local data = loadProfile(player)
+	if not data then
+		return
+	end
+	profile.data = data
+	profile.released = false
+	if player.Parent then
+		DataService.Changed:Fire(player, data)
+	else
+		-- left while the lock was being taken back: give it up again
+		profiles[player] = profile
+		saveProfile(player, true)
+		profiles[player] = nil
+	end
+end
+
 -- Is this a real profile that saves (not a temporary one)?
 function DataService:IsPersistent(player: Player): boolean
 	local profile = profiles[player]

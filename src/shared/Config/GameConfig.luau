@@ -12,6 +12,15 @@ GameConfig.Version = "1.0.0"
 
 GameConfig.MaxPlayers = 4
 
+-- Lobby + matchmaking (MatchService). The lobby place (30 players) sends groups
+-- of 1-MaxPlayers to a reserved server of the match place, which sends them
+-- back when the night is over. Either id at 0 (or Studio): one place does it all.
+GameConfig.Places = {
+	Lobby = 103454404027543,
+	Match = 92802733924447,
+	ArrivalWait = 25, -- seconds a match server waits for the rest of its group
+}
+
 -- Lines on the FIELD BULLETIN board in the lobby (max 7).
 GameConfig.News = {
 	"v" .. GameConfig.Version .. "  The Field Office is open.",

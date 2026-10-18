@@ -148,7 +148,7 @@ local function onLobby(player: Player, action: any, value: any)
 		end
 		LobbyService:SendToLobby(player)
 	elseif action == "ready" then
-		if status ~= Status.Lobby or Registry.RoundService:GetState() ~= Enums.RoundState.Lobby then
+		if status ~= Status.Lobby or Registry.RoundService:GetState() ~= Enums.RoundState.Lobby or Registry.MatchService:IsLeaving(player) then
 			return
 		end
 		ready[player] = value == true
@@ -235,7 +235,8 @@ function LobbyService:Start()
 	task.spawn(function()
 		while true do
 			task.wait(0.5)
-			if Registry.RoundService:GetState() == Enums.RoundState.Lobby then
+			-- a match server starts its one night itself (MatchService)
+			if Registry.RoundService:GetState() == Enums.RoundState.Lobby and not Registry.MatchService:IsMatch() then
 				local players = lobbyPlayers()
 				local readyList = {}
 				for _, p in players do
@@ -253,18 +254,27 @@ function LobbyService:Start()
 					if not canUse(host(), difficulty) then
 						difficulty = Enums.Difficulty.Normal
 					end
-					local chosen = bestFor(readyList, difficulty)
-					if chosen ~= difficulty then
-						for _, p in readyList do
-							Net.fire(p, "Notify", { kind = "info", text = "Tonight runs on " .. chosen .. ": not everyone has unlocked " .. difficulty .. " yet." })
-						end
-					end
 					for _, p in readyList do
 						ready[p] = false
 					end
-					task.spawn(function()
-						Registry.RoundService:StartRound(readyList, chosen)
-					end)
+					-- lobby place: groups of up to MaxPlayers, each to its own match server
+					local match = Registry.MatchService
+					local groups = if match:IsLobby() then match.split(readyList, GameConfig.MaxPlayers) else { readyList }
+					for _, group in groups do
+						local chosen = bestFor(group, difficulty)
+						if chosen ~= difficulty then
+							for _, p in group do
+								Net.fire(p, "Notify", { kind = "info", text = "Tonight runs on " .. chosen .. ": not everyone has unlocked " .. difficulty .. " yet." })
+							end
+						end
+						task.spawn(function()
+							if match:IsLobby() then
+								match:SendGroup(group, chosen)
+							else
+								Registry.RoundService:StartRound(group, chosen)
+							end
+						end)
+					end
 				end
 				LobbyService:Broadcast()
 			end

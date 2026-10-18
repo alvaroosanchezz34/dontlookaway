@@ -479,6 +479,10 @@ local function returnToLobby()
 	exploringStartedAt = 0
 	endingReason = nil
 	Registry.LightingService:ApplyPreset("LOBBY", 1.5)
+	-- a match server plays one night: everyone goes back to the lobby place
+	if Registry.MatchService:IsMatch() then
+		Registry.MatchService:ReturnHome(Players:GetPlayers())
+	end
 	for _, p in Players:GetPlayers() do
 		local status = Registry.PlayerService:GetStatus(p)
 		if status ~= Status.Menu then

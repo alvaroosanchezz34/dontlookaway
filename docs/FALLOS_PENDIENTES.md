@@ -440,3 +440,16 @@ Todo se ajusta en `GameConfig.SecurityCams`. Código: `SecurityCamService` (serv
 **Probado en Studio (18-10-2026, un jugador con estado DEAD simulado en el servidor):** 7-8 cámaras, ninguna en una pared; LIVE 8 s y REWIND 6 s; cambiar de cámara no reinicia la cinta; con el apagón, STATIC y la cinta parada; piloto rojo solo en LIVE. Con el Observer delante de la CAM 01, WATCHED los 6 s de LIVE sin moverse un stud, y al rebobinar se mueve. Falta ver con 2 jugadores reales la interfaz del cliente (C, NO SIGNAL).
 
 **Arreglado al probarlo:** el Observer y el Mimic buscaban camino con un radio de agente de 1.6 y 1.5, y con eso el navmesh no pasa por ninguna puerta. `pathOk` fallaba siempre, así que ninguna caza llegaba a empezar y el Observer no podía andar de una sala a otra (solo se recolocaba). Ahora el radio es 1 en los dos.
+
+## 13. Lobby con emparejamiento (18-10-2026)
+
+El place de inicio (`103454404027543`) es el lobby, para 30 jugadores. Cuando acaba la cuenta atrás, los que están listos salen en grupos de hasta 4 (por orden de llegada), cada grupo a su propio servidor reservado del place de partida (`92802733924447`). La dificultad se ajusta a cada grupo. La partida espera al grupo 25 s como mucho, juega una noche y devuelve a todos al lobby. Antes de cada teletransporte se guarda el perfil y se libera su bloqueo; si el viaje falla, en el lobby el jugador se queda y recupera el bloqueo, y en la partida se le pide que vuelva a entrar.
+
+IDs en `GameConfig.Places`. Con cualquiera a 0, y siempre en Studio, todo funciona en un solo place como antes. Código: `MatchService`, `DataService:Release/Reclaim`, y un punto en `LobbyService` y otro en `RoundService` (`returnToLobby`).
+
+**Para que funcione en Roblox:**
+1. Publicar el mismo juego en los dos places: Archivo → Publicar en Roblox con el lobby abierto, y después Publicar como… → el place Partida (el código decide qué hace cada uno por su PlaceId).
+2. Máximo de jugadores: 30 en el lobby y 4 en Partida (create.roblox.com → el place → Configuración).
+3. Probarlo desde el cliente de Roblox, no desde Studio: Studio no puede teletransportar. Con 2 cuentas: entrar, darle a listo y comprobar que ambas aparecen en la misma partida y vuelven juntas al lobby con el progreso guardado.
+
+**Sin hacer:** no se agrupa por amigos ni por grupo (salen por orden de llegada); quien se desconecta de una partida no puede volver a ella.
